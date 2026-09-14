@@ -1,0 +1,32 @@
+# Binaries
+/novex-printer-agent
+/novex-printer-agent.exe
+/NovexPrinterAgent
+/NovexPrinterAgent.exe
+/dist/
+/build/
+*.app/
+*.dmg
+*.AppImage
+*.deb
+*.msi
+*.zip
+*.tar.gz
+
+# Go
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# SDK
+sdk/typescript/node_modules/
+sdk/typescript/dist/
+sdk/typescript/*.tsbuildinfo
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

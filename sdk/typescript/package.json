@@ -1,0 +1,27 @@
+{
+  "name": "novex-printer-agent",
+  "version": "1.0.0",
+  "description": "Tiny TypeScript client for the Novex Printer Agent (localhost print bridge). Zero dependencies.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "printing",
+    "escpos",
+    "thermal-printer",
+    "qz-tray"
+  ],
+  "author": "MenuVex",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
