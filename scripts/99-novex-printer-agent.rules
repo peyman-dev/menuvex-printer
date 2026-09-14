@@ -1,0 +1,4 @@
+# udev rule: let the "lp" group write USB printers claimed by usblp.
+# Install: sudo cp 99-novex-printer-agent.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", MODE="0664", GROUP="lp"
+KERNEL=="lp[0-9]*", SUBSYSTEM=="usbmisc", MODE="0664", GROUP="lp"
