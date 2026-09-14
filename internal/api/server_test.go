@@ -282,6 +282,27 @@ func TestCORSEnforced(t *testing.T) {
 	}
 }
 
+func TestRootServesConsole(t *testing.T) {
+	c, _, _ := newTestEnv(t)
+	c.token = "" // the console page itself needs no auth
+	st, hdr, body := c.doRaw("GET", "/", nil, "", nil)
+	if st != 200 {
+		t.Fatalf("console status %d", st)
+	}
+	if ct := hdr.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Fatalf("unexpected content type %q", ct)
+	}
+	if !strings.Contains(string(body), "Novex Printer Agent") ||
+		!strings.Contains(string(body), "btnConnect") {
+		t.Fatalf("console HTML missing markers")
+	}
+	// Unknown paths still 404 (and still require auth).
+	st, _, _ = c.doRaw("GET", "/nope", nil, "", nil)
+	if st != 401 {
+		t.Fatalf("expected 401, got %d", st)
+	}
+}
+
 func TestNotFoundAndMethodNotAllowed(t *testing.T) {
 	c, _, _ := newTestEnv(t)
 	st, out := c.doJSON("GET", "/api/v1/nope", nil)

@@ -103,6 +103,33 @@ func TestCORS(t *testing.T) {
 		t.Fatalf("expected 403, got %d", rec.Code)
 	}
 
+	// Same origin (the built-in console) passes without being listed.
+	req = httptest.NewRequest("POST", "http://127.0.0.1:8765/api/v1/printers", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:8765")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("same-origin rejected: %d", rec.Code)
+	}
+
+	// Same host but different port is NOT same-origin.
+	req = httptest.NewRequest("POST", "http://127.0.0.1:8765/api/v1/printers", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:9999")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rec.Code)
+	}
+
+	// "null" origin (file:// pages) is never same-origin.
+	req = httptest.NewRequest("GET", "http://127.0.0.1:8765/", nil)
+	req.Header.Set("Origin", "null")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for null origin, got %d", rec.Code)
+	}
+
 	// Preflight from trusted origin: answered with 204 + allow headers.
 	req = httptest.NewRequest("OPTIONS", "/", nil)
 	req.Header.Set("Origin", "http://localhost:3000")

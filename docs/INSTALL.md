@@ -1,5 +1,7 @@
 # Install & run the Novex Printer Agent
 
+> راهنمای قدم‌به‌قدم فارسی (صفر تا صد): [SETUP_FA.md](SETUP_FA.md)
+
 The agent is a **single static binary** — no Java, no runtime, no admin
 rights needed for the default user-level install.
 
@@ -107,8 +109,8 @@ Useful flags:
 ```
 
 Verify: `curl http://127.0.0.1:8765/health` → `{"status":"ok",...}`,
-then open [demo/index.html](../demo/index.html) in a browser, paste the
-token and run a test print.
+then open the built-in console at http://127.0.0.1:8765/ in a browser,
+paste the token and run a test print.
 
 ## 4. Autostart details
 

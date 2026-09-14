@@ -2,6 +2,7 @@ package security
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -28,6 +29,8 @@ func OriginAllowed(trusted []string, origin string) bool {
 // CORS wraps next with explicit-origin CORS handling:
 //
 //   - Requests without Origin pass through untouched.
+//   - Same-origin requests (e.g. the built-in console at /) always pass:
+//     only documents actually served by the agent carry its origin.
 //   - Requests with a trusted Origin get ACAO + Vary headers.
 //   - OPTIONS preflights from trusted origins are answered directly.
 //   - Requests with an untrusted Origin are rejected via forbidden.
@@ -35,6 +38,11 @@ func CORS(trusted []string, forbidden http.Handler, next http.Handler) http.Hand
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if isSameOrigin(r, origin) {
+			w.Header().Set("Vary", "Origin")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -53,4 +61,13 @@ func CORS(trusted []string, forbidden http.Handler, next http.Handler) http.Hand
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// isSameOrigin reports whether origin matches the request's own host:port.
+func isSameOrigin(r *http.Request, origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return u.Host == r.Host
 }

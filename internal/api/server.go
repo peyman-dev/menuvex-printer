@@ -1,7 +1,8 @@
 // Package api exposes the localhost HTTP + WebSocket API.
 //
-// Endpoints (all JSON; all but /health require "Authorization: Bearer <token>"):
+// Endpoints (all JSON; all but /health and / require "Authorization: Bearer <token>"):
 //
+//	GET    /                              built-in web console (no auth; API calls from it still need the token)
 //	GET    /health
 //	GET    /api/v1/info
 //	GET    /api/v1/printers[?scan=true&ports=9100&scanTimeoutMs=8000]
@@ -19,6 +20,7 @@ package api
 
 import (
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -35,6 +37,9 @@ import (
 	"github.com/menuvex/novex-printer-agent/internal/security"
 	"github.com/menuvex/novex-printer-agent/internal/usb"
 )
+
+//go:embed demo.html
+var demoHTML string
 
 // MaxPrintBytes caps a single print payload (10 MiB — far above any receipt).
 const MaxPrintBytes = 10 << 20
@@ -96,7 +101,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/v1/info", s.requireAuth(s.handleInfo))
 	mux.HandleFunc("/api/v1/printers", s.requireAuth(s.handlePrinters))
 	mux.HandleFunc("/api/v1/printers/", s.requireAuth(s.handlePrinterItem))
-	mux.HandleFunc("/", s.requireAuth(s.handleNotFound))
+	mux.HandleFunc("/", s.handleRoot)
 	return security.CORS(s.cfg.TrustedOrigins, http.HandlerFunc(s.handleForbiddenOrigin), mux)
 }
 
@@ -111,6 +116,24 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // ---------- generic handlers ----------
+
+// handleRoot serves the built-in web console at exactly "/".
+// Anything else under "/" falls through to the authenticated 404.
+func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		s.requireAuth(s.handleNotFound)(w, r)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeMethodNotAllowed(w, http.MethodGet)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodGet {
+		_, _ = io.WriteString(w, demoHTML)
+	}
+}
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

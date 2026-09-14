@@ -27,6 +27,19 @@ they contain `:` characters, e.g. `tcp%3A192.168.1.50%3A9100`.
 
 ## Endpoints
 
+### `GET /` — built-in web console (no auth)
+
+The agent serves its own test console (connect, list printers, raw ESC/POS
+test print, custom hex payload, WebSocket log). Open it in a browser:
+
+```
+http://127.0.0.1:8765/
+```
+
+The page itself needs no password; every API call it makes still requires
+the token, which you paste into the page. Because the console is
+same-origin with the API, it works with zero CORS configuration.
+
 ### `GET /health` (no auth)
 
 Liveness probe for "Agent: Connected" indicators.
@@ -232,9 +245,10 @@ Stable `error.code` values — match on these, never on `message`:
 
 Only origins listed in `trustedOrigins` are accepted (exact match; `"*"`
 may be configured explicitly but is discouraged). Requests without an
-`Origin` header (curl, native apps) always pass. Preflights (`OPTIONS`)
-are answered with `Allow-Methods: GET, POST, DELETE, OPTIONS` and
-`Allow-Headers: Authorization, Content-Type`.
+`Origin` header (curl, native apps) always pass, and same-origin requests
+(the built-in console calling its own agent) always pass. Preflights
+(`OPTIONS`) are answered with `Allow-Methods: GET, POST, DELETE, OPTIONS`
+and `Allow-Headers: Authorization, Content-Type`.
 
 ## Configuration
 

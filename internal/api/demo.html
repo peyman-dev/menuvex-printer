@@ -93,8 +93,16 @@ const $ = (id) => document.getElementById(id);
 const store = { load(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } },
                 save(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
-$("host").value = store.load("novex.host", "127.0.0.1");
-$("port").value = store.load("novex.port", "8765");
+let defaultHost = "127.0.0.1", defaultPort = "8765";
+try {
+  // When served by the agent itself (http://127.0.0.1:8765/), talk back to it.
+  if (window.location && window.location.protocol.indexOf("http") === 0 && window.location.hostname) {
+    defaultHost = window.location.hostname;
+    if (window.location.port) defaultPort = window.location.port;
+  }
+} catch {}
+$("host").value = store.load("novex.host", defaultHost);
+$("port").value = store.load("novex.port", defaultPort);
 $("token").value = store.load("novex.token", "");
 
 function log(...args) {

@@ -23,14 +23,14 @@ EPL, CPCL (anything) itself; the agent delivers the bytes untouched.
 - **Local API**: JSON over HTTP + optional WebSocket events, bearer token,
   explicit CORS origins, loopback-only bind by default.
 - **TypeScript SDK**: `sdk/typescript` — zero dependencies, browser + Node.
-- **Demo page**: `demo/index.html` — connect, list, test-print raw ESC/POS.
+- **Web console**: served by the agent at `/` — connect, list, test-print raw ESC/POS.
 
 ## 1. Project structure
 
 ```
 cmd/agent/                  agent entrypoint (flags, startup, shutdown)
 internal/
-  api/                      HTTP routes + stdlib-only WebSocket hub
+  api/                      HTTP routes + WebSocket hub + embedded web console (demo.html)
   printer/                  printing engine: registry, TCP transport, error codes
   network/                  LAN subnet scanner (open printer ports)
   usb/                      USBPrinter interface + Linux/Windows/macOS backends + mock
@@ -38,7 +38,7 @@ internal/
   config/                   OS-specific config file + token generation
   platform/                 version + start-on-login (all OSes, pure Go)
 sdk/typescript/             TypeScript SDK (zero deps) + tests
-demo/index.html             browser demo / manual test page
+(web console served by the agent itself at http://127.0.0.1:8765/)
 scripts/                    installers, .deb builder, Inno Setup script, udev rule
 docs/                       API.md · USB.md · INSTALL.md
 ci/github-ci.yml              GitHub Actions matrix (copy to .github/workflows/ — see ci/README.md)
@@ -62,9 +62,10 @@ go test ./...
 cd sdk/typescript && npm install && npm test
 ```
 
-Open `demo/index.html` in a browser, paste the token, and test-print.
-For TCP testing without hardware, point it at any `tcp:127.0.0.1:<port>`
-listener (the Go tests spin such mocks up automatically).
+Open the built-in console at http://127.0.0.1:8765/ in a browser, paste
+the token, and test-print. For TCP testing without hardware, point it at
+any `tcp:127.0.0.1:<port>` listener (the Go tests spin such mocks up
+automatically).
 
 ## 3. How to build Windows
 
@@ -113,6 +114,7 @@ The agent manages its own start-on-login:
 Full reference: [docs/API.md](docs/API.md).
 
 ```
+GET    /                              built-in web console (no auth)
 GET    /health                        (no auth)
 GET    /api/v1/info
 GET    /api/v1/printers[?scan=true&ports=9100]
