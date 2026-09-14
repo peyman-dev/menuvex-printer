@@ -133,9 +133,9 @@ func enumLocalPrinters() ([]printerInfo2, error) {
 	}
 	out := make([]printerInfo2, 0, returned)
 	elem := unsafe.Sizeof(printerInfo2{})
-	base := uintptr(unsafe.Pointer(&buf[0]))
+	base := unsafe.Pointer(&buf[0])
 	for i := uint32(0); i < returned; i++ {
-		info := (*printerInfo2)(unsafe.Pointer(base + uintptr(i)*elem))
+		info := (*printerInfo2)(unsafe.Add(base, uintptr(i)*elem))
 		out = append(out, *info)
 	}
 	return out, nil

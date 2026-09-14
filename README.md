@@ -41,7 +41,7 @@ sdk/typescript/             TypeScript SDK (zero deps) + tests
 demo/index.html             browser demo / manual test page
 scripts/                    installers, .deb builder, Inno Setup script, udev rule
 docs/                       API.md · USB.md · INSTALL.md
-.github/workflows/ci.yml    build + test matrix (win/mac/linux)
+ci/github-ci.yml              GitHub Actions matrix (copy to .github/workflows/ — see ci/README.md)
 ```
 
 Platform code is isolated: `internal/usb/usb_{linux,windows,darwin}.go`
@@ -202,13 +202,21 @@ Honest v1 boundaries (details in [docs/USB.md](docs/USB.md)):
 
 ## Verification status
 
-- `go test ./...` passes on **Linux, Windows and macOS** via GitHub Actions
-  (see [CI](.github/workflows/ci.yml)), covering TCP printing, concurrency,
-  timeouts, auth, CORS, API errors, USB mocks and the Linux sysfs / macOS
-  IPP codecs.
-- All 6 platform binaries (`windows/darwin/linux × amd64/arm64`) build
-  with `CGO_ENABLED=0` in CI.
-- TypeScript SDK: `tsc` strict build + 9 `node --test` tests pass.
+Verified with a real Go toolchain (Linux), all green:
+
+- `gofmt` clean, `go vet ./...` clean on **linux, windows and darwin**
+  (cross-`vet` compiles every platform file + test).
+- `go test ./...` passes, including with `-race`: TCP printing, exact-byte
+  delivery, concurrent same/different-printer writes, timeouts, refused
+  connections, auth, CORS, API errors, LAN scan, WebSocket events, USB
+  mocks, Linux sysfs parsing and the macOS IPP codec.
+- All 6 binaries (`windows/darwin/linux × amd64/arm64`) build with
+  `CGO_ENABLED=0` — single static binaries (~7 MB).
+- End-to-end: real binary + mock TCP printer + real SDK — byte-exact
+  ESC/POS delivery over JSON and octet-stream, plus live WS events.
+- TypeScript SDK: `tsc` strict build + 9/9 `node --test` tests pass.
+- `ci/github-ci.yml` (copy to `.github/workflows/`) repeats all of this
+  on Windows and macOS runners.
 - Real-hardware USB printing is implemented against documented OS APIs but,
   like any v1, wants field reports per printer model — please open issues
   with make/model/OS when something misbehaves.
