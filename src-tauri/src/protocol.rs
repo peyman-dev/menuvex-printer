@@ -5,7 +5,7 @@ pub const MAX_MESSAGE: usize = 128 * 1024;
 pub fn valid_id(s: &str) -> bool {
     !s.is_empty() &&
         s.len() <= 128 &&
-        s.bytes().all(|c| (c.is_ascii_alphanumeric() || b"-_: .".contains(&c))) &&
+        s.bytes().all(|c| c.is_ascii_alphanumeric() || b"-_: .".contains(&c)) &&
         !s.contains(' ')
 }
 pub fn text_ok(s: &str, limit: usize) -> bool {
@@ -153,6 +153,24 @@ pub fn parse(text: &str) -> Result<Request> {
     body.remove("version");
     body.remove("requestId");
     let command: Command = serde_json::from_value(body.into())?;
+    // Serde's internally tagged unit variants can ignore extra fields even with
+    // deny_unknown_fields. Enforce the complete envelope allowlist explicitly
+    // for every command, including zero-argument commands such as ping.
+    let command_fields: &[&str] = match &command {
+        Command::Hello | Command::Ping | Command::AgentStatus |
+        Command::PrintersList | Command::QueueList | Command::Shutdown => &[],
+        Command::Authenticate { .. } => &["proof"],
+        Command::PrinterGet { .. } => &["printerId"],
+        Command::PrinterTest { .. } => &["printerId", "jobId"],
+        Command::Print { .. } => &["printerId", "jobId", "document"],
+        Command::PrintStatus { .. } | Command::QueueCancel { .. } => &["jobId"],
+    };
+    if obj.keys().any(|key| {
+        !["version", "requestId", "type"].contains(&key.as_str()) &&
+            !command_fields.contains(&key.as_str())
+    }) {
+        return Err(AgentError::new("INVALID_PAYLOAD", "Unknown request field"));
+    }
     match &command {
         Command::Print { job_id, printer_id, document } => {
             ids(&[job_id, printer_id])?;
@@ -184,6 +202,65 @@ mod tests {
         assert!(parse(r#"{"version":1,"requestId":"x","type":"ping","host":"1.2.3.4"}"#).is_err());
         assert!(parse(r#"{"version":1,"requestId":"x","type":"ping"}"#).is_ok());
     }
+    #[test]
+    fn all_commands_reject_unexpected_envelope_fields() {
+        use serde_json::json;
+        let commands = [
+            json!({"type":"hello"}),
+            json!({"type":"authenticate","proof":"signature"}),
+            json!({"type":"ping"}),
+            json!({"type":"agent.status"}),
+            json!({"type":"printers.list"}),
+            json!({"type":"printer.get","printerId":"p1"}),
+            json!({"type":"printer.test","printerId":"p1","jobId":"test:1"}),
+            json!({"type":"print","printerId":"p1","jobId":"order:1",
+                "document":{"type":"receipt","lines":["test"]}}),
+            json!({"type":"print.status","jobId":"order:1"}),
+            json!({"type":"queue.list"}),
+            json!({"type":"queue.cancel","jobId":"order:1"}),
+            json!({"type":"agent.shutdown"}),
+        ];
+        for mut command in commands {
+            command["version"] = json!(1);
+            command["requestId"] = json!("r1");
+            assert!(parse(&command.to_string()).is_ok(), "Valid command: {command}");
+            for (field, value) in [
+                ("host", json!("1.2.3.4")),
+                ("unexpected", json!(null)),
+                ("payload", json!({"raw": [27, 64]})),
+            ] {
+                let mut invalid = command.clone();
+                invalid[field] = value;
+                let error = parse(&invalid.to_string()).expect_err("Unknown field accepted");
+                assert_eq!(error.code, "INVALID_PAYLOAD", "Command: {invalid}");
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_fields_inside_documents() {
+        use serde_json::json;
+        let mut request = json!({"version":1,"requestId":"r1","type":"print",
+            "printerId":"p1","jobId":"order:1",
+            "document":{"type":"receipt","lines":["test"],"raw":[27,64]}});
+        assert!(parse(&request.to_string()).is_err());
+        request["document"] = json!({"type":"invoice","data":{
+            "storeName":"Store","orderNumber":"1","items":[
+                {"name":"Item","quantity":1,"unitPrice":100,"unknown":true}
+            ],"total":100
+        }});
+        assert!(parse(&request.to_string()).is_err());
+    }
+
+    #[test]
+    fn required_command_fields_are_still_enforced() {
+        for command in ["authenticate", "printer.get", "printer.test", "print",
+            "print.status", "queue.cancel"] {
+            let request = serde_json::json!({"version":1,"requestId":"r1","type":command});
+            assert!(parse(&request.to_string()).is_err(), "Command: {command}");
+        }
+    }
+
     #[test]
     fn rejects_commands_and_control_characters() {
         assert!(parse(r#"{"version":1,"requestId":"x","type":"exec"}"#).is_err());
