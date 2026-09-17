@@ -9,7 +9,7 @@ function Run-Native([string]$Exe, [string[]]$Arguments) {
   $ErrorActionPreference = $PreviousPreference
   $Output | ForEach-Object { Write-Host $_ }
   if ($ExitCode -ne 0) {
-    $Errors = ($Output | Where-Object { "$_" -match '(?i)error|failed|exception' } | Select-Object -Last 8) -join ' | '
+    $Errors = ($Output | Where-Object { "$_" -match '(?i)error|failed|exception' } | Select-Object -First 8) -join ' | '
     if ($env:GITHUB_ACTIONS -eq 'true') {
       $Escaped = $Errors.Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
       Write-Host "::error::$Exe failed: $Escaped"
