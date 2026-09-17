@@ -32,6 +32,7 @@ export const documentSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('receipt'), lines: z.array(text(500)).min(1).max(100) }),
 ]);
 export const connectionSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('spooler'), queueName: z.string().min(1).max(512) }),
   z.strictObject({
     type: z.literal('network'),
     host: z.string(),

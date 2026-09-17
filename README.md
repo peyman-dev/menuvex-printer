@@ -17,6 +17,10 @@ Standalone Tauri 2 / Rust / React agent for local USB and LAN ESC/POS printing, 
 - SDK reconnect, response validation, subscriptions, migration adapters, durable browser routing and optional React provider.
 - Device-specific Linux udev setup helper; per-OS native candidate CI; bounded daily logs without tokens/order contents.
 
+## Windows 7 Legacy variant
+
+A separate native Win32/C++ Agent is now implemented under [`legacy-windows/`](legacy-windows/README.md). It uses installed Windows RAW spooler queues, SQLite and Uniscribe Persian raster printing, with the same HMAC protocol and an additive `spooler` SDK descriptor. The Windows installer collection stage builds x86/x64 Legacy candidates in addition to the modern output. Real Windows 7 SP1/driver/browser acceptance remains required; no compatibility certification is claimed from modern CI alone.
+
 ## Installer downloads for café testing
 
 For owner setup and downloading compiled `.exe`, `.dmg`, `.deb` and `.AppImage` files (not source), follow [the Persian installer guide](docs/installers-fa.md). The workflow template produces clearly named installer-only artifacts with SHA-256 checksums. It must first be activated by a GitHub account with workflow-write permission; no ready binary is claimed until native builds succeed.

@@ -28,7 +28,9 @@ export function PrinterCard({
           <span className="mono muted">
             {p.connection.type === 'network'
               ? `${p.connection.host}:${p.connection.port}`
-              : `USB · ${p.connection.vendorId.toString(16)}:${p.connection.productId.toString(16)}`}
+              : p.connection.type === 'spooler'
+                ? `Windows · ${p.connection.queueName}`
+                : `USB · ${p.connection.vendorId.toString(16)}:${p.connection.productId.toString(16)}`}
           </span>
         </div>
         <span className={`tag ${p.status}`}>

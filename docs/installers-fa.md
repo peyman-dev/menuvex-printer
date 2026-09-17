@@ -6,12 +6,12 @@
 
 پس از موفقیت workflow، چهار دانلود زیر در بخش Artifacts آن اجرا ظاهر می‌شوند:
 
-| دانلود | فایل‌های داخل آن |
-|---|---|
-| `MenuVex-Installer-Windows-x64` | نصب‌کنندهٔ NSIS با پسوند `-setup.exe` |
-| `MenuVex-Installer-Linux-x64` | `.deb` و `.AppImage` |
+| دانلود                                  | فایل‌های داخل آن                                   |
+| --------------------------------------- | -------------------------------------------------- |
+| `MenuVex-Installer-Windows-x64`         | نصب‌کنندهٔ NSIS با پسوند `-setup.exe`              |
+| `MenuVex-Installer-Linux-x64`           | `.deb` و `.AppImage`                               |
 | `MenuVex-Installer-macOS-Apple-Silicon` | `.dmg` برای M1/M2/M3/M4 و سایر مک‌های ARM64 سازگار |
-| `MenuVex-Installer-macOS-Intel` | `.dmg` برای مک Intel |
+| `MenuVex-Installer-macOS-Intel`         | `.dmg` برای مک Intel                               |
 
 GitHub این خروجی‌ها را در یک ZIP حمل می‌کند؛ **ZIP سورس نیست**. آن را خودتان استخراج کنید و فایل `.exe` / `.dmg` / `.deb` را برای تست بدهید یا روی سایت بگذارید. checksum و manifest هم همراه‌اند. فایل‌های `Build-Lock-*` برای تیم فنی هستند، نه مشتری.
 
@@ -58,3 +58,14 @@ GitHub روی runnerهای واقعی Windows، Linux و دو معماری macOS
 - Linux: بستهٔ deb وابستگی‌های زمان اجرا را از مدیر بسته می‌گیرد؛ USB ممکن است به تنظیم اولیهٔ udev توسط مسئول نصب نیاز داشته باشد.
 - فایل نصبی به‌تنهایی integration سایت را ایجاد نمی‌کند. چاپ آزمایشی داخل Agent مستقل است؛ چاپ خودکار سفارش MenuVex نیاز به integration SDK و pairing سایت دارد.
 - نسخهٔ عمومی نیازمند امضای Windows، notarization مک، آزمون نصب/حذف/آپگرید و ماتریس واقعی مدل‌های پرینتر است. موفقیت build یا ۱۸ تست هسته به معنی تأیید همهٔ این موارد نیست.
+
+## نسخهٔ Legacy برای Windows 7 SP1
+
+کد Legacy جدا از Tauri در `legacy-windows/` اضافه شده است. مرحلهٔ بسته‌بندی ویندوز در Actions موجود، ساخت و تست x86/x64 را هم اجرا می‌کند. پس از موفقیت، داخل دانلود `MenuVex-Installer-Windows-x64` این دو پوشه وجود خواهند داشت:
+
+- `Legacy-Windows7/x86` برای Windows 7 SP1 نسخهٔ ۳۲بیتی
+- `Legacy-Windows7/x64` برای Windows 7 SP1 نسخهٔ ۶۴بیتی
+
+فایل setup ریشهٔ ZIP همچنان نسخهٔ جدید است و نباید روی ویندوز ۷ نصب شود. فایل Legacy را از پوشهٔ درست استخراج کنید. این فایل‌ها تا زمان build موفق وجود ندارند و تا تست روی Windows 7 واقعی تأییدشده نیستند.
+
+Legacy از صف پرینترهای نصب‌شدهٔ ویندوز استفاده می‌کند و نیاز به WebView2 ندارد. SDK سایت باید نوع `connection.type = spooler` را پشتیبانی کند؛ SDK همین مخزن به‌روزرسانی شده ولی کپی آن در پروژهٔ Next.js باید جداگانه به‌روزرسانی شود. راهنمای کامل نصب، محدودیت‌ها و تست‌ها در `legacy-windows/README.md` است.

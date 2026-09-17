@@ -109,3 +109,7 @@ Paper mm, actual dots, copies, font and cut are stored local profile fields; no 
 Job fields: jobId, printerId, status, attempts, createdAt (Unix seconds), nextAt (Unix seconds), error (nullable). Payload intentionally omitted from queue/status responses. `completed` means transport handoff, not paper verification.
 
 On reconnect SDK authenticates and refreshes both lists; existing subscriptions survive. It does **not** automatically resend unresolved print commands. Call `getJob` then resubmit the same logical ID when appropriate.
+
+## Legacy Windows additive printer descriptor
+
+The separate native Legacy implementation reports `connection: { "type": "spooler", "queueName": "installed Windows queue name" }`. It must not fabricate USB VID/PID or LAN addresses. Updated SDK accepts this alongside existing USB/network descriptors. An older copied SDK may reject this new descriptor and must be updated before pairing Legacy. The modern Rust backend is unchanged. Legacy status is conservatively `unknown`/`busy`; `completed` means Windows spooler handoff, not physical paper. See `legacy-windows/README.md` for variant-specific limits and installer validation.
