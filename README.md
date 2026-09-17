@@ -17,6 +17,10 @@ Standalone Tauri 2 / Rust / React agent for local USB and LAN ESC/POS printing, 
 - SDK reconnect, response validation, subscriptions, migration adapters, durable browser routing and optional React provider.
 - Device-specific Linux udev setup helper; per-OS native candidate CI; bounded daily logs without tokens/order contents.
 
+## Installer downloads for café testing
+
+For owner setup and downloading compiled `.exe`, `.dmg`, `.deb` and `.AppImage` files (not source), follow [the Persian installer guide](docs/installers-fa.md). The workflow template produces clearly named installer-only artifacts with SHA-256 checksums. It must first be activated by a GitHub account with workflow-write permission; no ready binary is claimed until native builds succeed.
+
 ## Installation for operators
 
 No verified download binaries are published by this change. Obtain a **signed and hardware-validated** installer from your MenuVex administrator once the release gates pass. Do not use download URLs claiming an existing release that has not been built.

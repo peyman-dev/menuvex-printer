@@ -43,3 +43,7 @@ The first successful Cargo resolution must produce a reviewed `src-tauri/Cargo.l
 ## Formatting
 
 `npx prettier --write src sdk docs README.md '*.json' vite.config.ts` for TypeScript/CSS/docs; `cargo fmt --manifest-path src-tauri/Cargo.toml` when Rust is available. Rust in this checkout was formatted with an external JS Rust parser because rustfmt was unavailable; normalize with rustfmt in the native verification pass.
+
+## Subsequent operator-reported native verification
+
+The owner provided terminal output showing 18/18 Rust tests passing on Linux x86_64, including `server::integration::sdk_to_real_agent`, after commit `fddc83f`. A desktop screenshot also shows the Agent ready. These are owner-reported results, not tests rerun in this sandbox. Windows/macOS builds, installed-package tests, signing and physical printer output remain unverified.

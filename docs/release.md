@@ -20,3 +20,7 @@ Version metadata is 1.0.0 (semantic versioning), **not evidence of a completed p
 No pretend updater endpoint/public key is configured. Add Tauri's signed updater plugin when infrastructure exists. Use an HTTPS manifest and embedded public verification key; keep private signing keys only in CI secret storage. Drain current job, stop new submissions, back up SQLite, apply explicit schema migrations, restart, and retain all dedup tombstones. Queued jobs must survive an update. A rollback must not downgrade an unknown schema or erase completed IDs. Upgrade data and protocol versions independently of application semver.
 
 Use 1.0.1 for compatible fixes, 1.1.0 for additive compatible features, 2.0.0 for breaking behavior; explicit wire version required on protocol changes. Prefer model-specific transport/profile support over widening unrestricted hardware access.
+
+## Installer artifact layout
+
+The workflow template now stages installer-only downloads through `scripts/collect-installers.mjs`. Each platform artifact contains its actual installer(s), SHA256SUMS, a test-candidate manifest and operator notes; Cargo.lock is uploaded separately for developer review. The collector has five executable Node unit tests (`node --test scripts/tests/collect-installers.test.mjs`), all passing in the agent environment. This does not establish native build success or signing. See [Persian activation instructions](installers-fa.md).

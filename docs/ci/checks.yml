@@ -1,4 +1,4 @@
-name: Agent checks and native build candidates
+name: Build MenuVex Installers
 on:
   push:
     branches: ['arena/01a0affb-menuvex-printer']
@@ -17,9 +17,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: node --test scripts/tests/collect-installers.test.mjs
       - run: npm run build
       - run: npm audit --audit-level=high
   native:
+    needs: frontend
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -27,15 +30,19 @@ jobs:
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             bundles: deb,appimage
+            label: Linux-x64
           - os: windows-2022
             target: x86_64-pc-windows-msvc
             bundles: nsis
+            label: Windows-x64
           - os: macos-14
             target: aarch64-apple-darwin
             bundles: dmg
+            label: macOS-Apple-Silicon
           - os: macos-15-intel
             target: x86_64-apple-darwin
             bundles: dmg
+            label: macOS-Intel
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -56,11 +63,18 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml --no-default-features
       - name: Native build candidate (not a signed production release)
         run: npm run tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Prepare installer-only downloads and SHA256 checksums
+        run: node scripts/collect-installers.mjs ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
-          name: candidate-${{ matrix.target }}
-          path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/
-            src-tauri/Cargo.lock
+          name: MenuVex-Installer-${{ matrix.label }}
+          path: dist/installers/${{ matrix.target }}/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
+      - name: Preserve resolved dependency lock for release review
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Lock-${{ matrix.label }}
+          path: src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 14
