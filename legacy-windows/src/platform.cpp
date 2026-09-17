@@ -8,6 +8,7 @@
 #include <usp10.h>
 #include <wincred.h>
 #include <wincrypt.h>
+#include <winspool.h>
 namespace mv {
 struct Handle {
     HANDLE h = nullptr;
@@ -65,7 +66,7 @@ std::wstring data_directory() {
     LPWSTR sid = nullptr;
     if (!ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER *>(info.data())->User.Sid, &sid))
         throw Error("STORAGE_ERROR", "Cannot encode identity");
-    std::wstring sddl = L"D:P(A;;FA;;;SY)(A;;FA;;;" + std::wstring(sid) + L")";
+    std::wstring sddl = L"D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;" + std::wstring(sid) + L")";
     LocalFree(sid);
     PSECURITY_DESCRIPTOR sd = nullptr;
     if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(), SDDL_REVISION_1, &sd,

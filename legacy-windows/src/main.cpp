@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <atomic>
 #include <commctrl.h>
+#include <objbase.h>
 #include <shellapi.h>
 #include <sstream>
 namespace {
