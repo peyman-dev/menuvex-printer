@@ -66,7 +66,7 @@ Section "Install"
  CreateShortcut "$SMPROGRAMS\MenuVex Printer Agent Legacy\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MenuVexPrinterLegacy" "DisplayName" "MenuVex Printer Agent Legacy"
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MenuVexPrinterLegacy" "DisplayVersion" "1.0.0"
- WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MenuVexPrinterLegacy" "UninstallString" '$"$INSTDIR\Uninstall.exe$"'
+ WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MenuVexPrinterLegacy" "UninstallString" '"$INSTDIR\Uninstall.exe"'
  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MenuVexPrinterLegacy" "NoModify" 1
  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MenuVexPrinterLegacy" "NoRepair" 1
 SectionEnd

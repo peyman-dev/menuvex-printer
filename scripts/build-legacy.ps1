@@ -1,5 +1,12 @@
 param([switch]$InstallBuildTools)
 $ErrorActionPreference = 'Stop'
+trap {
+  if ($env:GITHUB_ACTIONS -eq 'true') {
+    $Message = $_.Exception.Message.Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+    Write-Host "::error::Legacy installer build failed: $Message"
+  }
+  throw
+}
 $Root = Split-Path -Parent $PSScriptRoot
 function Run-Native([string]$Exe, [string[]]$Arguments) {
   $PreviousPreference = $ErrorActionPreference
@@ -53,8 +60,13 @@ foreach ($Arch in @('x86','x64')) {
   $LicenseOut = Join-Path $Output 'THIRD-PARTY-LICENSES.txt'
   $LicenseText | Set-Content -Encoding UTF8 $LicenseOut
   $Installer = Join-Path $Output "MenuVex-Printer-Agent-Legacy-1.0.0-windows7-$Arch-setup.exe"
-  Run-Native $Nsis @("/DARCH=$Arch", "/DBINARY=$Binary", "/DOUTPUT=$Installer", "/DLICENSES=$LicenseOut", (Join-Path $Root 'legacy-windows\installer\setup.nsi'))
-  $Hash = (Get-FileHash $Installer -Algorithm SHA256).Hash.ToLowerInvariant()
+  Run-Native $Nsis @('/WX', "/DARCH=$Arch", "/DBINARY=$Binary", "/DOUTPUT=$Installer", "/DLICENSES=$LicenseOut", (Join-Path $Root 'legacy-windows\installer\setup.nsi'))
+  # Use .NET directly: a PowerShell 7 parent can pass a module path that hides
+  # Windows PowerShell's Get-FileHash function from this child process.
+  $Hasher = [System.Security.Cryptography.SHA256]::Create()
+  $Stream = [System.IO.File]::OpenRead($Installer)
+  try { $Hash = [BitConverter]::ToString($Hasher.ComputeHash($Stream)).Replace('-','').ToLowerInvariant() }
+  finally { $Stream.Dispose(); $Hasher.Dispose() }
   "$Hash  $([IO.Path]::GetFileName($Installer))" | Set-Content -Encoding ASCII (Join-Path $Output 'SHA256SUMS.txt')
   @{ version='1.0.0'; platform='windows'; architecture=$Arch; variant='legacy'; minimumOs='Windows 7 SP1'; channel='test-candidate'; win7HardwareValidated=$false; signed=$false; filename=[IO.Path]::GetFileName($Installer); sha256=$Hash; bytes=(Get-Item $Installer).Length } | ConvertTo-Json | Set-Content -Encoding UTF8 (Join-Path $Output 'manifest.json')
 }
