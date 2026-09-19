@@ -9,6 +9,7 @@ pub struct DiscoveredUsb {
     pub manufacturer: Option<String>,
     pub product: Option<String>,
     pub accessible: bool,
+    pub access_error: Option<AgentError>,
 }
 fn map(e: rusb::Error) -> AgentError {
     match e {
@@ -26,15 +27,24 @@ fn map(e: rusb::Error) -> AgentError {
             ),
     }
 }
+// Preserve the libusb reason and operation, without exposing receipt data or credentials.
+fn at_stage(stage: &str, e: rusb::Error) -> AgentError {
+    let mut error = map(e);
+    error.message = format!("{}: libusb {:?} ({})", stage, e, e);
+    error
+}
 pub fn discover() -> Result<Vec<DiscoveredUsb>> {
-    let ctx = Context::new().map_err(map)?;
-    let devices = ctx.devices().map_err(map)?;
+    let ctx = Context::new().map_err(|e| at_stage("initialize_usb", e))?;
+    let devices = ctx.devices().map_err(|e| at_stage("enumerate_devices", e))?;
     let mut out = Vec::new();
     for dev in devices.iter() {
         let Ok(desc) = dev.device_descriptor() else {
             continue;
         };
-        let handle = dev.open().ok();
+        let (handle, access_error) = match dev.open() {
+            Ok(handle) => (Some(handle), None),
+            Err(error) => (None, Some(at_stage("open_device", error))),
+        };
         let manufacturer = handle
             .as_ref()
             .and_then(|h| h.read_manufacturer_string_ascii(&desc).ok());
@@ -71,6 +81,7 @@ pub fn discover() -> Result<Vec<DiscoveredUsb>> {
                             manufacturer: manufacturer.clone(),
                             product: product.clone(),
                             accessible: handle.is_some(),
+                            access_error: access_error.clone(),
                         });
                     }
                 }
@@ -100,7 +111,7 @@ fn matches(dev: &Device<Context>, c: &Connection) -> bool {
     }
 }
 pub fn present(c: &Connection) -> Result<bool> {
-    let ctx = Context::new().map_err(map)?;
+    let ctx = Context::new().map_err(|e| at_stage("initialize_usb", e))?;
     Ok(
         ctx
             .devices()
@@ -113,8 +124,8 @@ pub fn send(c: &Connection, bytes: &[u8]) -> Result<()> {
     let Connection::Usb { interface, endpoint, alternate, .. } = c else {
         return Err(AgentError::new("INVALID_CONFIG", "Not USB"));
     };
-    let ctx = Context::new().map_err(map)?;
-    let devices = ctx.devices().map_err(map)?;
+    let ctx = Context::new().map_err(|e| at_stage("initialize_usb", e))?;
+    let devices = ctx.devices().map_err(|e| at_stage("enumerate_devices", e))?;
     let candidates: Vec<_> = devices
         .iter()
         .filter(|d| matches(d, c))
@@ -129,7 +140,7 @@ pub fn send(c: &Connection, bytes: &[u8]) -> Result<()> {
         );
     }
     let dev = &candidates[0];
-    let config = dev.active_config_descriptor().map_err(map)?;
+    let config = dev.active_config_descriptor().map_err(|e| at_stage("read_active_configuration", e))?;
     let valid = config
         .interfaces()
         .flat_map(|i| i.descriptors())
@@ -152,11 +163,11 @@ pub fn send(c: &Connection, bytes: &[u8]) -> Result<()> {
             AgentError::new("USB_DEVICE_ERROR", "Saved printer interface no longer matches")
         );
     }
-    let handle = dev.open().map_err(map)?;
+    let handle = dev.open().map_err(|e| at_stage("open_device", e))?;
     #[cfg(target_os = "linux")]
-    handle.set_auto_detach_kernel_driver(true).map_err(map)?;
-    handle.claim_interface(*interface).map_err(map)?;
-    handle.set_alternate_setting(*interface, *alternate).map_err(map)?;
+    handle.set_auto_detach_kernel_driver(true).map_err(|e| at_stage("enable_auto_detach", e))?;
+    handle.claim_interface(*interface).map_err(|e| at_stage("claim_interface", e))?;
+    handle.set_alternate_setting(*interface, *alternate).map_err(|e| at_stage("set_alternate_setting", e))?;
     let deadline = Instant::now() + Duration::from_secs(30);
     for chunk in bytes.chunks(16 * 1024) {
         if Instant::now() > deadline {
@@ -171,4 +182,46 @@ pub fn send(c: &Connection, bytes: &[u8]) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn preserves_open_reason_instead_of_assuming_missing_driver() {
+        let error = at_stage("open_device", rusb::Error::NotSupported);
+        assert_eq!(error.code, "USB_DEVICE_ERROR");
+        assert!(error.message.contains("open_device"));
+        assert!(error.message.contains("NotSupported"));
+        assert!(!error.retryable);
+        assert!(!error.uncertain);
+    }
+
+    #[test]
+    fn preserves_existing_retry_classification() {
+        let busy = at_stage("claim_interface", rusb::Error::Busy);
+        assert_eq!(busy.code, "USB_BUSY");
+        assert!(busy.retryable);
+        assert!(busy.message.contains("claim_interface"));
+        let denied = at_stage("open_device", rusb::Error::Access);
+        assert_eq!(denied.code, "USB_ACCESS_DENIED");
+        assert!(!denied.retryable);
+    }
+
+    #[test]
+    fn discovery_serializes_diagnostic_for_desktop_ui() {
+        let device = DiscoveredUsb {
+            connection: Connection::Usb {
+                vendor_id: 1, product_id: 2, serial: None,
+                bus: 1, ports: vec![1], interface: 0, endpoint: 1, alternate: 0,
+            },
+            manufacturer: None, product: None, accessible: false,
+            access_error: Some(at_stage("open_device", rusb::Error::NotSupported)),
+        };
+        let value = serde_json::to_value(device).unwrap();
+        assert_eq!(value["accessible"], false);
+        assert_eq!(value["accessError"]["code"], "USB_DEVICE_ERROR");
+        assert!(value["accessError"]["message"].as_str().unwrap().contains("NotSupported"));
+    }
 }

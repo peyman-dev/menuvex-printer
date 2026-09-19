@@ -14,6 +14,7 @@ export interface UsbDevice {
   manufacturer: string | null;
   product: string | null;
   accessible: boolean;
+  accessError?: { code: string; message: string } | null;
 }
 export function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!desktop)

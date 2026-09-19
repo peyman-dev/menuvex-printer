@@ -98,7 +98,18 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
                 {d.product ?? 'USB Printer'}{' '}
                 <small>
                   {d.manufacturer} ·{' '}
-                  {d.accessible ? 'دسترسی برقرار' : 'نیازمند driver / permission'}
+                  {d.accessible
+                    ? 'باز کردن USB موفق؛ امکان چاپ هنوز تأیید نشده'
+                    : 'باز کردن مستقیم USB ناموفق؛ علت را در جزئیات بررسی کنید'}
+                </small>
+                {d.accessError && (
+                  <small dir="ltr" style={{ display: 'block' }}>
+                    {d.accessError.code}: {d.accessError.message}
+                  </small>
+                )}
+                <small>
+                  این فهرست دستگاه‌های USB است، نه صف‌های چاپ ویندوز. نصب درایور چاپ ویندوز
+                  لزوماً دسترسی مستقیم USB را فراهم نمی‌کند.
                 </small>
               </span>
               <button
