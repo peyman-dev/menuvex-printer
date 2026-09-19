@@ -1,0 +1,34 @@
+{
+  "name": "menuvex-printer-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "tauri": "tauri",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features",
+    "format": "prettier --write src sdk docs README.md *.json vite.config.ts"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.0",
+    "@types/node": "^22.20.3",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.0",
+    "prettier": "^3.9.7",
+    "typescript": "~5.9.2",
+    "vite": "^6.4.1",
+    "vitest": "^4.1.11",
+    "ws": "^8.21.3"
+  }
+}

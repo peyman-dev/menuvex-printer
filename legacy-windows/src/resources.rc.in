@@ -1,0 +1,4 @@
+#include <windows.h>
+101 ICON "@CMAKE_CURRENT_SOURCE_DIR@/../src-tauri/icons/icon.ico"
+102 RCDATA "@CMAKE_CURRENT_SOURCE_DIR@/../src-tauri/assets/NotoSansArabic-Regular.ttf"
+1 RT_MANIFEST "@CMAKE_CURRENT_SOURCE_DIR@/src/app.manifest"
