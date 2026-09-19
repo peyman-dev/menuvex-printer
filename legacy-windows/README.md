@@ -25,7 +25,7 @@ LAN printers in Legacy must be installed as Windows printer queues (e.g. an appr
 
 Legacy has a separate data directory and Credential Manager entry; modern credentials/history are not silently imported. Both default to port 8765: **quit the other Agent before using Legacy**. Do not migrate jobs between their independent DBs automatically. Reconcile queued/unknown jobs before switching variants. On port conflict the UI remains available and the worker pauses; change port and Quit/reopen if intentionally using another port. The website CSP/SDK must use the same port.
 
-The native UI is intentionally simple and currently uses English controls; Persian receipt rendering is separate. It does not recreate the React UI or launch a browser to show local secrets.
+The native UI uses Persian controls/tray labels, right-to-left captions, a green/light palette and a Persian-capable system font. Technical fields remain LTR. It does not recreate the complete React UI, require WebView2 or launch a browser to show local secrets. See `../docs/connection-compatibility-fa.md` for website schema migration and UI limitations.
 
 ## Building (developer/CI machines only)
 

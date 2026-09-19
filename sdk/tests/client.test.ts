@@ -35,6 +35,7 @@ class TestSocket implements Socket {
   closed = false;
   rejectAuth = false;
   dropPrint = false;
+  printers: unknown[] = [];
   constructor() {
     queueMicrotask(() =>
       this.emit({
@@ -84,11 +85,13 @@ class TestSocket implements Socket {
         return;
       }
       const data =
-        msg.type === 'printers.list' || msg.type === 'queue.list'
-          ? []
-          : msg.type === 'print'
-            ? job
-            : { version: 1, agentVersion: '1.0.0' };
+        msg.type === 'printers.list'
+          ? this.printers
+          : msg.type === 'queue.list'
+            ? []
+            : msg.type === 'print'
+              ? job
+              : { version: 1, agentVersion: '1.0.0' };
       this.emit({ type: 'response', version: 1, requestId: msg.requestId, data });
     });
   }
@@ -130,6 +133,61 @@ function make(options: { rejectAuth?: boolean; missingKey?: boolean } = {}) {
   return { c, sockets };
 }
 describe('PrinterAgentClient', () => {
+  it('reads Legacy spooler and modern network/USB printers through the authenticated SDK', async () => {
+    const { c, sockets } = make();
+    await c.connect();
+    const connections = [
+      { type: 'spooler', queueName: 'XP-80C' },
+      { type: 'network', host: '192.168.1.50', port: 9100 },
+      {
+        type: 'usb',
+        vendorId: 1,
+        productId: 2,
+        serial: null,
+        bus: 1,
+        ports: [1],
+        interface: 0,
+        endpoint: 1,
+        alternate: 0,
+      },
+    ];
+    sockets[0].printers = connections.map((connection, index) => ({
+      id: `printer:${index}`,
+      name: 'پرینتر',
+      connection,
+      paperMm: 80,
+      widthDots: 576,
+      copies: 1,
+      cut: true,
+      fontFamily: 'Noto Sans Arabic',
+      fontSize: 24,
+      status: 'unknown',
+    }));
+    const printers = await c.getPrinters();
+    expect(printers.map((p) => p.connection)).toEqual(connections);
+  });
+
+  it('reports schema mismatch instead of blaming USB permissions or accepting unknown types', async () => {
+    const { c, sockets } = make();
+    await c.connect();
+    sockets[0].printers = [
+      {
+        id: 'printer:1',
+        name: 'پرینتر',
+        connection: { type: 'lan', host: '192.168.1.50', port: 9100 },
+        paperMm: 80,
+        widthDots: 576,
+        copies: 1,
+        cut: true,
+        fontFamily: 'Noto Sans Arabic',
+        fontSize: 24,
+        status: 'unknown',
+      },
+    ];
+    await expect(c.getPrinters()).rejects.toMatchObject({ code: 'CONNECTION_SCHEMA_MISMATCH' });
+    expect(c.isConnected()).toBe(true);
+  });
+
   it('uses one authenticated connection and refreshes subscriptions', async () => {
     const { c, sockets } = make();
     const a = c.connect(),

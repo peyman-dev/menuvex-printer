@@ -151,12 +151,12 @@ fn main() {
             let menu = Menu::with_items(
                 app,
                 &[
-                    &MenuItem::with_id(app, "open", "Open", true, None::<&str>)?,
-                    &MenuItem::with_id(app, "printers", "Printers", true, None::<&str>)?,
-                    &MenuItem::with_id(app, "queue", "Print Queue", true, None::<&str>)?,
-                    &MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?,
-                    &MenuItem::with_id(app, "restart", "Restart Agent", true, None::<&str>)?,
-                    &MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?,
+                    &MenuItem::with_id(app, "open", "باز کردن منووکس", true, None::<&str>)?,
+                    &MenuItem::with_id(app, "printers", "پرینترها", true, None::<&str>)?,
+                    &MenuItem::with_id(app, "queue", "صف چاپ", true, None::<&str>)?,
+                    &MenuItem::with_id(app, "settings", "تنظیمات", true, None::<&str>)?,
+                    &MenuItem::with_id(app, "restart", "راه‌اندازی مجدد", true, None::<&str>)?,
+                    &MenuItem::with_id(app, "quit", "خروج از برنامه", true, None::<&str>)?,
                 ]
             )?;
             let mut rgba = vec![0u8;32*32*4];
@@ -175,7 +175,7 @@ fn main() {
             }
             TrayIconBuilder::new()
                 .icon(tauri::image::Image::new_owned(rgba, 32, 32))
-                .tooltip("MenuVex Printer Agent")
+                .tooltip("منووکس پرینتر")
                 .menu(&menu)
                 .on_menu_event(|app, event| {
                     match event.id.as_ref() {

@@ -334,7 +334,22 @@ export class PrinterAgentClient {
         this.pending.delete(requestId);
         reject(new AgentError('CONNECTION_LOST', 'Query the same job ID after reconnecting', true));
       }
-    }).then((value) => schema.parse(value));
+    }).then((value) => {
+      try {
+        return schema.parse(value);
+      } catch (error) {
+        if (
+          error instanceof z.ZodError &&
+          error.issues.some((issue) => issue.path.includes('connection'))
+        ) {
+          throw new AgentError(
+            'CONNECTION_SCHEMA_MISMATCH',
+            'نوع اتصال پرینتر با SDK سازگار نیست. SDK و اعتبارسنجی سایت را هماهنگ کنید: usb، network و spooler. نام lan در پروتکل معتبر نیست. این خطا مربوط به مجوز USB نیست.',
+          );
+        }
+        throw error;
+      }
+    });
   }
   getStatus(): Promise<AgentStatus> {
     return this.rpc('agent.status', {}, statusSchema);

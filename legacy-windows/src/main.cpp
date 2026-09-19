@@ -39,6 +39,7 @@ enum {
 };
 struct App {
     HWND window = nullptr;
+    HFONT ui_font = nullptr;
     std::wstring directory;
     std::unique_ptr<Store> store;
     std::unique_ptr<Secret> secret;
@@ -62,6 +63,8 @@ struct App {
             discovery.join();
         if (server)
             server->stop();
+        if (ui_font)
+            DeleteObject(ui_font);
     }
     HWND control(int id) { return GetDlgItem(window, id); }
     std::wstring text(int id) {
@@ -86,7 +89,7 @@ struct App {
         wake.notify_one();
     }
     void error(const std::exception &e) {
-        MessageBoxW(window, wide(e.what()).c_str(), L"MenuVex - Action required",
+        MessageBoxW(window, wide(e.what()).c_str(), L"منووکس — نیاز به بررسی",
                     MB_OK | MB_ICONWARNING);
     }
     void start_server() {
@@ -95,7 +98,7 @@ struct App {
         server.reset(new Server(*store, *secret, [this] { changed(); }));
         try {
             server->start(static_cast<unsigned short>(config["port"].get<int>()));
-            set(Status, L"Agent ready - configure a printer, then pair the website.");
+            set(Status, L"برنامه آماده است؛ پرینتر را تنظیم و سپس سایت را متصل کنید.");
         } catch (const Error &e) {
             set(Status, wide(e.code + ": " + e.what()));
             log_code(directory, e.code);
@@ -179,8 +182,8 @@ struct App {
         }
         last_jobs = jobs;
         if (worker_failed)
-            set(Status, L"QUEUE_ERROR: worker stopped. Inspect jobs and restart Agent. No "
-                        L"automatic replay.");
+            set(Status, L"QUEUE_ERROR: پردازش چاپ متوقف شده؛ صف را بررسی و برنامه را دوباره اجرا "
+                        L"کنید. چاپ مجدد خودکار انجام نمی‌شود.");
     }
     Json last_jobs = Json::array();
     void clear() {
@@ -231,7 +234,8 @@ struct App {
         if (discovery.joinable())
             return;
         EnableWindow(control(Discover), FALSE);
-        set(Status, L"Reading installed Windows printer queues...");
+        set(Status,
+            L"در حال دریافت پرینترهای نصب‌شدهٔ ویندوز…");
         discovery = std::thread([this] {
             try {
                 auto list = installed_printers();
@@ -264,8 +268,7 @@ struct App {
             SendMessageW(control(Installed), CB_SETCURSEL, 0, 0);
         if (!selected.empty())
             select();
-        set(Status,
-            L"Select an ESC/POS printer queue. Presence is not proof of online/paper status.");
+        set(Status, L"صف پرینتر ESC/POS را انتخاب کنید؛ وجود صف به معنی آماده بودن چاپگر نیست.");
     }
     void save() {
         auto c = store->config();
@@ -316,17 +319,20 @@ struct App {
         server->event({{"type", "resync"}, {"version", 1}});
         refresh();
         MessageBoxW(window,
-                    L"Saved. Port changes apply after Quit and reopening the Agent. Test physical "
-                    L"output before enabling auto print.",
+                    L"ذخیره شد. تغییر پورت پس از خروج و اجرای دوباره اعمال "
+                    L"می‌شود. "
+                    L"پیش از فعال‌کردن چاپ خودکار، چاپ واقعی را بررسی "
+                    L"کنید.",
                     L"MenuVex", MB_OK);
     }
     void remove() {
         if (selected.empty())
             return;
         if (MessageBoxW(window,
-                        L"Remove this profile? Existing jobs keep their saved profile; cancel "
-                        L"pending jobs separately.",
-                        L"Confirm", MB_YESNO | MB_ICONWARNING) != IDYES)
+                        L"این پرینتر حذف شود؟ تنظیمات کارهای قبلی حفظ "
+                        L"می‌شود؛ "
+                        L"کارهای معلق را جداگانه بررسی کنید.",
+                        L"تأیید", MB_YESNO | MB_ICONWARNING) != IDYES)
             return;
         auto c = store->config();
         Json ps = Json::array(), routes = Json::array();
@@ -369,7 +375,8 @@ struct App {
     void quit() {
         if (stopping.exchange(true))
             return;
-        set(Status, L"Stopping after the active print operation. Do not resend pending orders.");
+        set(Status, L"پس از عملیات چاپ جاری خارج می‌شود؛ سفارش‌های معلق را دوباره ارسال "
+                    L"نکنید.");
         wake.notify_all();
         if (worker.joinable())
             worker.join();
@@ -387,73 +394,127 @@ struct App {
 App *app = nullptr;
 void control(HWND parent, const wchar_t *cls, const wchar_t *label, int id, int x, int y, int w,
              int h, DWORD style = 0) {
-    auto handle = CreateWindowExW(
-        (wcscmp(cls, L"EDIT") == 0 || wcscmp(cls, L"LISTBOX") == 0) ? WS_EX_CLIENTEDGE : 0, cls,
-        label, WS_CHILD | WS_VISIBLE | style, x, y, w, h, parent,
-        reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), GetModuleHandleW(nullptr), nullptr);
-    SendMessageW(handle, WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)),
+    bool text_label = wcscmp(cls, L"STATIC") == 0;
+    bool button = wcscmp(cls, L"BUTTON") == 0;
+    DWORD ex = (wcscmp(cls, L"EDIT") == 0 || wcscmp(cls, L"LISTBOX") == 0) ? WS_EX_CLIENTEDGE : 0;
+    // Keep technical fields (port, pairing key, queue IDs) LTR.
+    if (text_label || button || id == Name)
+        ex |= WS_EX_RTLREADING;
+    if (text_label)
+        style |= SS_RIGHT;
+    if (id == Save || id == Test)
+        style |= BS_OWNERDRAW;
+    auto handle = CreateWindowExW(ex, cls, label, WS_CHILD | WS_VISIBLE | style, x, y, w, h, parent,
+                                  reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),
+                                  GetModuleHandleW(nullptr), nullptr);
+    SendMessageW(handle, WM_SETFONT,
+                 reinterpret_cast<WPARAM>(app && app->ui_font
+                                              ? reinterpret_cast<HGDIOBJ>(app->ui_font)
+                                              : GetStockObject(DEFAULT_GUI_FONT)),
                  TRUE);
 }
 void label(HWND w, const wchar_t *s, int x, int y, int width = 150) {
     control(w, L"STATIC", s, 0, x, y, width, 20);
 }
 void create_ui(HWND w) {
-    control(w, L"STATIC", L"MenuVex Printer Agent Legacy - Windows 7 SP1 / test candidate", Status,
+    control(w, L"STATIC", L"منووکس پرینتر — نسخهٔ Legacy | ویندوز ۷ SP1 و جدیدتر | آزمایشی", Status,
             20, 15, 910, 38);
-    label(w, L"Configured printer profiles", 20, 58, 300);
+    label(w, L"پرینترهای شما", 20, 58, 300);
     control(w, L"LISTBOX", L"", PrinterList, 20, 80, 900, 80, LBS_NOTIFY | WS_VSCROLL);
-    label(w, L"Installed Windows printer", 20, 177, 190);
+    label(w, L"پرینتر نصب‌شده در ویندوز", 20, 177, 190);
     control(w, L"COMBOBOX", L"", Installed, 210, 172, 510, 250,
             CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP);
-    control(w, L"BUTTON", L"Refresh Windows printers", Discover, 735, 171, 185, 26, WS_TABSTOP);
-    label(w, L"Profile name", 20, 214);
+    control(w, L"BUTTON", L"جستجوی پرینترهای ویندوز", Discover, 735, 171, 185, 26, WS_TABSTOP);
+    label(w, L"نام پرینتر", 20, 214);
     control(w, L"EDIT", L"", Name, 170, 209, 360, 26, ES_AUTOHSCROLL | WS_TABSTOP);
-    control(w, L"BUTTON", L"New profile", Add, 550, 209, 115, 26, WS_TABSTOP);
-    control(w, L"BUTTON", L"Remove profile", Remove, 680, 209, 130, 26, WS_TABSTOP);
+    control(w, L"BUTTON", L"پرینتر جدید", Add, 550, 209, 115, 26, WS_TABSTOP);
+    control(w, L"BUTTON", L"حذف پرینتر", Remove, 680, 209, 130, 26, WS_TABSTOP);
     int x = 20;
-    for (auto p : {std::make_pair(Paper, L"Paper mm (58 / 80)"),
-                   {Dots, L"Actual dots (384 / 576)"},
-                   {Copies, L"Copies (1-3)"},
-                   {Font, L"Font pixels (12-48)"}}) {
+    for (auto p : {std::make_pair(Paper, L"کاغذ: ۵۸ یا ۸۰ میلی‌متر"),
+                   {Dots, L"عرض چاپ: ۳۸۴ یا ۵۷۶ نقطه"},
+                   {Copies, L"تعداد نسخه: ۱ تا ۳"},
+                   {Font, L"اندازهٔ قلم: ۱۲ تا ۴۸"}}) {
         label(w, p.second, x, 253, 210);
         control(w, L"EDIT", L"", p.first, x, 277, 190, 26, ES_NUMBER | WS_TABSTOP);
         x += 230;
     }
-    label(w, L"Print role", 20, 319);
+    label(w, L"نقش پرینتر", 20, 319);
     control(w, L"COMBOBOX", L"", Role, 170, 313, 200, 180, CBS_DROPDOWNLIST | WS_TABSTOP);
-    for (auto r : {L"Unassigned", L"Invoice", L"Kitchen", L"Bar"})
+    for (auto r : {L"بدون نقش", L"فاکتور", L"آشپزخانه", L"بار"})
         SendMessageW(GetDlgItem(w, Role), CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(r));
-    control(w, L"BUTTON", L"Auto print (website integration required)", AutoPrint, 400, 313, 290,
-            26, BS_AUTOCHECKBOX | WS_TABSTOP);
-    control(w, L"BUTTON", L"Cutter enabled", Cutter, 720, 313, 190, 26,
+    control(w, L"BUTTON", L"چاپ خودکار (نیازمند اتصال سایت)", AutoPrint, 400, 313, 290, 26,
             BS_AUTOCHECKBOX | WS_TABSTOP);
-    label(w, L"Local port", 20, 356);
+    control(w, L"BUTTON", L"برش کاغذ", Cutter, 720, 313, 190, 26, BS_AUTOCHECKBOX | WS_TABSTOP);
+    label(w, L"پورت محلی", 20, 356);
     control(w, L"EDIT", L"8765", Port, 110, 350, 90, 26, ES_NUMBER | WS_TABSTOP);
-    label(w, L"Max attempts", 220, 356);
+    label(w, L"تعداد تلاش", 220, 356);
     control(w, L"EDIT", L"3", Attempts, 320, 350, 70, 26, ES_NUMBER | WS_TABSTOP);
-    control(w, L"BUTTON", L"Start at login", AutoStart, 420, 350, 180, 26,
+    control(w, L"BUTTON", L"اجرا هنگام ورود", AutoStart, 420, 350, 180, 26,
             BS_AUTOCHECKBOX | WS_TABSTOP);
-    control(w, L"BUTTON", L"Save settings", Save, 620, 349, 140, 28, WS_TABSTOP);
-    control(w, L"BUTTON", L"Test print", Test, 780, 349, 140, 28, WS_TABSTOP);
-    label(w,
-          L"Pairing: reveal the key, enter it only on the official MenuVex website. Never share it "
-          L"in logs/chat.",
-          20, 395, 900);
-    control(w, L"BUTTON", L"Show key (60 seconds)", Reveal, 20, 420, 190, 28, WS_TABSTOP);
+    control(w, L"BUTTON", L"ذخیرهٔ تنظیمات", Save, 620, 349, 140, 28, WS_TABSTOP);
+    control(w, L"BUTTON", L"چاپ آزمایشی", Test, 780, 349, 140, 28, WS_TABSTOP);
+    label(
+        w,
+        L"اتصال سایت: کلید را فقط در سایت رسمی منووکس وارد کنید؛ آن را در چت یا گزارش خطا نفرستید.",
+        20, 395, 900);
+    control(w, L"BUTTON", L"نمایش کلید: ۶۰ ثانیه", Reveal, 20, 420, 190, 28, WS_TABSTOP);
     control(w, L"EDIT", L"", SecretBox, 220, 420, 450, 28, ES_READONLY | ES_AUTOHSCROLL);
-    control(w, L"BUTTON", L"Revoke all browsers", Rotate, 700, 420, 220, 28, WS_TABSTOP);
+    control(w, L"BUTTON", L"لغو اتصال مرورگرها", Rotate, 700, 420, 220, 28, WS_TABSTOP);
     label(w,
-          L"Queue - completed means handed to Windows, NOT confirmation of physical paper. Unknown "
-          L"outcome: inspect before reprint.",
+          L"صف چاپ — تکمیل یعنی تحویل به ویندوز، نه تأیید چاپ کاغذ. نتیجهٔ نامشخص را پیش از چاپ "
+          L"مجدد بررسی کنید.",
           20, 470, 910);
     control(w, L"LISTBOX", L"", QueueList, 20, 495, 900, 155, LBS_NOTIFY | WS_VSCROLL | WS_HSCROLL);
     SendMessageW(GetDlgItem(w, QueueList), LB_SETHORIZONTALEXTENT, 1400, 0);
-    control(w, L"BUTTON", L"Cancel selected queued job", Cancel, 20, 660, 230, 28, WS_TABSTOP);
-    control(w, L"BUTTON", L"Quit Agent", Quit, 780, 660, 140, 28, WS_TABSTOP);
+    control(w, L"BUTTON", L"لغو کار انتخاب‌شده در صف", Cancel, 20, 660, 230,
+            28, WS_TABSTOP);
+    control(w, L"BUTTON", L"خروج از برنامه", Quit, 780, 660, 140, 28, WS_TABSTOP);
 }
 LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
     try {
         switch (message) {
+        case WM_ERASEBKGND: {
+            RECT rect;
+            GetClientRect(w, &rect);
+            HDC dc = reinterpret_cast<HDC>(wp);
+            SetDCBrushColor(dc, RGB(245, 249, 247));
+            FillRect(dc, &rect, reinterpret_cast<HBRUSH>(GetStockObject(DC_BRUSH)));
+            return 1;
+        }
+        case WM_CTLCOLORSTATIC:
+        case WM_CTLCOLORBTN: {
+            HDC dc = reinterpret_cast<HDC>(wp);
+            SetTextColor(dc, RGB(24, 69, 58));
+            SetBkColor(dc, RGB(245, 249, 247));
+            SetDCBrushColor(dc, RGB(245, 249, 247));
+            return reinterpret_cast<LRESULT>(GetStockObject(DC_BRUSH));
+        }
+        case WM_DRAWITEM: {
+            auto item = reinterpret_cast<DRAWITEMSTRUCT *>(lp);
+            if (item->CtlID != Save && item->CtlID != Test)
+                break;
+            bool disabled = (item->itemState & ODS_DISABLED) != 0;
+            SetDCBrushColor(item->hDC, disabled                           ? RGB(105, 122, 116)
+                                       : (item->itemState & ODS_SELECTED) ? RGB(12, 92, 72)
+                                                                          : RGB(15, 125, 98));
+            FillRect(item->hDC, &item->rcItem, reinterpret_cast<HBRUSH>(GetStockObject(DC_BRUSH)));
+            SetTextColor(item->hDC, RGB(255, 255, 255));
+            SetBkMode(item->hDC, TRANSPARENT);
+            auto old_font =
+                SelectObject(item->hDC, app->ui_font ? reinterpret_cast<HGDIOBJ>(app->ui_font)
+                                                     : GetStockObject(DEFAULT_GUI_FONT));
+            wchar_t text[128]{};
+            GetWindowTextW(item->hwndItem, text, 128);
+            DrawTextW(item->hDC, text, -1, &item->rcItem,
+                      DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_RTLREADING);
+            SelectObject(item->hDC, old_font);
+            if (item->itemState & ODS_FOCUS) {
+                RECT focus = item->rcItem;
+                InflateRect(&focus, -3, -3);
+                DrawFocusRect(item->hDC, &focus);
+            }
+            return TRUE;
+        }
         case WM_CREATE:
             create_ui(w);
             return 0;
@@ -483,8 +544,8 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
                 SetForegroundWindow(w);
             } else if (lp == WM_RBUTTONUP) {
                 HMENU menu = CreatePopupMenu();
-                AppendMenuW(menu, MF_STRING, Open, L"Open MenuVex");
-                AppendMenuW(menu, MF_STRING, Quit, L"Quit");
+                AppendMenuW(menu, MF_STRING, Open, L"باز کردن منووکس");
+                AppendMenuW(menu, MF_STRING, Quit, L"خروج از برنامه");
                 POINT pt;
                 GetCursorPos(&pt);
                 SetForegroundWindow(w);
@@ -523,8 +584,8 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
                 SetTimer(w, 1, 60000, nullptr);
                 break;
             case Rotate:
-                if (MessageBoxW(w, L"Revoke all paired browsers? You must pair them again.",
-                                L"Confirm", MB_YESNO | MB_ICONWARNING) == IDYES) {
+                if (MessageBoxW(w, L"اتصال همهٔ مرورگرها لغو شود؟ اتصال دوباره نیازمند کلید است.",
+                                L"تأیید", MB_YESNO | MB_ICONWARNING) == IDYES) {
                     app->secret->rotate();
                     app->server->revoke();
                     app->set(SecretBox, L"");
@@ -544,7 +605,8 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
         if (app)
             app->error(e);
         else
-            MessageBoxW(w, L"Startup operation failed", L"MenuVex", MB_OK | MB_ICONERROR);
+            MessageBoxW(w, L"راه‌اندازی انجام نشد", L"MenuVex",
+                        MB_OK | MB_ICONERROR);
     }
     return DefWindowProcW(w, message, wp, lp);
 }
@@ -580,6 +642,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int) {
         state.store.reset(new mv::Store(mv::utf8(state.directory + L"\\agent.sqlite3")));
         state.secret.reset(new mv::Secret());
         mv::load_font();
+        state.ui_font = CreateFontW(-15, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                                    OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                                    DEFAULT_PITCH, L"Tahoma");
         WNDCLASSW wc{};
         wc.lpfnWndProc = window_proc;
         wc.hInstance = instance;
@@ -589,7 +654,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int) {
         wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
         RegisterClassW(&wc);
         state.window =
-            CreateWindowExW(0, wc.lpszClassName, L"MenuVex Printer Agent Legacy",
+            CreateWindowExW(0, wc.lpszClassName, L"منووکس پرینتر — Legacy",
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT,
                             CW_USEDEFAULT, 970, 750, nullptr, nullptr, instance, nullptr);
         if (!state.window)
@@ -613,7 +678,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int) {
         icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
         icon.uCallbackMessage = Tray;
         icon.hIcon = wc.hIcon;
-        lstrcpynW(icon.szTip, L"MenuVex Printer Agent Legacy", 128);
+        lstrcpynW(icon.szTip, L"منووکس پرینتر — Legacy", 128);
         if (!Shell_NotifyIconW(NIM_ADD, &icon))
             throw mv::Error("TRAY_ERROR", "Cannot create system tray icon");
         state.start_worker();
@@ -636,7 +701,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int) {
         CoUninitialize();
         result = 0;
     } catch (const std::exception &e) {
-        MessageBoxW(nullptr, mv::wide(e.what()).c_str(), L"MenuVex Legacy - Startup failed",
+        MessageBoxW(nullptr, mv::wide(e.what()).c_str(),
+                    L"منووکس Legacy — خطای راه‌اندازی",
                     MB_OK | MB_ICONERROR);
     }
     CloseHandle(mutex);
