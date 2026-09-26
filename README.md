@@ -109,4 +109,4 @@ Browser loopback access can be blocked by CSP, browser local-network permissions
 
 ## Documentation
 
-[Architecture](docs/architecture.md) · [Protocol](docs/protocol.md) · [Printers](docs/printers.md) · [ESC/POS](docs/escpos.md) · [Security](docs/security.md) · [Troubleshooting](docs/troubleshooting.md) · [Hardware tests](docs/hardware-testing.md) · [Release](docs/release.md).
+[Architecture](docs/architecture.md) · [Protocol](docs/protocol.md) · [Printers](docs/printers.md) · [چاپ USB روی همهٔ نسخه‌ها](docs/usb-printing-fa.md) · [ESC/POS](docs/escpos.md) · [Security](docs/security.md) · [Troubleshooting](docs/troubleshooting.md) · [Hardware tests](docs/hardware-testing.md) · [Release](docs/release.md).
