@@ -27,6 +27,14 @@ enum {
     Add,
     Remove,
     Discover,
+    ConnType,
+    Host,
+    NetPort,
+    Probe,
+    SpoolerLabel,
+    NetworkLabel,
+    PortLabel,
+    Hint,
     Test,
     Cancel,
     Reveal,
@@ -123,13 +131,28 @@ struct App {
                     server->event({{"type", "print.printing"}, {"version", 1}, {"job", job}});
                     Json failure = nullptr;
                     unsigned sent = 0;
+                    bool network = work["profile"]["connection"]["type"] == "network";
                     try {
                         auto bytes = render(work["profile"], work["document"]);
                         unsigned copies = work["profile"]["copies"];
                         for (; sent < copies; ++sent)
-                            send_spooler(directory, work["profile"], bytes);
+                            if (network)
+                                send_network(work["profile"], bytes);
+                            else
+                                send_spooler(directory, work["profile"], bytes);
                     } catch (const Error &e) {
-                        failure = sent ? unknown().json() : e.json();
+                        if (sent)
+                            failure = Error("PRINT_OUTCOME_UNKNOWN",
+                                            network
+                                                ? "A later copy may have partially reached the LAN "
+                                                  "printer. Inspect the paper before reprinting."
+                                                : "Data may have reached the Windows spooler. "
+                                                  "Inspect paper and the Windows print queue "
+                                                  "before reprinting.",
+                                            false, true)
+                                          .json();
+                        else
+                            failure = e.json();
                         log_code(directory, failure["code"]);
                     } catch (...) {
                         failure = unknown().json();
@@ -160,8 +183,13 @@ struct App {
             old_id = last_jobs[static_cast<std::size_t>(selected_job)]["jobId"];
         SendMessageW(control(PrinterList), LB_RESETCONTENT, 0, 0);
         for (std::size_t i = 0; i < printers.size(); ++i) {
-            auto line = wide(printers[i]["name"].get<std::string>() + " — " +
-                             printers[i]["connection"]["queueName"].get<std::string>());
+            std::string target;
+            if (printers[i]["connection"]["type"] == "network")
+                target = printers[i]["connection"]["host"].get<std::string>() + ":" +
+                         std::to_string(printers[i]["connection"]["port"].get<int>());
+            else
+                target = printers[i]["connection"]["queueName"].get<std::string>();
+            auto line = wide(printers[i]["name"].get<std::string>() + " — " + target);
             SendMessageW(control(PrinterList), LB_ADDSTRING, 0,
                          reinterpret_cast<LPARAM>(line.c_str()));
             if (printers[i]["id"] == selected)
@@ -196,7 +224,11 @@ struct App {
         check(Cutter, true);
         SendMessageW(control(Role), CB_SETCURSEL, 0, 0);
         check(AutoPrint, false);
+        SendMessageW(control(ConnType), CB_SETCURSEL, 0, 0);
+        set(Host, L"");
+        set(NetPort, L"9100");
         SendMessageW(control(PrinterList), LB_SETCURSEL, -1, 0);
+        layout_connection();
     }
     void select() {
         auto i = SendMessageW(control(PrinterList), LB_GETCURSEL, 0, 0);
@@ -211,15 +243,23 @@ struct App {
                           {Font, "fontSize"}})
             set(pair.first, std::to_wstring(p[pair.second].get<int>()));
         check(Cutter, p["cut"]);
-        auto q = wide(p["connection"]["queueName"]);
-        auto index = SendMessageW(control(Installed), CB_FINDSTRINGEXACT, -1,
-                                  reinterpret_cast<LPARAM>(q.c_str()));
-        if (index == CB_ERR) {
-            index = SendMessageW(control(Installed), CB_ADDSTRING, 0,
-                                 reinterpret_cast<LPARAM>(q.c_str()));
-            installed.push_back(p["connection"]["queueName"]);
+        if (p["connection"]["type"] == "network") {
+            SendMessageW(control(ConnType), CB_SETCURSEL, 1, 0);
+            set(Host, wide(p["connection"]["host"].get<std::string>()));
+            set(NetPort, std::to_wstring(p["connection"]["port"].get<int>()));
+        } else {
+            SendMessageW(control(ConnType), CB_SETCURSEL, 0, 0);
+            auto q = wide(p["connection"]["queueName"].get<std::string>());
+            auto index = SendMessageW(control(Installed), CB_FINDSTRINGEXACT, -1,
+                                      reinterpret_cast<LPARAM>(q.c_str()));
+            if (index == CB_ERR) {
+                index = SendMessageW(control(Installed), CB_ADDSTRING, 0,
+                                     reinterpret_cast<LPARAM>(q.c_str()));
+                installed.push_back(p["connection"]["queueName"]);
+            }
+            SendMessageW(control(Installed), CB_SETCURSEL, index, 0);
         }
-        SendMessageW(control(Installed), CB_SETCURSEL, index, 0);
+        layout_connection();
         SendMessageW(control(Role), CB_SETCURSEL, 0, 0);
         check(AutoPrint, false);
         for (auto &r : config["routes"])
@@ -270,13 +310,55 @@ struct App {
             select();
         set(Status, L"صف پرینتر ESC/POS را انتخاب کنید؛ وجود صف به معنی آماده بودن چاپگر نیست.");
     }
+    void layout_connection() {
+        bool network = static_cast<int>(SendMessageW(control(ConnType), CB_GETCURSEL, 0, 0)) == 1;
+        int spooler_ids[] = {SpoolerLabel, Installed, Discover};
+        int network_ids[] = {NetworkLabel, Host, PortLabel, NetPort, Probe};
+        for (int id : spooler_ids)
+            ShowWindow(control(id), network ? SW_HIDE : SW_SHOW);
+        for (int id : network_ids)
+            ShowWindow(control(id), network ? SW_SHOW : SW_HIDE);
+        set(Hint,
+            network
+                ? L"پرینتر LAN را با IP خصوصی (مثل ۱۹۲.۱۶۸.۱.۵۰) و پورت ۹۱۰۰ اضافه کنید؛ برای این "
+                  L"نوع نیازی به نصب درایور ویندوز نیست."
+                : L"صف نصب‌شدهٔ ویندوز را انتخاب کنید (درایور باید ESC/POS را بدون تغییر منتقل کند). "
+                  L"پرینتر LAN را اول به‌عنوان صف ویندوز نصب کنید.");
+    }
+    void probe() {
+        bool network = static_cast<int>(SendMessageW(control(ConnType), CB_GETCURSEL, 0, 0)) == 1;
+        if (!network)
+            throw Error("INVALID_CONFIG", "بررسی اتصال فقط برای پرینتر شبکه (IP) معنا دارد");
+        Json profile = {{"connection",
+                         {{"type", "network"},
+                          {"host", utf8(text(Host))},
+                          {"port", integer(NetPort)}}}};
+        probe_network(profile);
+        set(Status,
+            L"اتصال LAN برقرار شد. این فقط باز شدن اتصال TCP است، نه تأیید چاپ روی کاغذ.");
+    }
     void save() {
         auto c = store->config();
         c["port"] = integer(Port);
         c["maxAttempts"] = integer(Attempts);
         c["autostart"] = checked(AutoStart);
-        int i = static_cast<int>(SendMessageW(control(Installed), CB_GETCURSEL, 0, 0));
-        if (i >= 0 && i < static_cast<int>(installed.size()) && !text(Name).empty()) {
+        if (!text(Name).empty()) {
+            bool network =
+                static_cast<int>(SendMessageW(control(ConnType), CB_GETCURSEL, 0, 0)) == 1;
+            Json connection;
+            if (network) {
+                if (utf8(text(Host)).empty())
+                    throw Error("INVALID_CONFIG", "آدرس IP پرینتر شبکه را وارد کنید");
+                connection = {{"type", "network"},
+                              {"host", utf8(text(Host))},
+                              {"port", integer(NetPort)}};
+            } else {
+                int i = static_cast<int>(SendMessageW(control(Installed), CB_GETCURSEL, 0, 0));
+                if (i < 0 || i >= static_cast<int>(installed.size()))
+                    throw Error("INVALID_CONFIG",
+                                "یک پرینتر نصب‌شدهٔ ویندوز را از فهرست انتخاب کنید");
+                connection = {{"type", "spooler"}, {"queueName", installed[i]}};
+            }
             if (selected.empty()) {
                 auto random = random_base64();
                 random.erase(
@@ -287,7 +369,7 @@ struct App {
             }
             Json p = {{"id", selected},
                       {"name", utf8(text(Name))},
-                      {"connection", {{"type", "spooler"}, {"queueName", installed[i]}}},
+                      {"connection", connection},
                       {"paperMm", integer(Paper)},
                       {"widthDots", integer(Dots)},
                       {"copies", integer(Copies)},
@@ -358,7 +440,7 @@ struct App {
         auto j = store->enqueue(id, selected,
                                 {{"type", "receipt"},
                                  {"lines",
-                                  {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy / Windows RAW",
+                                  {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy",
                                    u8"۱۲۳۴۵۶۷۸۹۰ / 0123456789"}}});
         server->event({{"type", "print.queued"}, {"version", 1}, {"job", j}});
         wake.notify_one();
@@ -417,58 +499,71 @@ void label(HWND w, const wchar_t *s, int x, int y, int width = 150) {
     control(w, L"STATIC", s, 0, x, y, width, 20);
 }
 void create_ui(HWND w) {
-    control(w, L"STATIC", L"منووکس پرینتر — نسخهٔ Legacy | ویندوز ۷ SP1 و جدیدتر | آزمایشی", Status,
-            20, 15, 910, 38);
-    label(w, L"پرینترهای شما", 20, 58, 300);
-    control(w, L"LISTBOX", L"", PrinterList, 20, 80, 900, 80, LBS_NOTIFY | WS_VSCROLL);
-    label(w, L"پرینتر نصب‌شده در ویندوز", 20, 177, 190);
-    control(w, L"COMBOBOX", L"", Installed, 210, 172, 510, 250,
+    control(w, L"STATIC",
+            L"منووکس پرینتر — نسخهٔ Legacy | ویندوز ۷ SP1 و جدیدتر | آزمایشی", Status, 20, 14, 930,
+            40);
+    label(w, L"پرینترهای شما", 20, 60, 300);
+    control(w, L"LISTBOX", L"", PrinterList, 20, 82, 930, 74, LBS_NOTIFY | WS_VSCROLL);
+    label(w, L"نوع اتصال", 20, 172, 90);
+    control(w, L"COMBOBOX", L"", ConnType, 112, 167, 260, 200, CBS_DROPDOWNLIST | WS_TABSTOP);
+    SendMessageW(GetDlgItem(w, ConnType), CB_ADDSTRING, 0,
+                 reinterpret_cast<LPARAM>(L"صف ویندوز (RAW)"));
+    SendMessageW(GetDlgItem(w, ConnType), CB_ADDSTRING, 0,
+                 reinterpret_cast<LPARAM>(L"شبکهٔ LAN — وارد کردن IP"));
+    control(w, L"STATIC", L"پرینتر نصب‌شدهٔ ویندوز", SpoolerLabel, 390, 172, 180, 20);
+    control(w, L"COMBOBOX", L"", Installed, 576, 167, 250, 250,
             CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP);
-    control(w, L"BUTTON", L"جستجوی پرینترهای ویندوز", Discover, 735, 171, 185, 26, WS_TABSTOP);
-    label(w, L"نام پرینتر", 20, 214);
-    control(w, L"EDIT", L"", Name, 170, 209, 360, 26, ES_AUTOHSCROLL | WS_TABSTOP);
-    control(w, L"BUTTON", L"پرینتر جدید", Add, 550, 209, 115, 26, WS_TABSTOP);
-    control(w, L"BUTTON", L"حذف پرینتر", Remove, 680, 209, 130, 26, WS_TABSTOP);
+    control(w, L"BUTTON", L"جستجوی پرینترهای ویندوز", Discover, 836, 166, 114, 26, WS_TABSTOP);
+    control(w, L"STATIC", L"آدرس IP پرینتر", NetworkLabel, 390, 172, 120, 20);
+    control(w, L"EDIT", L"", Host, 512, 167, 160, 26, ES_AUTOHSCROLL | WS_TABSTOP);
+    control(w, L"STATIC", L"پورت", PortLabel, 682, 172, 45, 20);
+    control(w, L"EDIT", L"9100", NetPort, 728, 167, 70, 26, ES_NUMBER | WS_TABSTOP);
+    control(w, L"BUTTON", L"بررسی اتصال", Probe, 812, 166, 138, 26, WS_TABSTOP);
+    control(w, L"STATIC", L"", Hint, 20, 200, 930, 34);
+    label(w, L"نام پرینتر", 20, 244, 90);
+    control(w, L"EDIT", L"", Name, 112, 239, 300, 26, ES_AUTOHSCROLL | WS_TABSTOP);
+    control(w, L"BUTTON", L"پرینتر جدید", Add, 424, 238, 120, 26, WS_TABSTOP);
+    control(w, L"BUTTON", L"حذف پرینتر", Remove, 556, 238, 130, 26, WS_TABSTOP);
     int x = 20;
     for (auto p : {std::make_pair(Paper, L"کاغذ: ۵۸ یا ۸۰ میلی‌متر"),
                    {Dots, L"عرض چاپ: ۳۸۴ یا ۵۷۶ نقطه"},
                    {Copies, L"تعداد نسخه: ۱ تا ۳"},
                    {Font, L"اندازهٔ قلم: ۱۲ تا ۴۸"}}) {
-        label(w, p.second, x, 253, 210);
-        control(w, L"EDIT", L"", p.first, x, 277, 190, 26, ES_NUMBER | WS_TABSTOP);
-        x += 230;
+        label(w, p.second, x, 292, 210);
+        control(w, L"EDIT", L"", p.first, x, 316, 190, 26, ES_NUMBER | WS_TABSTOP);
+        x += 232;
     }
-    label(w, L"نقش پرینتر", 20, 319);
-    control(w, L"COMBOBOX", L"", Role, 170, 313, 200, 180, CBS_DROPDOWNLIST | WS_TABSTOP);
+    label(w, L"نقش پرینتر", 20, 358, 90);
+    control(w, L"COMBOBOX", L"", Role, 112, 353, 200, 180, CBS_DROPDOWNLIST | WS_TABSTOP);
     for (auto r : {L"بدون نقش", L"فاکتور", L"آشپزخانه", L"بار"})
         SendMessageW(GetDlgItem(w, Role), CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(r));
-    control(w, L"BUTTON", L"چاپ خودکار (نیازمند اتصال سایت)", AutoPrint, 400, 313, 290, 26,
+    control(w, L"BUTTON", L"چاپ خودکار (نیازمند اتصال سایت)", AutoPrint, 330, 353, 300, 26,
             BS_AUTOCHECKBOX | WS_TABSTOP);
-    control(w, L"BUTTON", L"برش کاغذ", Cutter, 720, 313, 190, 26, BS_AUTOCHECKBOX | WS_TABSTOP);
-    label(w, L"پورت محلی", 20, 356);
-    control(w, L"EDIT", L"8765", Port, 110, 350, 90, 26, ES_NUMBER | WS_TABSTOP);
-    label(w, L"تعداد تلاش", 220, 356);
-    control(w, L"EDIT", L"3", Attempts, 320, 350, 70, 26, ES_NUMBER | WS_TABSTOP);
-    control(w, L"BUTTON", L"اجرا هنگام ورود", AutoStart, 420, 350, 180, 26,
+    control(w, L"BUTTON", L"برش کاغذ", Cutter, 645, 353, 220, 26, BS_AUTOCHECKBOX | WS_TABSTOP);
+    label(w, L"پورت محلی", 20, 398, 90);
+    control(w, L"EDIT", L"8765", Port, 112, 393, 90, 26, ES_NUMBER | WS_TABSTOP);
+    label(w, L"تعداد تلاش", 215, 398, 90);
+    control(w, L"EDIT", L"3", Attempts, 308, 393, 70, 26, ES_NUMBER | WS_TABSTOP);
+    control(w, L"BUTTON", L"اجرا هنگام ورود", AutoStart, 392, 393, 170, 26,
             BS_AUTOCHECKBOX | WS_TABSTOP);
-    control(w, L"BUTTON", L"ذخیرهٔ تنظیمات", Save, 620, 349, 140, 28, WS_TABSTOP);
-    control(w, L"BUTTON", L"چاپ آزمایشی", Test, 780, 349, 140, 28, WS_TABSTOP);
-    label(
-        w,
-        L"اتصال سایت: کلید را فقط در سایت رسمی منووکس وارد کنید؛ آن را در چت یا گزارش خطا نفرستید.",
-        20, 395, 900);
-    control(w, L"BUTTON", L"نمایش کلید: ۶۰ ثانیه", Reveal, 20, 420, 190, 28, WS_TABSTOP);
-    control(w, L"EDIT", L"", SecretBox, 220, 420, 450, 28, ES_READONLY | ES_AUTOHSCROLL);
-    control(w, L"BUTTON", L"لغو اتصال مرورگرها", Rotate, 700, 420, 220, 28, WS_TABSTOP);
-    label(w,
-          L"صف چاپ — تکمیل یعنی تحویل به ویندوز، نه تأیید چاپ کاغذ. نتیجهٔ نامشخص را پیش از چاپ "
-          L"مجدد بررسی کنید.",
-          20, 470, 910);
-    control(w, L"LISTBOX", L"", QueueList, 20, 495, 900, 155, LBS_NOTIFY | WS_VSCROLL | WS_HSCROLL);
+    control(w, L"BUTTON", L"ذخیرهٔ تنظیمات", Save, 620, 392, 160, 30, WS_TABSTOP);
+    control(w, L"BUTTON", L"چاپ آزمایشی", Test, 792, 392, 158, 30, WS_TABSTOP);
+    control(w, L"STATIC",
+            L"اتصال سایت: کلید را فقط در سایت رسمی منووکس وارد کنید؛ آن را در چت یا گزارش خطا "
+            L"نفرستید.",
+            0, 20, 440, 930, 20);
+    control(w, L"BUTTON", L"نمایش کلید: ۶۰ ثانیه", Reveal, 20, 470, 200, 30, WS_TABSTOP);
+    control(w, L"EDIT", L"", SecretBox, 232, 470, 470, 30, ES_READONLY | ES_AUTOHSCROLL);
+    control(w, L"BUTTON", L"لغو اتصال مرورگرها", Rotate, 716, 470, 234, 30, WS_TABSTOP);
+    control(w, L"STATIC",
+            L"صف چاپ — «ارسال شد» یعنی تحویل بایت‌ها به پرینتر، نه تأیید چاپ کاغذ. نتیجهٔ نامشخص را "
+            L"پیش از چاپ مجدد بررسی کنید.",
+            0, 20, 520, 930, 34);
+    control(w, L"LISTBOX", L"", QueueList, 20, 560, 930, 150,
+            LBS_NOTIFY | WS_VSCROLL | WS_HSCROLL);
     SendMessageW(GetDlgItem(w, QueueList), LB_SETHORIZONTALEXTENT, 1400, 0);
-    control(w, L"BUTTON", L"لغو کار انتخاب‌شده در صف", Cancel, 20, 660, 230,
-            28, WS_TABSTOP);
-    control(w, L"BUTTON", L"خروج از برنامه", Quit, 780, 660, 140, 28, WS_TABSTOP);
+    control(w, L"BUTTON", L"لغو کار انتخاب‌شده در صف", Cancel, 20, 722, 240, 30, WS_TABSTOP);
+    control(w, L"BUTTON", L"خروج از برنامه", Quit, 792, 722, 158, 30, WS_TABSTOP);
 }
 LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
     try {
@@ -567,6 +662,13 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
             case Discover:
                 app->discover();
                 break;
+            case ConnType:
+                if (HIWORD(wp) == CBN_SELCHANGE)
+                    app->layout_connection();
+                break;
+            case Probe:
+                app->probe();
+                break;
             case Save:
                 app->save();
                 break;
@@ -656,7 +758,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int) {
         state.window =
             CreateWindowExW(0, wc.lpszClassName, L"منووکس پرینتر — Legacy",
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT,
-                            CW_USEDEFAULT, 970, 750, nullptr, nullptr, instance, nullptr);
+                            CW_USEDEFAULT, 970, 820, nullptr, nullptr, instance, nullptr);
         if (!state.window)
             throw mv::Error("STARTUP_ERROR", "Cannot create native window");
         state.config = state.store->config();

@@ -9,6 +9,7 @@
 #include <wincred.h>
 #include <wincrypt.h>
 #include <winspool.h>
+#include <ws2tcpip.h>
 namespace mv {
 struct Handle {
     HANDLE h = nullptr;
@@ -435,6 +436,102 @@ std::vector<unsigned char> render(const Json &p, const Json &doc) {
                     static_cast<unsigned char>(0x80 >> (x % 8));
         }
     return raster(width, height, bits, p["cut"]);
+}
+// Direct LAN TCP/9100 transport for RFC1918 unicast IPv4, mirroring the modern Agent's network
+// rules. Only ws2_32 APIs are used, so no newer OS import is introduced.
+static void network_endpoint(const Json &profile, IN_ADDR &addr, u_short &port) {
+    const auto &c = profile.at("connection");
+    auto host = c.at("host").get<std::string>();
+    port = static_cast<u_short>(c.at("port").get<int>());
+    IN_ADDR parsed{};
+    if (InetPtonA(AF_INET, host.c_str(), &parsed) != 1)
+        throw Error("INVALID_CONFIG", "Use a literal private IPv4 address", false);
+    auto *o = reinterpret_cast<unsigned char *>(&parsed);
+    bool private_range = o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) ||
+                         (o[0] == 192 && o[1] == 168);
+    if (!private_range || port == 0 || o[3] == 0 || o[3] == 255)
+        throw Error("INVALID_CONFIG", "Only private LAN unicast IPv4 addresses are supported",
+                    false);
+    addr = parsed;
+}
+static void ensure_winsock() {
+    static std::once_flag once;
+    std::call_once(once, [] {
+        WSADATA data;
+        WSAStartup(MAKEWORD(2, 2), &data);
+    });
+}
+static SOCKET lan_connect(const IN_ADDR &addr, u_short port) {
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET)
+        throw Error("NETWORK_CONNECTION_FAILED", "Cannot create LAN socket", true);
+    sockaddr_in target{};
+    target.sin_family = AF_INET;
+    target.sin_port = htons(port);
+    target.sin_addr = addr;
+    u_long nonblocking = 1;
+    ioctlsocket(s, FIONBIO, &nonblocking);
+    int result = connect(s, reinterpret_cast<sockaddr *>(&target), sizeof(target));
+    if (result == SOCKET_ERROR) {
+        int err = WSAGetLastError();
+        if (err != WSAEWOULDBLOCK && err != WSAEINPROGRESS) {
+            closesocket(s);
+            throw Error("NETWORK_CONNECTION_FAILED", "Cannot reach the LAN printer", true);
+        }
+        fd_set writable;
+        FD_ZERO(&writable);
+        FD_SET(s, &writable);
+        timeval timeout{3, 0};
+        int ready = select(0, nullptr, &writable, nullptr, &timeout);
+        if (ready <= 0) {
+            closesocket(s);
+            throw Error(ready == 0 ? "NETWORK_TIMEOUT" : "NETWORK_CONNECTION_FAILED",
+                        ready == 0 ? "LAN printer did not accept the connection in time"
+                                   : "Cannot reach the LAN printer",
+                        true);
+        }
+        int so_error = 0;
+        int len = sizeof(so_error);
+        getsockopt(s, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&so_error), &len);
+        if (so_error != 0) {
+            closesocket(s);
+            throw Error("NETWORK_CONNECTION_FAILED", "Cannot reach the LAN printer", true);
+        }
+    }
+    u_long blocking = 0;
+    ioctlsocket(s, FIONBIO, &blocking);
+    return s;
+}
+void send_network(const Json &profile, const std::vector<unsigned char> &bytes) {
+    ensure_winsock();
+    IN_ADDR addr{};
+    u_short port = 0;
+    network_endpoint(profile, addr, port);
+    SOCKET s = lan_connect(addr, port);
+    DWORD send_timeout = 10000;
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char *>(&send_timeout),
+               sizeof(send_timeout));
+    std::size_t offset = 0;
+    while (offset < bytes.size()) {
+        int chunk = static_cast<int>(std::min<std::size_t>(16384, bytes.size() - offset));
+        int written = send(s, reinterpret_cast<const char *>(bytes.data()) + offset, chunk, 0);
+        if (written == SOCKET_ERROR)
+            throw Error("PRINT_OUTCOME_UNKNOWN",
+                        "Some bytes may have reached the LAN printer. Inspect the paper before "
+                        "reprinting.",
+                        false, true);
+        offset += static_cast<std::size_t>(written);
+    }
+    shutdown(s, SD_SEND);
+    closesocket(s);
+}
+void probe_network(const Json &profile) {
+    ensure_winsock();
+    IN_ADDR addr{};
+    u_short port = 0;
+    network_endpoint(profile, addr, port);
+    SOCKET s = lan_connect(addr, port);
+    closesocket(s);
 }
 // Blocking driver calls are isolated in a disposable process. Killing it never permits automatic
 // replay.

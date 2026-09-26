@@ -43,6 +43,8 @@ void load_font();
 std::vector<unsigned char> render(const Json &profile, const Json &doc);
 void send_spooler(const std::wstring &directory, const Json &profile,
                   const std::vector<unsigned char> &bytes);
+void send_network(const Json &profile, const std::vector<unsigned char> &bytes);
+void probe_network(const Json &profile);
 int spool_child(const std::wstring &file);
 void log_code(const std::wstring &directory, const std::string &code);
 } // namespace mv

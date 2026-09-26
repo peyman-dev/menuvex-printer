@@ -136,7 +136,7 @@ struct Server::Impl {
                     ? r["document"]
                     : Json({{"type", "receipt"},
                             {"lines",
-                             {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy / Windows RAW",
+                             {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy",
                               u8"0123456789 / ۱۲۳۴۵۶۷۸۹۰"}}});
             auto job = store.enqueue(r["jobId"], r["printerId"], doc);
             broadcast_job(job);

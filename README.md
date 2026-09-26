@@ -19,7 +19,7 @@ Standalone Tauri 2 / Rust / React agent for local USB and LAN ESC/POS printing, 
 
 ## Windows 7 Legacy variant
 
-A separate native Win32/C++ Agent is now implemented under [`legacy-windows/`](legacy-windows/README.md). It uses installed Windows RAW spooler queues, SQLite and Uniscribe Persian raster printing, with the same HMAC protocol and an additive `spooler` SDK descriptor. The Windows installer collection stage builds x86/x64 Legacy candidates in addition to the modern output. Real Windows 7 SP1/driver/browser acceptance remains required; no compatibility certification is claimed from modern CI alone.
+A separate native Win32/C++ Agent is now implemented under [`legacy-windows/`](legacy-windows/README.md). It uses installed Windows RAW spooler queues or direct LAN TCP/9100 to a private IPv4 (chosen per printer), SQLite and Uniscribe Persian raster printing, with the same HMAC protocol and additive `spooler` / `network` SDK descriptors. The Windows installer collection stage builds x86/x64 Legacy candidates in addition to the modern output. Real Windows 7 SP1/driver/browser acceptance remains required; no compatibility certification is claimed from modern CI alone.
 
 ## Installer downloads for café testing
 

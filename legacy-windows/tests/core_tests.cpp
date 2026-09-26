@@ -31,6 +31,17 @@ Json profile() {
             {"fontFamily", "Noto Sans Arabic"},
             {"fontSize", 24}};
 }
+Json network_profile() {
+    return {{"id", "n1"},
+            {"name", "LAN"},
+            {"connection", {{"type", "network"}, {"host", "192.168.1.50"}, {"port", 9100}}},
+            {"paperMm", 58},
+            {"widthDots", 384},
+            {"copies", 1},
+            {"cut", true},
+            {"fontFamily", "Noto Sans Arabic"},
+            {"fontSize", 24}};
+}
 Json receipt() { return {{"type", "receipt"}, {"lines", {u8"سلام دنیا", "Test"}}}; }
 int main() {
     try {
@@ -68,6 +79,39 @@ int main() {
         auto invalid = c;
         invalid["printers"][0]["widthDots"] = 385;
         rejects([&] { validate_config(invalid); });
+        auto net = default_config();
+        net["printers"].push_back(network_profile());
+        net["routes"].push_back({{"role", "invoice"}, {"printerId", "n1"}, {"autoPrint", true}});
+        validate_config(net);
+        auto &nc = net["printers"][0]["connection"];
+        for (auto bad : {std::make_pair(std::string("127.0.0.1"), 9100),
+                         {"169.254.169.254", 9100},
+                         {"8.8.8.8", 9100},
+                         {"224.0.0.1", 9100},
+                         {"192.168.1.0", 9100},
+                         {"192.168.1.255", 9100},
+                         {"172.15.0.1", 9100},
+                         {"172.32.0.1", 9100},
+                         {"192.168.001.050", 9100},
+                         {"192.168.1", 9100},
+                         {"localhost", 9100},
+                         {"10.0.0.1", 0},
+                         {"10.0.0.1", 70000}}) {
+            nc["host"] = bad.first;
+            nc["port"] = bad.second;
+            rejects([&] { validate_config(net); });
+        }
+        for (const char *good : {"10.0.0.5", "172.16.3.4", "172.31.255.254", "192.168.0.1"}) {
+            nc["host"] = good;
+            nc["port"] = 9100;
+            validate_config(net);
+        }
+        nc["type"] = "usb";
+        rejects([&] { validate_config(net); }, "INVALID_CONFIG");
+        nc["type"] = "network";
+        nc["extra"] = 1;
+        rejects([&] { validate_config(net); });
+        nc.erase("extra");
         std::vector<unsigned char> pixels(48 * 2, 0x80);
         auto bytes = raster(384, 2, pixels, true);
         check(bytes[0] == 27 && bytes[1] == 64 && bytes[2] == 29 && bytes.back() == 0,

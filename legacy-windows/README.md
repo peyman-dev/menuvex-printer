@@ -9,6 +9,7 @@ A separate C++17 / Win32 implementation for older cashier computers. It does not
 - Native Win32 window, system tray, close-to-hide, explicit Quit, single-instance mutex and optional default-on HKCU login startup.
 - Windows installed-printer discovery (local and connected Windows queues), named persistent profiles, invoice/kitchen/bar routes, independent test print and queue/cancel UI.
 - Windows RAW spooler transport using OpenPrinter/StartDocPrinter/WritePrinter. Printer drivers must pass ESC/POS unchanged; do not use XPS/host-based-only drivers. No WinUSB driver replacement is performed.
+- Direct LAN TCP/9100 transport (Winsock2) to a private RFC1918 IPv4 with a configurable port and deadlines, mirroring the modern Agent's rules (no DNS, public, loopback or link-local). A per-printer connection-type selector chooses a Windows queue or a LAN IP, plus a "check connection" probe.
 - SQLite WAL + FULL sync, immutable profile snapshots, unique logical IDs, 256-active-job cap, FIFO per printer, crash recovery, safe pre-submission retries, no automatic replay after uncertain submission.
 - Semantic invoice/receipt → bundled Noto Sans Arabic + Uniscribe shaping/BiDi + GDI raster → bounded GS v 0 ESC/POS stripes. Paper mm, actual dots, copies, font size and cutter configurable locally.
 - Loopback-only WebSocket v1, exact Origin/Host/path checks, mutual HMAC-SHA256 handshake using BCrypt, 256-bit Credential Manager key, local reveal/rotation, size/rate/authentication limits and events/resync. No browser-origin configuration mutation.
@@ -17,11 +18,11 @@ A separate C++17 / Win32 implementation for older cashier computers. It does not
 
 ## What is deliberately different
 
-A printer is described truthfully as `connection: { type: "spooler", queueName: "..." }`. The SDK now accepts this additive variant; old SDK copies that validate only `usb` / `network` must be updated before pairing. `sdk/tests/spooler.test.ts` covers compatibility. The modern Tauri backend is unchanged and still configures its own USB/network profiles.
+A printer is described truthfully as `connection: { type: "spooler", queueName: "..." }` for a Windows queue, or `connection: { type: "network", host, port }` for direct LAN — the `network` form is identical to the modern Agent and already accepted by the shared SDK. Old SDK copies that validate only `usb` / `network` must be updated before pairing a `spooler` printer; `sdk/tests/spooler.test.ts` covers compatibility. The modern Tauri backend is unchanged and still configures its own USB/network profiles.
 
-The wire handshake, semantic documents, job schema and command names match `docs/protocol.md`. `completed` means handed to the Windows spooler, not physical paper; the Windows queue may still hold an offline job. Status is `unknown` unless Agent itself is sending (`busy`). Do not falsely show that an installed queue is physically online. Windows queue discovery does not provide USB hotplug monitoring. The UI deliberately tells operators to inspect Windows Devices and Printers for physical status.
+The wire handshake, semantic documents, job schema and command names match `docs/protocol.md`. `completed` means the bytes were handed to the transport — to the Windows spooler for a queue (not physical paper; the queue may still hold an offline job), or accepted over TCP for direct LAN. Status is `unknown` unless Agent itself is sending (`busy`). Do not falsely show that an installed queue is physically online. Windows queue discovery does not provide USB hotplug monitoring. The UI deliberately tells operators to inspect Windows Devices and Printers for physical status.
 
-LAN printers in Legacy must be installed as Windows printer queues (e.g. an approved Standard TCP/IP port/driver). Direct arbitrary TCP host configuration is not exposed by this first Legacy variant. The modern Agent's direct TCP transport is retained.
+LAN in Legacy offers two options per printer. Direct LAN: enter the printer's private IPv4 and port (normally 9100); no DNS, public, loopback or link-local address is accepted and the port is adjustable locally, exactly like the modern Agent — no Windows driver is needed. Windows queue: install the LAN printer as a Windows RAW spooler queue (e.g. an approved Standard TCP/IP port/driver) and select it, when a vendor driver is required. Use the "check connection" probe to confirm reachability; a successful probe only opens the TCP connection and is not proof of paper output.
 
 Legacy has a separate data directory and Credential Manager entry; modern credentials/history are not silently imported. Both default to port 8765: **quit the other Agent before using Legacy**. Do not migrate jobs between their independent DBs automatically. Reconcile queued/unknown jobs before switching variants. On port conflict the UI remains available and the worker pauses; change port and Quit/reopen if intentionally using another port. The website CSP/SDK must use the same port.
 
@@ -62,7 +63,7 @@ The existing `MenuVex-Installer-Windows-x64` Actions artifact now contains the m
 1. Check Control Panel → System → System type: choose x86 for 32-bit; x64 for 64-bit. `winver` alone does not tell architecture.
 2. Install the matching Legacy setup.exe; do not install any developer packages.
 3. Ensure the thermal printer is already installed in Windows and its vendor test works.
-4. Quit modern Agent. Open Legacy → Refresh Windows printers → choose exact queue → set profile name, paper/dots, role → Save settings.
+4. Quit modern Agent. Open Legacy → choose the connection type: for a Windows queue, Refresh Windows printers and pick the exact queue; for direct LAN, enter the printer's private IP and port 9100 → set profile name, paper/dots, role → Save settings.
 5. Test print. Inspect joined Persian letters, mixed numbers, long-line wrapping, clipping and cutter on real paper.
 6. Update the website SDK for `spooler`. Pair using the local reveal button only on the official MenuVex origin. No plain key in localStorage.
 7. Keep unknown-outcome jobs out of automatic retries; inspect the Windows queue and actual paper first.

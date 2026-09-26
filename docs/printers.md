@@ -8,7 +8,7 @@ USB descriptor: VID/PID, optional serial, bus and port topology, interface, alte
 
 Only standard class 0x07 printer interfaces are selectable through discovery. Never treat HID/storage/vendor interfaces as generic printers. All saved endpoint data is revalidated against live descriptors before sending. USB permission errors are actionable, not retried forever. Vendor-specific support requires a device contract and hardware tests.
 
-LAN: exact RFC1918 IPv4, default 9100, adjustable port through local UI, no DNS/public IP/loopback/link-local. Use DHCP reservation/static address to avoid silent address changes. Probe makes a connection only; it does not send dummy ESC/POS. Wrong service at that address may accept connections, so operator must confirm with actual print. Configure invoice, kitchen, bar routes in Settings; PWA reads routes in `agent.status`.
+LAN: exact RFC1918 IPv4, default 9100, adjustable port through local UI, no DNS/public IP/loopback/link-local. Use DHCP reservation/static address to avoid silent address changes. Probe makes a connection only; it does not send dummy ESC/POS. Wrong service at that address may accept connections, so operator must confirm with actual print. Configure invoice, kitchen, bar routes in Settings; PWA reads routes in `agent.status`. The Windows 7 Legacy agent offers the same direct LAN (TCP/9100, private IPv4) per printer, alongside installed Windows RAW spooler queues.
 
 ## Status meaning
 

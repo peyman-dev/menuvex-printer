@@ -9,8 +9,8 @@ Json Error::json() const {
 }
 Error unknown() {
     return {"PRINT_OUTCOME_UNKNOWN",
-            "Data may have reached the Windows spooler. Inspect paper and Windows print queue "
-            "before reprinting.",
+            "Data may have reached the printer. Inspect the paper (and the Windows print queue for "
+            "spooler printers) before reprinting.",
             false, true};
 }
 static void require(bool ok, const char *message) {
@@ -22,6 +22,41 @@ bool valid_id(const std::string &s) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
                c == '-' || c == '_' || c == ':' || c == '.';
     });
+}
+// Literal RFC1918 unicast IPv4 only (no DNS, loopback, link-local, multicast or public), matching
+// the modern Agent's network rules. Rejects leading zeros so the value round-trips through
+// InetPtonA on the transport side.
+static bool private_ipv4(const std::string &s) {
+    int octets[4];
+    int count = 0;
+    std::size_t i = 0;
+    while (i < s.size()) {
+        std::size_t start = i;
+        int value = 0;
+        while (i < s.size() && s[i] >= '0' && s[i] <= '9') {
+            value = value * 10 + (s[i] - '0');
+            if (value > 255)
+                return false;
+            ++i;
+        }
+        std::size_t len = i - start;
+        if (len == 0 || len > 3 || (len > 1 && s[start] == '0'))
+            return false;
+        if (count >= 4)
+            return false;
+        octets[count++] = value;
+        if (i < s.size()) {
+            if (s[i] != '.')
+                return false;
+            ++i;
+        }
+    }
+    if (count != 4)
+        return false;
+    bool private_range = octets[0] == 10 ||
+                         (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) ||
+                         (octets[0] == 192 && octets[1] == 168);
+    return private_range && octets[3] != 0 && octets[3] != 255;
 }
 void fields(const Json &j, std::initializer_list<const char *> required,
             std::initializer_list<const char *> optional) {
@@ -157,12 +192,25 @@ void validate_config(const Json &c) {
                 "Invalid/duplicate printer ID");
         require(text(p["name"], 128) && !p["name"].get_ref<const std::string &>().empty(),
                 "Invalid name");
-        // Legacy deliberately uses installed Windows spooler queues, not invented USB VID/PID
-        // records.
-        fields(p["connection"], {"type", "queueName"});
-        require(p["connection"]["type"] == "spooler" && text(p["connection"]["queueName"], 512) &&
-                    !p["connection"]["queueName"].get_ref<const std::string &>().empty(),
-                "Invalid spooler queue");
+        // Legacy supports installed Windows spooler queues and direct LAN TCP/9100, but not
+        // invented USB VID/PID records.
+        const auto &conn = p["connection"];
+        require(conn.is_object() && conn.contains("type") && conn["type"].is_string(),
+                "Invalid connection");
+        auto ctype = conn["type"].get<std::string>();
+        if (ctype == "spooler") {
+            fields(conn, {"type", "queueName"});
+            require(text(conn["queueName"], 512) &&
+                        !conn["queueName"].get_ref<const std::string &>().empty(),
+                    "Invalid spooler queue");
+        } else if (ctype == "network") {
+            fields(conn, {"type", "host", "port"});
+            require(conn["host"].is_string() && private_ipv4(conn["host"].get<std::string>()),
+                    "Use a literal private IPv4 address (e.g. 192.168.1.50)");
+            require(number(conn["port"], 1, 65535), "Invalid LAN port (1-65535)");
+        } else {
+            throw Error("INVALID_CONFIG", "Connection type must be spooler or network");
+        }
         require(number(p["paperMm"], 58, 80) && (p["paperMm"] == 58 || p["paperMm"] == 80) &&
                     number(p["widthDots"], 128, 832) && p["widthDots"].get<int>() % 8 == 0,
                 "Invalid paper profile");
