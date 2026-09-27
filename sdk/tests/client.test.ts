@@ -37,6 +37,7 @@ class TestSocket implements Socket {
   dropPrint = false;
   printers: unknown[] = [];
   discovered: unknown[] = [];
+  saved: unknown = null;
   constructor() {
     queueMicrotask(() =>
       this.emit({
@@ -90,11 +91,13 @@ class TestSocket implements Socket {
           ? this.printers
           : msg.type === 'discover.network'
             ? this.discovered
-            : msg.type === 'queue.list'
-              ? []
-              : msg.type === 'print'
-                ? job
-                : { version: 1, agentVersion: '1.0.0' };
+            : msg.type === 'printer.save'
+              ? this.saved
+              : msg.type === 'queue.list'
+                ? []
+                : msg.type === 'print'
+                  ? job
+                  : { version: 1, agentVersion: '1.0.0' };
       this.emit({ type: 'response', version: 1, requestId: msg.requestId, data });
     });
   }
@@ -149,6 +152,27 @@ describe('PrinterAgentClient', () => {
       { host: '192.168.1.51', port: 9100 },
     ]);
     expect(sockets[0].sent.some((m) => m.type === 'discover.network')).toBe(true);
+  });
+  it('saves a discovered LAN printer through the authenticated SDK', async () => {
+    const { c, sockets } = make();
+    await c.connect();
+    const input = {
+      id: 'printer:1',
+      name: 'پرینتر',
+      connection: { type: 'network' as const, host: '192.168.1.50', port: 9100 },
+      paperMm: 80 as const,
+      widthDots: 576,
+      copies: 1,
+      cut: true,
+      fontFamily: 'Noto Sans Arabic',
+      fontSize: 24,
+    };
+    sockets[0].saved = { ...input, status: 'online' };
+    const saved = await c.savePrinter(input);
+    expect(saved).toEqual({ ...input, status: 'online' });
+    const sent = sockets[0].sent.find((m) => m.type === 'printer.save');
+    expect(sent).toBeTruthy();
+    expect((sent as { printer: unknown }).printer).toEqual(input);
   });
   it('reads Legacy spooler and modern network/USB printers through the authenticated SDK', async () => {
     const { c, sockets } = make();

@@ -45,6 +45,7 @@ void send_spooler(const std::wstring &directory, const Json &profile,
                   const std::vector<unsigned char> &bytes);
 void send_network(const Json &profile, const std::vector<unsigned char> &bytes);
 void probe_network(const Json &profile);
+Json discover_network();
 int spool_child(const std::wstring &file);
 void log_code(const std::wstring &directory, const std::string &code);
 } // namespace mv

@@ -13,6 +13,8 @@ import {
   statusSchema,
   discoveredNetworkPrinterSchema,
   type DiscoveredNetworkPrinter,
+  printerInputSchema,
+  type PrinterInput,
   id,
 } from './types';
 import { VERSION, serverMessageSchema, stableStringify } from './protocol';
@@ -361,6 +363,9 @@ export class PrinterAgentClient {
   }
   discoverNetwork(): Promise<DiscoveredNetworkPrinter[]> {
     return this.rpc('discover.network', {}, z.array(discoveredNetworkPrinterSchema));
+  }
+  savePrinter(printer: PrinterInput): Promise<Printer> {
+    return this.rpc('printer.save', { printer: printerInputSchema.parse(printer) }, printerSchema);
   }
   getPrinter(printerId: string): Promise<Printer> {
     return this.rpc('printer.get', { printerId: id.parse(printerId) }, printerSchema);

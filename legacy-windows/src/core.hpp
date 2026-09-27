@@ -24,6 +24,7 @@ void fields(const Json &j, std::initializer_list<const char *> required,
 void document(const Json &j);
 Json parse_request(const std::string &text);
 void validate_config(const Json &config);
+Json upsert_printer(const Json &config, const Json &printer);
 Json default_config();
 std::vector<std::string> lines(const Json &doc);
 std::vector<unsigned char> raster(unsigned width, unsigned height,

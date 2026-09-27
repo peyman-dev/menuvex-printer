@@ -145,7 +145,8 @@ Json parse_request(const std::string &raw) {
         require(j.contains("type") && j["type"].is_string(), "Missing command");
         auto type = j["type"].get<std::string>();
         if (type == "hello" || type == "ping" || type == "agent.status" ||
-            type == "printers.list" || type == "queue.list" || type == "agent.shutdown")
+            type == "printers.list" || type == "queue.list" || type == "agent.shutdown" ||
+            type == "discover.network")
             fields(j, {"version", "requestId", "type"});
         else if (type == "authenticate") {
             fields(j, {"version", "requestId", "type", "proof"});
@@ -159,6 +160,8 @@ Json parse_request(const std::string &raw) {
             document(j["document"]);
         } else if (type == "print.status" || type == "queue.cancel")
             fields(j, {"version", "requestId", "type", "jobId"});
+        else if (type == "printer.save")
+            fields(j, {"version", "requestId", "type", "printer"});
         else
             throw Error("INVALID_PAYLOAD", "Unknown command");
         for (auto k : {"printerId", "jobId"})
@@ -225,6 +228,32 @@ void validate_config(const Json &c) {
                     r["autoPrint"].is_boolean(),
                 "Invalid route");
     }
+}
+Json upsert_printer(const Json &config, const Json &printer) {
+    // Validate the single profile through the shared config validator first.
+    Json probe = config;
+    probe["printers"] = Json::array({printer});
+    probe["routes"] = Json::array();
+    validate_config(probe);
+    Json next = config;
+    if (!next.contains("printers") || !next["printers"].is_array())
+        next["printers"] = Json::array();
+    const std::string id = printer.at("id").get<std::string>();
+    bool replaced = false;
+    for (auto &p : next["printers"]) {
+        if (p.is_object() && p.value("id", std::string()) == id) {
+            p = printer;
+            replaced = true;
+            break;
+        }
+    }
+    if (!replaced) {
+        if (next["printers"].size() >= 16)
+            throw Error("INVALID_CONFIG", "Too many printers", false);
+        next["printers"].push_back(printer);
+    }
+    validate_config(next);
+    return next;
 }
 std::vector<std::string> lines(const Json &doc) {
     document(doc);

@@ -130,6 +130,9 @@ pub enum Command {
         #[serde(rename = "jobId")] job_id: String,
     },
     #[serde(rename = "discover.network")] DiscoverNetwork,
+    #[serde(rename = "printer.save")] PrinterSave {
+        printer: crate::printers::Printer,
+    },
     #[serde(rename = "agent.shutdown")] Shutdown,
 }
 pub fn parse(text: &str) -> Result<Request> {
@@ -163,6 +166,7 @@ pub fn parse(text: &str) -> Result<Request> {
         Command::DiscoverNetwork => &[],
         Command::Authenticate { .. } => &["proof"],
         Command::PrinterGet { .. } => &["printerId"],
+        Command::PrinterSave { .. } => &["printer"],
         Command::PrinterTest { .. } => &["printerId", "jobId"],
         Command::Print { .. } => &["printerId", "jobId", "document"],
         Command::PrintStatus { .. } | Command::QueueCancel { .. } => &["jobId"],

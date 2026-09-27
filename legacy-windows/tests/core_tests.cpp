@@ -112,6 +112,29 @@ int main() {
         nc["extra"] = 1;
         rejects([&] { validate_config(net); });
         nc.erase("extra");
+        // printer.save upsert semantics.
+        auto one = upsert_printer(default_config(), profile());
+        check(one["printers"].size() == 1 && one["printers"][0]["id"] == "p1",
+              "upsert adds a printer");
+        auto two = upsert_printer(one, network_profile());
+        check(two["printers"].size() == 2, "upsert preserves existing printers");
+        auto renamed = profile();
+        renamed["name"] = "Renamed";
+        auto same = upsert_printer(two, renamed);
+        check(same["printers"].size() == 2 && same["printers"][0]["name"] == "Renamed",
+              "upsert replaces by id without duplicating");
+        Json usb = profile();
+        usb["connection"] = {{"type", "usb"}, {"vendorId", 1}};
+        rejects([&] { upsert_printer(default_config(), usb); }, "INVALID_CONFIG");
+        auto full = default_config();
+        for (int i = 0; i < 16; ++i) {
+            Json p = profile();
+            p["id"] = "p" + std::to_string(i);
+            full["printers"].push_back(p);
+        }
+        Json extra = profile();
+        extra["id"] = "p99";
+        rejects([&] { upsert_printer(full, extra); }, "INVALID_CONFIG");
         std::vector<unsigned char> pixels(48 * 2, 0x80);
         auto bytes = raster(384, 2, pixels, true);
         check(bytes[0] == 27 && bytes[1] == 64 && bytes[2] == 29 && bytes.back() == 0,

@@ -1,5 +1,9 @@
 #include "platform.hpp"
 #include <algorithm>
+#include <atomic>
+#include <mutex>
+#include <thread>
+#include <vector>
 #include <bcrypt.h>
 #include <cstring>
 #include <fstream>
@@ -532,6 +536,106 @@ void probe_network(const Json &profile) {
     network_endpoint(profile, addr, port);
     SOCKET s = lan_connect(addr, port);
     closesocket(s);
+}
+// Passive LAN scan for RAW printers, mirroring the modern Agent's discover.network. Only ws2_32
+// APIs are used, so no newer OS import is introduced. A hit is a candidate until a test print
+// confirms it.
+static bool probe_host(const IN_ADDR &addr, u_short port, long timeout_ms) {
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET)
+        return false;
+    sockaddr_in target{};
+    target.sin_family = AF_INET;
+    target.sin_port = htons(port);
+    target.sin_addr = addr;
+    u_long nonblocking = 1;
+    ioctlsocket(s, FIONBIO, &nonblocking);
+    bool ok = false;
+    if (connect(s, reinterpret_cast<sockaddr *>(&target), sizeof(target)) == 0) {
+        ok = true;
+    } else {
+        int err = WSAGetLastError();
+        if (err == WSAEWOULDBLOCK || err == WSAEINPROGRESS) {
+            fd_set writable;
+            FD_ZERO(&writable);
+            FD_SET(s, &writable);
+            timeval timeout;
+            timeout.tv_sec = timeout_ms / 1000;
+            timeout.tv_usec = (timeout_ms % 1000) * 1000;
+            if (select(0, nullptr, &writable, nullptr, &timeout) > 0) {
+                int so_error = 0;
+                int len = sizeof(so_error);
+                getsockopt(s, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&so_error), &len);
+                ok = (so_error == 0);
+            }
+        }
+    }
+    closesocket(s);
+    return ok;
+}
+static IN_ADDR local_lan_ipv4() {
+    // A "connected" UDP socket sends no packets but makes the kernel pick the LAN source address.
+    SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (s != INVALID_SOCKET) {
+        sockaddr_in remote{};
+        remote.sin_family = AF_INET;
+        remote.sin_port = htons(80);
+        InetPtonA(AF_INET, "8.8.8.8", &remote.sin_addr);
+        if (connect(s, reinterpret_cast<sockaddr *>(&remote), sizeof(remote)) == 0) {
+            sockaddr_in local{};
+            int len = sizeof(local);
+            if (getsockname(s, reinterpret_cast<sockaddr *>(&local), &len) == 0) {
+                closesocket(s);
+                return local.sin_addr;
+            }
+        }
+        closesocket(s);
+    }
+    IN_ADDR fallback{};
+    InetPtonA(AF_INET, "192.168.1.0", &fallback);
+    return fallback;
+}
+Json discover_network() {
+    ensure_winsock();
+    const u_short port = 9100;
+    const IN_ADDR base = local_lan_ipv4();
+    std::vector<IN_ADDR> hosts;
+    for (int last = 1; last <= 254; ++last) {
+        IN_ADDR candidate = base;
+        auto *o = reinterpret_cast<unsigned char *>(&candidate);
+        o[3] = static_cast<unsigned char>(last);
+        bool private_range = o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) ||
+                             (o[0] == 192 && o[1] == 168);
+        if (private_range && o[3] != 0 && o[3] != 255)
+            hosts.push_back(candidate);
+    }
+    std::atomic<int> next(0);
+    std::mutex guard;
+    Json found = Json::array();
+    auto worker = [&]() {
+        for (;;) {
+            int index = next.fetch_add(1);
+            if (index >= static_cast<int>(hosts.size()))
+                break;
+            const IN_ADDR hit = hosts[static_cast<std::size_t>(index)];
+            if (probe_host(hit, port, 400)) {
+                char text[INET_ADDRSTRLEN] = {0};
+                InetNtopA(AF_INET, &hit, text, sizeof(text));
+                Json entry;
+                entry["host"] = std::string(text);
+                entry["port"] = static_cast<int>(port);
+                std::lock_guard<std::mutex> lock(guard);
+                found.push_back(entry);
+            }
+        }
+    };
+    unsigned workers = std::min<unsigned>(32, static_cast<unsigned>(hosts.size()));
+    std::vector<std::thread> pool;
+    for (unsigned i = 0; i < workers; ++i)
+        pool.emplace_back(worker);
+    for (auto &t : pool)
+        t.join();
+    return found;
 }
 // Blocking driver calls are isolated in a disposable process. Killing it never permits automatic
 // replay.

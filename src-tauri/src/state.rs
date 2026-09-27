@@ -153,6 +153,7 @@ impl State {
             }
             Command::DiscoverNetwork =>
                 Ok(json!(crate::printers::network::discover()?)),
+            Command::PrinterSave { printer } => self.save_printer(printer),
             Command::Shutdown =>
                 Err(
                     AgentError::new(
@@ -168,6 +169,26 @@ impl State {
                     )
                 ),
         }
+    }
+    fn save_printer(&self, printer: Printer) -> Result<Value> {
+        printer.validate()?;
+        let id = printer.id.clone();
+        let mut config = self.config()?;
+        if let Some(slot) = config.printers.iter_mut().find(|p| p.id == id) {
+            *slot = printer;
+        } else {
+            if config.printers.len() >= 16 {
+                return Err(AgentError::new("INVALID_CONFIG", "At most 16 printer profiles"));
+            }
+            config.printers.push(printer);
+        }
+        config.validate()?;
+        self.store.lock().map_err(|_| lock_error())?.save_config(&config)?;
+        self.event(json!({"type":"resync","version":1}));
+        self.printer_views()?
+            .as_array()
+            .and_then(|a| a.iter().find(|p| p["id"] == id).cloned())
+            .ok_or_else(|| AgentError::new("PRINTER_NOT_FOUND", "Saved printer not found"))
     }
     fn enqueue(&self, id: &str, printer_id: &str, document: &Document) -> Result<Value> {
         if self.worker_done.load(Ordering::SeqCst) {

@@ -119,6 +119,19 @@ struct Server::Impl {
                     return p;
             throw Error("PRINTER_NOT_FOUND", "Printer not configured");
         }
+        if (type == "discover.network")
+            return discover_network();
+        if (type == "printer.save") {
+            const auto &printer = r.at("printer");
+            auto next = upsert_printer(store.config(), printer);
+            store.save(next);
+            broadcast({{"type", "resync"}, {"version", 1}});
+            const std::string id = printer.at("id").get<std::string>();
+            for (auto &p : printers())
+                if (p["id"] == id)
+                    return p;
+            throw Error("PRINTER_NOT_FOUND", "Saved printer not found");
+        }
         if (type == "queue.list")
             return store.queue();
         if (type == "print.status")

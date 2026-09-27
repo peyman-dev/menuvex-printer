@@ -96,6 +96,8 @@ export const discoveredNetworkPrinterSchema = z.object({
   host: z.string(),
   port: z.number().int().min(1).max(65535),
 });
+/** A printer profile to create/update via printer.save (no server-computed status). */
+export const printerInputSchema = printerSchema.omit({ status: true });
 export type PrintDocument = z.input<typeof documentSchema>;
 export type PrintRequest = z.input<typeof printRequestSchema>;
 export type PrintJob = z.infer<typeof jobSchema>;
@@ -103,6 +105,7 @@ export type Printer = z.infer<typeof printerSchema>;
 export type PrinterStatus = z.infer<typeof printerStatusSchema>;
 export type AgentStatus = z.infer<typeof statusSchema>;
 export type DiscoveredNetworkPrinter = z.infer<typeof discoveredNetworkPrinterSchema>;
+export type PrinterInput = z.infer<typeof printerInputSchema>;
 export type ConnectionState =
   'connected' | 'disconnected' | 'connecting' | 'unauthorized' | 'error';
 export type PrinterStatusEvent = { printerId: string; status: PrinterStatus };

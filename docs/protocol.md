@@ -42,6 +42,7 @@ Every request has `version: 1`, unique correlation `requestId`, and `type`. Unkn
 | `printers.list`    | none                       | configured printers with status                 |
 | `discover.network` | none                       | LAN candidates `[{host, port}]` on port 9100    |
 | `printer.get`      | printerId                  | one configured printer                          |
+| `printer.save`     | printer                    | the saved printer (create or update by id)      |
 | `printer.test`     | printerId, jobId           | persistent test job                             |
 | `print`            | printerId, jobId, document | existing/new persistent job                     |
 | `print.status`     | jobId                      | job                                             |

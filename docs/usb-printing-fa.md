@@ -48,6 +48,7 @@ USB مستقیم با libusb. Agent را از DMG به Applications منتقل �
 اگر پرینترها با کابل لن به روتر وصل هستند، لازم نیست با `cmd`/`arp`، PowerShell یا پنل روتر دنبال IP بگردید. Agent مدرن subnet محلی را روی پورت ۹۱۰۰ اسکن می‌کند و فهرست کاندیدها را به اپلیکیشن می‌دهد:
 
 - وب‌اپ: `printerAgent.discoverNetwork()` را صدا بزنید → `[{ host, port }]` (تا ۴ پرینتر یا بیشتر، هر کدام یک پروفایل).
+- افزودن مستقیم از وب‌اپ: برای هر کاندید، `printerAgent.savePrinter({ id, name, connection: { type: "network", host, port }, paperMm, widthDots, copies, cut, fontFamily: "Noto Sans Arabic", fontSize })` — نیازی به رفتن به تنظیمات Agent نیست.
 - هر کاندید را با «چاپ آزمایشی» تأیید کنید؛ «قابل اتصال» یعنی «چاپ شد» نیست.
 - Agent قدیمی (Legacy) به‌جای اسکن، صف‌های نصب‌شدهٔ ویندوز را نشان می‌دهد.
 
