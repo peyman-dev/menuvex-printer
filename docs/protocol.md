@@ -35,18 +35,19 @@ Success: `{"type":"authenticated","version":1,"requestId":"auth:1","agentVersion
 
 Every request has `version: 1`, unique correlation `requestId`, and `type`. Unknown fields and commands rejected. IDs: 1–128 ASCII alphanumeric, `-`, `_`, `:`, `.`. Integers must be integers, not strings. No control characters except newline in document text.
 
-| Type             | Additional fields          | Response data                                   |
-| ---------------- | -------------------------- | ----------------------------------------------- |
-| `hello`, `ping`  | none                       | version, agentVersion                           |
-| `agent.status`   | none                       | ready, agentVersion, port, routes, serverError  |
-| `printers.list`  | none                       | configured printers with status                 |
-| `printer.get`    | printerId                  | one configured printer                          |
-| `printer.test`   | printerId, jobId           | persistent test job                             |
-| `print`          | printerId, jobId, document | existing/new persistent job                     |
-| `print.status`   | jobId                      | job                                             |
-| `queue.list`     | none                       | active-first / recent history, at most 500 jobs |
-| `queue.cancel`   | jobId                      | cancelled job; only queued jobs cancellable     |
-| `agent.shutdown` | none                       | `LOCAL_CONFIRMATION_REQUIRED` (tray only)       |
+| Type               | Additional fields          | Response data                                   |
+| ------------------ | -------------------------- | ----------------------------------------------- |
+| `hello`, `ping`    | none                       | version, agentVersion                           |
+| `agent.status`     | none                       | ready, agentVersion, port, routes, serverError  |
+| `printers.list`    | none                       | configured printers with status                 |
+| `discover.network` | none                       | LAN candidates `[{host, port}]` on port 9100    |
+| `printer.get`      | printerId                  | one configured printer                          |
+| `printer.test`     | printerId, jobId           | persistent test job                             |
+| `print`            | printerId, jobId, document | existing/new persistent job                     |
+| `print.status`     | jobId                      | job                                             |
+| `queue.list`       | none                       | active-first / recent history, at most 500 jobs |
+| `queue.cancel`     | jobId                      | cancelled job; only queued jobs cancellable     |
+| `agent.shutdown`   | none                       | `LOCAL_CONFIRMATION_REQUIRED` (tray only)       |
 
 Successful command response:
 
@@ -71,6 +72,8 @@ Error response:
 ```
 
 Malformed envelopes may not have a usable requestId; server sends an uncorrelated error and closes. SDK validates envelopes **and** method-specific response data, uses request deadlines and rejects pending promises on disconnect.
+
+`discover.network` performs a passive scan of the local subnet for hosts accepting a RAW TCP connection on port 9100 and returns candidates `[{host, port}]`; it never sends print data. A candidate is only confirmed by `printer.test`. This lets the web app list printers without the operator finding IPs through OS tools. The modern agent scans the LAN; the Legacy agent exposes installed Windows queues through configuration instead.
 
 ## Semantic documents
 

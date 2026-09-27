@@ -36,6 +36,7 @@ class TestSocket implements Socket {
   rejectAuth = false;
   dropPrint = false;
   printers: unknown[] = [];
+  discovered: unknown[] = [];
   constructor() {
     queueMicrotask(() =>
       this.emit({
@@ -87,11 +88,13 @@ class TestSocket implements Socket {
       const data =
         msg.type === 'printers.list'
           ? this.printers
-          : msg.type === 'queue.list'
-            ? []
-            : msg.type === 'print'
-              ? job
-              : { version: 1, agentVersion: '1.0.0' };
+          : msg.type === 'discover.network'
+            ? this.discovered
+            : msg.type === 'queue.list'
+              ? []
+              : msg.type === 'print'
+                ? job
+                : { version: 1, agentVersion: '1.0.0' };
       this.emit({ type: 'response', version: 1, requestId: msg.requestId, data });
     });
   }
@@ -133,6 +136,20 @@ function make(options: { rejectAuth?: boolean; missingKey?: boolean } = {}) {
   return { c, sockets };
 }
 describe('PrinterAgentClient', () => {
+  it('discovers LAN printer candidates over the authenticated SDK', async () => {
+    const { c, sockets } = make();
+    await c.connect();
+    sockets[0].discovered = [
+      { host: '192.168.1.50', port: 9100 },
+      { host: '192.168.1.51', port: 9100 },
+    ];
+    const found = await c.discoverNetwork();
+    expect(found).toEqual([
+      { host: '192.168.1.50', port: 9100 },
+      { host: '192.168.1.51', port: 9100 },
+    ]);
+    expect(sockets[0].sent.some((m) => m.type === 'discover.network')).toBe(true);
+  });
   it('reads Legacy spooler and modern network/USB printers through the authenticated SDK', async () => {
     const { c, sockets } = make();
     await c.connect();

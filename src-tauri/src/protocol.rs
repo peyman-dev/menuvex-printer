@@ -129,6 +129,7 @@ pub enum Command {
     #[serde(rename = "queue.cancel")] QueueCancel {
         #[serde(rename = "jobId")] job_id: String,
     },
+    #[serde(rename = "discover.network")] DiscoverNetwork,
     #[serde(rename = "agent.shutdown")] Shutdown,
 }
 pub fn parse(text: &str) -> Result<Request> {
@@ -158,7 +159,8 @@ pub fn parse(text: &str) -> Result<Request> {
     // for every command, including zero-argument commands such as ping.
     let command_fields: &[&str] = match &command {
         Command::Hello | Command::Ping | Command::AgentStatus |
-        Command::PrintersList | Command::QueueList | Command::Shutdown => &[],
+        Command::PrintersList | Command::QueueList | Command::Shutdown |
+        Command::DiscoverNetwork => &[],
         Command::Authenticate { .. } => &["proof"],
         Command::PrinterGet { .. } => &["printerId"],
         Command::PrinterTest { .. } => &["printerId", "jobId"],

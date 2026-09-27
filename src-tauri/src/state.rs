@@ -151,6 +151,8 @@ impl State {
                 self.job_event(&j);
                 Ok(json!(j))
             }
+            Command::DiscoverNetwork =>
+                Ok(json!(crate::printers::network::discover()?)),
             Command::Shutdown =>
                 Err(
                     AgentError::new(
