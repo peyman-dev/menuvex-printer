@@ -17,10 +17,10 @@ default = ["desktop"]
 desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-autostart", "dep:tauri-plugin-single-instance"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [], optional = true }
+tauri-build = { version = "~2.12.0", features = [], optional = true }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"], optional = true }
+tauri = { version = "~2.12.0", features = ["tray-icon"], optional = true }
 tauri-plugin-autostart = { version = "2", optional = true }
 tauri-plugin-single-instance = { version = "2", optional = true }
 serde = { version = "1", features = ["derive"] }
