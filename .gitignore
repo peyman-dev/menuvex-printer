@@ -1,0 +1,9 @@
+node_modules/
+dist/
+target/
+*.log
+.env*
+!*.example
+src-tauri/gen/
+.DS_Store
+legacy-core-test.sqlite3*
