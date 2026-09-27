@@ -12,13 +12,13 @@
     "format": "prettier --write src sdk docs README.md *.json vite.config.ts"
   },
   "dependencies": {
-    "@tauri-apps/api": "2.12.0",
+    "@tauri-apps/api": "2.7.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "2.12.0",
+    "@tauri-apps/cli": "2.7.0",
     "@types/node": "^22.20.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
