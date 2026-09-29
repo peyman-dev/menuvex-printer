@@ -71,8 +71,8 @@ struct App {
     // Why the last browser connection was refused (network thread writes, UI thread reads).
     std::mutex reject_mutex;
     std::string reject_code, reject_detail;
-    std::string reject_logged_key;     // network thread only
-    std::int64_t reject_logged_at = 0; // network thread only
+    std::string reject_key;                                  // network thread only
+    std::int64_t reject_logged_at = 0, reject_posted_at = 0; // network thread only
     bool start_failed = false, stopped_reported = false;
     ~App() {
         stopping = true;
@@ -127,15 +127,19 @@ struct App {
             reject_code = code;
             reject_detail = detail;
         }
+        // A page retrying in a loop must not flood the log or the UI message queue.
         auto key = code + "|" + detail;
         auto t = now();
-        if (key != reject_logged_key || t - reject_logged_at >= 60) {
-            reject_logged_key = key;
+        bool fresh = key != reject_key;
+        reject_key = key;
+        if (fresh || t - reject_logged_at >= 60) {
             reject_logged_at = t;
             log_code(directory, code);
         }
-        if (window && !stopping)
+        if (window && !stopping && (fresh || t != reject_posted_at)) {
+            reject_posted_at = t;
             PostMessageW(window, Rejected, 0, 0);
+        }
     }
     void show_rejected() {
         std::string code, detail;
