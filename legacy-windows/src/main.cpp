@@ -7,7 +7,9 @@
 #include <sstream>
 namespace {
 using namespace mv;
-constexpr UINT Changed = WM_APP + 1, Tray = WM_APP + 2, Discovered = WM_APP + 3;
+constexpr UINT Changed = WM_APP + 1, Tray = WM_APP + 2, Discovered = WM_APP + 3,
+               Rejected = WM_APP + 4;
+constexpr UINT_PTR SecretTimer = 1, TrayTimer = 2;
 enum {
     PrinterList = 100,
     QueueList,
@@ -62,6 +64,16 @@ struct App {
     std::mutex discovery_mutex;
     std::vector<std::string> discovery_result;
     std::string discovery_error;
+    HICON icon = nullptr;
+    // Tray icon creation can fail or time out while Explorer is still starting (typical at login
+    // on slow Windows 7 PCs). That must never stop the agent, so it is retried, not fatal.
+    bool tray_ok = false;
+    // Why the last browser connection was refused (network thread writes, UI thread reads).
+    std::mutex reject_mutex;
+    std::string reject_code, reject_detail;
+    std::string reject_key;                                  // network thread only
+    std::int64_t reject_logged_at = 0, reject_posted_at = 0; // network thread only
+    bool start_failed = false, stopped_reported = false;
     ~App() {
         stopping = true;
         wake.notify_all();
@@ -100,17 +112,102 @@ struct App {
         MessageBoxW(window, wide(e.what()).c_str(), L"منووکس — نیاز به بررسی",
                     MB_OK | MB_ICONWARNING);
     }
+    void update_title() {
+        std::wstring title = L"منووکس پرینتر — Legacy";
+        if (server && server->ready())
+            title += L" | 127.0.0.1:" + std::to_wstring(server->port()) + L" آماده";
+        else
+            title += L" | اتصال سایت غیرفعال";
+        SetWindowTextW(window, title.c_str());
+    }
+    // Runs on the network thread. Log a code only (never the key/proof) and wake the UI thread.
+    void rejected(const std::string &code, const std::string &detail) {
+        {
+            std::lock_guard<std::mutex> lock(reject_mutex);
+            reject_code = code;
+            reject_detail = detail;
+        }
+        // A page retrying in a loop must not flood the log or the UI message queue.
+        auto key = code + "|" + detail;
+        auto t = now();
+        bool fresh = key != reject_key;
+        reject_key = key;
+        if (fresh || t - reject_logged_at >= 60) {
+            reject_logged_at = t;
+            log_code(directory, code);
+        }
+        if (window && !stopping && (fresh || t != reject_posted_at)) {
+            reject_posted_at = t;
+            PostMessageW(window, Rejected, 0, 0);
+        }
+    }
+    void show_rejected() {
+        std::string code, detail;
+        {
+            std::lock_guard<std::mutex> lock(reject_mutex);
+            code = reject_code;
+            detail = reject_detail;
+        }
+        if (code.empty() || worker_failed)
+            return;
+        auto d = wide(detail);
+        std::wstring text;
+        if (code == "ORIGIN_NOT_ALLOWED")
+            text = L"اتصال مرورگر رد شد: آدرس سایت «" + d +
+                   L"» مجاز نیست. فقط https://menuvex.ir و https://www.menuvex.ir می‌توانند وصل "
+                   L"شوند.";
+        else if (code == "HOST_MISMATCH")
+            text = L"اتصال مرورگر رد شد: آدرس اتصال باید دقیقاً 127.0.0.1:" +
+                   std::to_wstring(server ? server->port() : 0) + L" باشد، نه «" + d + L"».";
+        else if (code == "PATH_NOT_ALLOWED")
+            text = L"اتصال مرورگر رد شد: مسیر «" + d + L"» مجاز نیست.";
+        else if (code == "TOO_MANY_CONNECTIONS")
+            text = L"اتصال مرورگر رد شد: تعداد اتصال‌های باز زیاد است؛ تب‌های اضافی مرورگر را "
+                   L"ببندید.";
+        else
+            text = L"اتصال مرورگر رد شد (" + wide(code) + L").";
+        set(Status, text);
+    }
+    NOTIFYICONDATAW tray_data() {
+        NOTIFYICONDATAW data{};
+        data.cbSize = sizeof(data);
+        data.hWnd = window;
+        data.uID = 1;
+        data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+        data.uCallbackMessage = Tray;
+        data.hIcon = icon;
+        lstrcpynW(data.szTip, L"منووکس پرینتر — Legacy", 128);
+        return data;
+    }
+    // NIM_ADD is refused when the icon already exists (e.g. a timed-out add that completed later),
+    // so confirm with NIM_MODIFY before treating it as a failure.
+    bool add_tray() {
+        auto data = tray_data();
+        tray_ok = Shell_NotifyIconW(NIM_ADD, &data) || Shell_NotifyIconW(NIM_MODIFY, &data);
+        return tray_ok;
+    }
     void start_server() {
         if (server)
             server->stop();
         server.reset(new Server(*store, *secret, [this] { changed(); }));
+        server->on_rejected(
+            [this](const std::string &code, const std::string &detail) { rejected(code, detail); });
+        start_failed = false;
+        int port = config["port"].get<int>();
         try {
-            server->start(static_cast<unsigned short>(config["port"].get<int>()));
-            set(Status, L"برنامه آماده است؛ پرینتر را تنظیم و سپس سایت را متصل کنید.");
+            server->start(static_cast<unsigned short>(port));
+            set(Status, L"برنامه آماده است (127.0.0.1:" + std::to_wstring(port) +
+                            L")؛ پرینتر را تنظیم و سپس سایت را متصل کنید.");
         } catch (const Error &e) {
-            set(Status, wide(e.code + ": " + e.what()));
+            start_failed = true;
+            set(Status,
+                L"اتصال سایت غیرفعال است: پورت 127.0.0.1:" + std::to_wstring(port) +
+                    L" در دسترس نیست (" + wide(e.code) +
+                    L"). برنامهٔ دیگری آن را گرفته؛ آن را ببندید یا «پورت محلی» را عوض کنید، "
+                    L"ذخیره کنید و برنامه را دوباره اجرا کنید.");
             log_code(directory, e.code);
         }
+        update_title();
     }
     void start_worker() {
         worker = std::thread([this] {
@@ -212,6 +309,15 @@ struct App {
         if (worker_failed)
             set(Status, L"QUEUE_ERROR: پردازش چاپ متوقف شده؛ صف را بررسی و برنامه را دوباره اجرا "
                         L"کنید. چاپ مجدد خودکار انجام نمی‌شود.");
+        update_title();
+        if (server && !start_failed && !server->ready() && !stopping && !stopped_reported) {
+            stopped_reported = true;
+            log_code(directory, "SERVER_STOPPED");
+            if (!worker_failed)
+                set(Status,
+                    L"سرویس اتصال سایت متوقف شد (SERVER_STOPPED). برنامه را ببندید و دوباره "
+                    L"اجرا کنید.");
+        }
     }
     Json last_jobs = Json::array();
     void clear() {
@@ -465,15 +571,16 @@ struct App {
         if (discovery.joinable())
             discovery.join();
         server->stop();
-        NOTIFYICONDATAW icon{};
-        icon.cbSize = sizeof(icon);
-        icon.hWnd = window;
-        icon.uID = 1;
-        Shell_NotifyIconW(NIM_DELETE, &icon);
+        NOTIFYICONDATAW data{};
+        data.cbSize = sizeof(data);
+        data.hWnd = window;
+        data.uID = 1;
+        Shell_NotifyIconW(NIM_DELETE, &data);
         DestroyWindow(window);
     }
 };
 App *app = nullptr;
+UINT taskbar_created = 0; // registered "TaskbarCreated" broadcast (Explorer restart/late start)
 void control(HWND parent, const wchar_t *cls, const wchar_t *label, int id, int x, int y, int w,
              int h, DWORD style = 0) {
     bool text_label = wcscmp(cls, L"STATIC") == 0;
@@ -567,6 +674,12 @@ void create_ui(HWND w) {
 }
 LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
     try {
+        if (taskbar_created && message == taskbar_created) {
+            // Explorer (re)created the taskbar: our icon is gone or was never added.
+            if (app && !app->stopping && !app->add_tray())
+                SetTimer(w, TrayTimer, 3000, nullptr);
+            return 0;
+        }
         switch (message) {
         case WM_ERASEBKGND: {
             RECT rect;
@@ -614,7 +727,8 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
             create_ui(w);
             return 0;
         case WM_CLOSE:
-            ShowWindow(w, SW_HIDE);
+            // Without a tray icon a hidden window could never be reopened: minimize instead.
+            ShowWindow(w, app && !app->tray_ok ? SW_MINIMIZE : SW_HIDE);
             return 0;
         case WM_DESTROY:
             PostQuitMessage(0);
@@ -627,10 +741,18 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
             if (app && !app->stopping)
                 app->discovered();
             return 0;
+        case Rejected:
+            if (app && !app->stopping)
+                app->show_rejected();
+            return 0;
         case WM_TIMER:
-            if (wp == 1) {
-                app->set(SecretBox, L"");
-                KillTimer(w, 1);
+            if (wp == SecretTimer) {
+                if (app)
+                    app->set(SecretBox, L"");
+                KillTimer(w, SecretTimer);
+            } else if (wp == TrayTimer) {
+                if (!app || app->stopping || app->add_tray())
+                    KillTimer(w, TrayTimer);
             }
             return 0;
         case Tray:
@@ -683,7 +805,7 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
                 break;
             case Reveal:
                 app->set(SecretBox, wide(app->secret->reveal()));
-                SetTimer(w, 1, 60000, nullptr);
+                SetTimer(w, SecretTimer, 60000, nullptr);
                 break;
             case Rotate:
                 if (MessageBoxW(w, L"اتصال همهٔ مرورگرها لغو شود؟ اتصال دوباره نیازمند کلید است.",
@@ -771,20 +893,19 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int) {
         } catch (const std::exception &e) {
             state.error(e);
         }
+        state.icon = wc.hIcon;
+        taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
         state.start_server();
         state.refresh();
-        NOTIFYICONDATAW icon{};
-        icon.cbSize = sizeof(icon);
-        icon.hWnd = state.window;
-        icon.uID = 1;
-        icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-        icon.uCallbackMessage = Tray;
-        icon.hIcon = wc.hIcon;
-        lstrcpynW(icon.szTip, L"منووکس پرینتر — Legacy", 128);
-        if (!Shell_NotifyIconW(NIM_ADD, &icon))
-            throw mv::Error("TRAY_ERROR", "Cannot create system tray icon");
+        // The tray icon is a convenience, not a requirement: if Explorer is not ready yet (login on
+        // a slow PC) keep serving the website and retry, instead of quitting with an error box.
+        if (!state.add_tray()) {
+            log_code(state.directory, "TRAY_RETRY");
+            SetTimer(state.window, TrayTimer, 3000, nullptr);
+        }
         state.start_worker();
-        ShowWindow(state.window, background ? SW_HIDE : SW_SHOW);
+        // Never start hidden without a tray icon: the operator would have no way to open the app.
+        ShowWindow(state.window, background && state.tray_ok ? SW_HIDE : SW_SHOW);
         MSG msg;
         while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
             if (!IsDialogMessageW(state.window, &msg)) {

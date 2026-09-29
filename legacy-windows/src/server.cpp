@@ -9,9 +9,12 @@ struct Server::Impl {
     Store &store;
     Secret &secret;
     std::function<void()> changed;
+    std::function<void(const std::string &, const std::string &)> rejected;
     Ws ws;
     std::thread thread;
     std::atomic<bool> ready{false}, worker_ok{true};
+    // Cached at start(): the UI thread must not query the acceptor while the network thread runs.
+    std::atomic<unsigned short> bound_port{0};
     bool stopping = false;
     struct Session {
         std::string origin, nonce;
@@ -20,6 +23,26 @@ struct Server::Impl {
         unsigned commands = 0;
     };
     std::map<Hdl, Session, std::owner_less<Hdl>> clients;
+    // Request values come from an untrusted peer: keep them short, printable ASCII.
+    static std::string printable(const std::string &value) {
+        std::string out;
+        for (unsigned char c : value) {
+            if (out.size() >= 96) {
+                out += "...";
+                break;
+            }
+            out += (c >= 0x20 && c < 0x7f) ? static_cast<char>(c) : '?';
+        }
+        return out;
+    }
+    void reject(const std::string &code, const std::string &detail) {
+        if (!rejected)
+            return;
+        try {
+            rejected(code, printable(detail));
+        } catch (...) {
+        }
+    }
     Impl(Store &s, Secret &k, std::function<void()> f)
         : store(s), secret(k), changed(std::move(f)) {
         ws.clear_access_channels(websocketpp::log::alevel::all);
@@ -40,12 +63,39 @@ struct Server::Impl {
             auto host = c->get_request_header("Host");
             websocketpp::lib::error_code ec;
             auto port = ws.get_local_endpoint(ec).port();
-            if (stopping || !allowed || c->get_resource() != "/" ||
-                host != "127.0.0.1:" + std::to_string(port) || clients.size() >= 8) {
+            // A rejected upgrade is one opaque error in the browser; report the real reason to the
+            // native window so it can be seen without browser developer tools.
+            std::string code, detail;
+            if (stopping)
+                code = "SERVER_STOPPING";
+            else if (!allowed) {
+                code = "ORIGIN_NOT_ALLOWED";
+                detail = origin.empty() ? std::string("(none)") : origin;
+            } else if (c->get_resource() != "/") {
+                code = "PATH_NOT_ALLOWED";
+                detail = c->get_resource();
+            } else if (host != "127.0.0.1:" + std::to_string(port)) {
+                code = "HOST_MISMATCH";
+                detail = host.empty() ? std::string("(none)") : host;
+            } else if (clients.size() >= 8)
+                code = "TOO_MANY_CONNECTIONS";
+            if (!code.empty()) {
+                if (code != "SERVER_STOPPING")
+                    reject(code, detail);
                 c->set_status(websocketpp::http::status_code::forbidden);
                 return false;
             }
-            clients.emplace(h, Session{origin, random_base64()});
+            // Never let an exception escape into the network thread: it would end the whole
+            // listener while the window still looks healthy.
+            std::string nonce;
+            try {
+                nonce = random_base64();
+            } catch (...) {
+                reject("RANDOM_UNAVAILABLE", "");
+                c->set_status(websocketpp::http::status_code::internal_server_error);
+                return false;
+            }
+            clients.emplace(h, Session{origin, nonce});
             return true;
         });
         ws.set_open_handler([this](Hdl h) {
@@ -243,6 +293,9 @@ struct Server::Impl {
 Server::Server(Store &store, Secret &secret, std::function<void()> changed)
     : impl_(new Impl(store, secret, std::move(changed))) {}
 Server::~Server() { stop(); }
+void Server::on_rejected(std::function<void(const std::string &, const std::string &)> callback) {
+    impl_->rejected = std::move(callback);
+}
 void Server::start(unsigned short port) {
     auto &i = *impl_;
     websocketpp::lib::error_code ec;
@@ -252,15 +305,25 @@ void Server::start(unsigned short port) {
             "PORT_IN_USE_OR_UNAVAILABLE",
             "Local port unavailable. Quit the modern Agent or choose another port in settings.");
     i.ws.start_accept();
+    websocketpp::lib::error_code endpoint_ec;
+    i.bound_port = i.ws.get_local_endpoint(endpoint_ec).port();
     i.ready = true;
     i.tick();
     i.thread = std::thread([this] {
+        bool crashed = false;
         try {
             impl_->ws.run();
         } catch (...) {
-            impl_->ready = false;
+            crashed = true;
         }
         impl_->ready = false;
+        // An unexpected end (not Server::stop) must not leave the window claiming it is ready.
+        if (crashed && impl_->changed) {
+            try {
+                impl_->changed();
+            } catch (...) {
+            }
+        }
     });
 }
 void Server::stop() {
@@ -291,10 +354,7 @@ void Server::revoke() {
         }
     });
 }
-unsigned short Server::port() const {
-    websocketpp::lib::error_code ec;
-    return impl_->ws.get_local_endpoint(ec).port();
-}
+unsigned short Server::port() const { return impl_->bound_port; }
 bool Server::ready() const { return impl_->ready; }
 void Server::worker_failed() {
     impl_->worker_ok = false;

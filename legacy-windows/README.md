@@ -15,6 +15,8 @@ A separate C++17 / Win32 implementation for older cashier computers. It does not
 - Loopback-only WebSocket v1, exact Origin/Host/path checks, mutual HMAC-SHA256 handshake using BCrypt, 256-bit Credential Manager key, local reveal/rotation, size/rate/authentication limits and events/resync. No browser-origin configuration mutation.
 - Isolated spooler child process with a 30s parent deadline. A blocked driver cannot block the WebSocket thread. Any timeout/partial write/child crash after possible submission is `PRINT_OUTCOME_UNKNOWN`, never auto-replayed. An earlier copy being sent makes later copy failure ambiguous too.
 - User-only data directory DACL (plus SYSTEM), bounded/rotated lifecycle-code-only log, private temporary spool data and deletion after normal handoff. No receipt content/key logged.
+- Connection diagnostics: the title bar shows `127.0.0.1:<port>` when the listener is up. A browser reports a refused upgrade (foreign Origin, wrong Host/path, too many clients) and an absent listener with the same generic error, so the window's status line names the rejected Origin/Host (memory only) and the log records the code only (`ORIGIN_NOT_ALLOWED`, `HOST_MISMATCH`, `PATH_NOT_ALLOWED`, `TOO_MANY_CONNECTIONS`, `SERVER_STOPPED`). Steps for operators: [`../docs/troubleshooting-local-agent-fa.md`](../docs/troubleshooting-local-agent-fa.md).
+- The tray icon is not required to serve the website: if Explorer is not ready at login (`Shell_NotifyIcon` timeout on slow PCs) the agent keeps listening, retries every 3 s, re-adds the icon on `TaskbarCreated`, and never starts hidden or hides on close while no icon exists.
 
 ## What is deliberately different
 
