@@ -82,7 +82,7 @@ export default function App() {
     <div className="app">
       <aside>
         <div className="brand">
-          <span className="brand-mark">M</span>
+          <img className="brand-mark" src="/favicon.png" alt="MenuVex" />
           <div>
             MenuVex<small>PRINTER AGENT</small>
           </div>

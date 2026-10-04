@@ -8,8 +8,8 @@
 }
 body {
   margin: 0;
-  background: #f7f9fa;
-  color: #213339;
+  background: #f5f7fb;
+  color: #1e293b;
   font-family: Noto, system-ui, sans-serif;
   font-size: 13px;
 }
@@ -20,10 +20,11 @@ select {
 }
 button {
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 9px 15px;
-  background: #127763;
+  background: #2563eb;
   color: #fff;
+  font-weight: 600;
   cursor: pointer;
   transition: 0.15s;
 }
@@ -37,21 +38,21 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid #94cbbb;
+  outline: 3px solid #93c5fd;
   outline-offset: 2px;
 }
 .secondary {
-  color: #226b5c;
+  color: #2563eb;
   background: white;
-  border-color: #d5e0dc;
+  border-color: #d7e0f0;
 }
 .subtle {
-  color: #52646a;
+  color: #5a6b84;
   background: transparent;
 }
 .danger {
-  color: #ac423f;
-  background: #fff0ee;
+  color: #dc2626;
+  background: #fef2f2;
 }
 .app {
   display: flex;
@@ -61,7 +62,7 @@ aside {
   width: 224px;
   flex-shrink: 0;
   background: #fff;
-  border-left: 1px solid #e3e9e7;
+  border-left: 1px solid #e6eaf3;
   padding: 30px 20px;
   display: flex;
   flex-direction: column;
@@ -82,21 +83,17 @@ aside {
   display: block;
   font: 9px system-ui;
   letter-spacing: 2px;
-  color: #7d8e91;
+  color: #93a0b6;
   margin-top: 6px;
 }
 .brand-mark {
-  display: grid;
-  place-items: center;
-  background: #147661;
-  color: #fff;
   width: 42px;
   height: 42px;
   border-radius: 13px;
-  font-size: 26px;
+  object-fit: contain;
 }
 .workspace-label {
-  color: #97a3a4;
+  color: #93a0b6;
   font-size: 11px;
   margin: 50px 12px 14px;
 }
@@ -106,7 +103,7 @@ nav {
   gap: 8px;
 }
 nav button {
-  color: #768387;
+  color: #6b7a94;
   background: transparent;
   display: flex;
   align-items: center;
@@ -119,30 +116,30 @@ nav button span {
   width: 24px;
 }
 nav button.active {
-  background: #eaf4f0;
-  color: #146e59;
+  background: #e8efff;
+  color: #2563eb;
 }
 nav b {
   margin-right: auto;
   border-radius: 5px;
-  background: #d5e9df;
+  background: #dbe7ff;
   padding: 0 7px;
 }
 .sidebar-bottom {
   margin-top: auto;
-  border-top: 1px solid #e6eeea;
+  border-top: 1px solid #e8edf6;
   padding: 24px 8px 0;
-  color: #83928f;
+  color: #8a97ad;
   font-size: 11px;
 }
 .sidebar-bottom strong {
   display: block;
-  color: #526a62;
+  color: #51618a;
   font-size: 12px;
 }
 .local-icon {
   font: 28px system-ui;
-  color: #398e76;
+  color: #3b82f6;
   margin-bottom: 10px;
 }
 .mono {
@@ -161,24 +158,24 @@ main {
 header {
   height: 83px;
   background: #fff;
-  border-bottom: 1px solid #e3e9e7;
+  border-bottom: 1px solid #e6eaf3;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 40px;
 }
 .breadcrumb {
-  color: #76888c;
+  color: #7585a0;
   font-size: 12px;
 }
 .breadcrumb span {
   padding: 0 14px;
-  color: #c4cecc;
+  color: #c3cddd;
 }
 .status-pill {
-  border: 1px solid #dfe7e2;
-  background: #f8faf8;
-  color: #75827b;
+  border: 1px solid #dde4f0;
+  background: #f8faff;
+  color: #71809c;
   border-radius: 30px;
   padding: 7px 13px;
   font-size: 11px;
@@ -195,12 +192,12 @@ header {
   background: currentColor;
 }
 .online {
-  color: #218561 !important;
-  background: #edf8f1 !important;
+  color: #16a34a !important;
+  background: #e9f7ef !important;
 }
 .offline,
 .error-text {
-  color: #b95043 !important;
+  color: #d14343 !important;
 }
 .content {
   max-width: 1200px;
@@ -217,7 +214,7 @@ header {
 .eyebrow {
   font: 10px system-ui;
   letter-spacing: 1.8px;
-  color: #8a9b9c;
+  color: #91a0b8;
   margin: 0 0 12px;
 }
 h1 {
@@ -228,10 +225,10 @@ h1 {
   margin: 8px 0;
 }
 h1 span {
-  color: #238068;
+  color: #2563eb;
 }
 .hero p:not(.eyebrow) {
-  color: #879595;
+  color: #8392ab;
   font-size: 12px;
 }
 .connection-diagram {
@@ -242,36 +239,36 @@ h1 span {
   font:
     11px ui-monospace,
     monospace;
-  color: #92a4a0;
+  color: #8c9ab5;
   gap: 9px;
   direction: ltr;
   margin-left: 28px;
 }
 .connection-diagram > span {
-  border: 1px solid #dce6e1;
+  border: 1px solid #dee5f2;
   border-radius: 8px;
   padding: 12px 18px;
   background: #fff;
 }
 .connection-diagram strong {
-  background: #edf6f1;
-  border: 1px solid #b9d7c8;
+  background: #eaf1ff;
+  border: 1px solid #bcd2fa;
   border-radius: 9px;
   padding: 16px 24px;
-  color: #387660;
-  box-shadow: 0 4px 20px #cbe1d72b;
+  color: #2456c4;
+  box-shadow: 0 4px 20px #bcd2fa2b;
 }
 .connection-diagram .dot {
   margin-left: 14px;
 }
 .connection-diagram i {
   font-style: normal;
-  color: #b9ccc3;
+  color: #b9c6dd;
 }
 .summary {
   display: grid;
   grid-template-columns: 1fr 1fr 1.4fr;
-  border: 1px solid #e1e8e5;
+  border: 1px solid #e3e9f5;
   border-radius: 12px;
   background: #fff;
   margin: 25px 0 36px;
@@ -282,13 +279,13 @@ h1 span {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border-left: 1px solid #e8eeea;
+  border-left: 1px solid #eaeef8;
 }
 .summary > div:last-child {
   border: 0;
 }
 .summary span {
-  color: #82918e;
+  color: #8392ab;
   font-size: 11px;
 }
 .summary strong {
@@ -307,8 +304,8 @@ h2 {
 h2 small {
   font: 12px system-ui;
   margin-right: 10px;
-  color: #87a095;
-  border: 1px solid #d8e5dc;
+  color: #8aa0c8;
+  border: 1px solid #d9e2f3;
   border-radius: 6px;
   padding: 3px 7px;
 }
@@ -333,23 +330,23 @@ h3 {
   flex-wrap: wrap;
 }
 .empty {
-  border: 1px dashed #cfddd6;
-  background: #f8fbf9;
+  border: 1px dashed #cdd9ec;
+  background: #f8faff;
   border-radius: 12px;
   text-align: center;
   padding: 50px 20px;
   margin: 18px 0;
-  color: #5d766b;
+  color: #5d7191;
 }
 .empty p {
   font-size: 12px;
-  color: #8c9c95;
+  color: #8c9ab5;
   line-height: 2;
 }
 .empty-icon {
   font: 40px system-ui;
   display: block;
-  color: #82a695;
+  color: #7f9cc9;
   margin-bottom: 18px;
 }
 .printer-grid {
@@ -359,7 +356,7 @@ h3 {
 }
 .printer-card,
 .panel {
-  border: 1px solid #e0e8e3;
+  border: 1px solid #e2e8f4;
   background: #fff;
   border-radius: 12px;
   padding: 22px;
@@ -373,13 +370,13 @@ h3 {
 .printer-icon {
   width: 42px;
   height: 46px;
-  background: #f0f5f2;
-  border: 1px solid #dfebe4;
+  background: #eef3fc;
+  border: 1px solid #dde7f8;
   border-radius: 10px;
   display: grid;
   place-items: center;
   font: 28px system-ui;
-  color: #6c9784;
+  color: #5f86c4;
 }
 .tag {
   font-size: 10px;
@@ -389,14 +386,14 @@ h3 {
   align-items: center;
   gap: 5px;
   white-space: nowrap;
-  background: #f2f5f3;
-  color: #7a8981;
+  background: #f1f4fa;
+  color: #76839b;
 }
 .card-heading .tag {
   margin-right: auto;
 }
 .muted {
-  color: #83958e;
+  color: #8494ab;
   font-size: 11px;
   line-height: 1.9;
 }
@@ -405,10 +402,10 @@ h3 {
   gap: 16px;
   padding: 20px 0;
   font-size: 11px;
-  color: #8ca095;
+  color: #8c9ab5;
 }
 .card-actions {
-  border-top: 1px solid #edf2ee;
+  border-top: 1px solid #eef2f9;
   padding-top: 14px;
 }
 .card-actions button {
@@ -429,9 +426,9 @@ h3 {
   display: block;
 }
 .notice.error {
-  background: #fff0ed;
-  color: #a9493d;
-  border-color: #f0cbc1;
+  background: #fdf1ef;
+  color: #b43c2e;
+  border-color: #f3cdc4;
 }
 .notice button {
   float: left;
@@ -446,17 +443,17 @@ label {
   flex-direction: column;
   gap: 7px;
   font-size: 12px;
-  color: #6a7d73;
+  color: #5d6c86;
   margin-bottom: 16px;
 }
 input,
 select {
   width: 100%;
-  background: #fbfcfb;
-  border: 1px solid #d9e3dc;
+  background: #ffffff;
+  border: 1px solid #d8e1f0;
   border-radius: 7px;
   padding: 9px 11px;
-  color: #354a3f;
+  color: #31415e;
   min-width: 0;
 }
 .check {
@@ -475,12 +472,12 @@ select {
   flex: 1;
 }
 .panel > p {
-  color: #7b8e84;
+  color: #7b8aa3;
   font-size: 12px;
   line-height: 2;
 }
 .secret {
-  background: #f2f5f3;
+  background: #f1f4fa;
   padding: 16px;
   white-space: pre-wrap;
   word-break: break-all;
@@ -489,7 +486,7 @@ select {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: #16382b66;
+  background: #12204266;
   backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
@@ -504,14 +501,14 @@ select {
   width: 100%;
   max-height: 90vh;
   overflow: auto;
-  box-shadow: 0 20px 70px #173e3133;
+  box-shadow: 0 20px 70px #16295433;
 }
 .discovered {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px;
-  border-bottom: 1px solid #edf2ee;
+  border-bottom: 1px solid #eef2f9;
 }
 .discovered small {
   display: block;
@@ -519,7 +516,7 @@ select {
 .table-wrap {
   overflow: auto;
   background: #fff;
-  border: 1px solid #e0e8e3;
+  border: 1px solid #e2e8f4;
   border-radius: 12px;
 }
 table {
@@ -531,16 +528,16 @@ table {
 td,
 th {
   padding: 15px;
-  border-bottom: 1px solid #edf2ee;
+  border-bottom: 1px solid #eef2f9;
 }
 th {
   font-weight: 400;
-  color: #8c9c91;
-  background: #fafcfb;
+  color: #8696b0;
+  background: #fafbfe;
 }
 td small {
   display: block;
-  color: #98a89d;
+  color: #93a1b8;
   font-size: 10px;
   margin-top: 6px;
   max-width: 360px;
@@ -548,11 +545,11 @@ td small {
 footer {
   margin-top: 40px;
   padding-top: 20px;
-  border-top: 1px solid #e2eae5;
+  border-top: 1px solid #e5ebf6;
   display: flex;
   justify-content: space-between;
   gap: 15px;
-  color: #9caba2;
+  color: #9aa7bd;
   font-size: 10px;
 }
 footer .mono {
@@ -628,7 +625,7 @@ footer .mono {
   }
   .summary > div:last-child {
     grid-column: 1/-1;
-    border-top: 1px solid #edf2ee;
+    border-top: 1px solid #eef2f9;
     margin-top: 15px;
     padding-top: 15px;
   }
