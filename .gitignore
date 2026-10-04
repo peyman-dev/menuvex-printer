@@ -1,0 +1,11 @@
+node_modules/
+dist/
+target/
+__pycache__/
+*.pyc
+*.log
+.env*
+!*.example
+src-tauri/gen/
+.DS_Store
+legacy-core-test.sqlite3*
