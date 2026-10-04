@@ -255,23 +255,39 @@ Json upsert_printer(const Json &config, const Json &printer) {
     validate_config(next);
     return next;
 }
+// Thousands separators for readability only; the value itself is never converted.
+static std::string group(std::int64_t value) {
+    std::string digits = std::to_string(value);
+    bool negative = !digits.empty() && digits.front() == '-';
+    if (negative)
+        digits.erase(digits.begin());
+    std::string out;
+    for (std::size_t i = 0; i < digits.size(); ++i) {
+        if (i > 0 && (digits.size() - i) % 3 == 0)
+            out.push_back(',');
+        out.push_back(digits[i]);
+    }
+    return negative ? "-" + out : out;
+}
 std::vector<std::string> lines(const Json &doc) {
     document(doc);
     if (doc["type"] == "receipt")
         return doc["lines"].get<std::vector<std::string>>();
     const auto &d = doc["data"];
-    std::vector<std::string> out = {d["storeName"],
-                                    std::string(u8"سفارش: ") + d["orderNumber"].get<std::string>(),
-                                    "----------------"};
+    // Persian lines hang on the right margin, number-only lines on the left margin; a run of
+    // dashes becomes a solid separator rule in the renderer.
+    std::vector<std::string> out = {
+        d["storeName"], std::string(u8"شماره سفارش: ") + d["orderNumber"].get<std::string>(),
+        std::string(16, '-')};
     for (const auto &i : d["items"]) {
         out.push_back(i["name"]);
         out.push_back(
-            std::to_string(i["quantity"].get<int>()) + " x " +
-            std::to_string(i["unitPrice"].get<std::int64_t>()) + " = " +
-            std::to_string(i["quantity"].get<std::int64_t>() * i["unitPrice"].get<std::int64_t>()));
+            group(i["quantity"].get<std::int64_t>()) + u8" × " +
+            group(i["unitPrice"].get<std::int64_t>()) + u8" = " +
+            group(i["quantity"].get<std::int64_t>() * i["unitPrice"].get<std::int64_t>()));
     }
-    out.push_back("----------------");
-    out.push_back(std::string(u8"جمع: ") + std::to_string(d["total"].get<std::int64_t>()));
+    out.push_back(std::string(16, '-'));
+    out.push_back(std::string(u8"جمع کل: ") + group(d["total"].get<std::int64_t>()));
     out.push_back(d.value("footer", std::string{}));
     return out;
 }

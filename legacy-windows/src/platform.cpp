@@ -302,6 +302,15 @@ static bool rtl(const std::wstring &text) {
     }
     return false;
 }
+// A line of dashes is a separator rule, drawn as pixels so the design never depends on a glyph.
+static bool separator(const std::wstring &text) {
+    if (text.size() < 2)
+        return false;
+    for (wchar_t c : text)
+        if (c != L'-' && c != L'=' && c != L'*')
+            return false;
+    return true;
+}
 static int measure(HDC dc, const std::wstring &text, Analysis &a) {
     if (text.empty())
         return 0;
@@ -319,6 +328,8 @@ static int measure(HDC dc, const std::wstring &text, Analysis &a) {
 std::vector<unsigned char> render(const Json &p, const Json &doc) {
     document(doc);
     int width = p["widthDots"], font_size = p["fontSize"], step = font_size * 2;
+    const int margin = std::max(2, std::min(24, static_cast<int>(width * 0.02)));
+    const int limit = width - margin * 2;
     struct Canvas {
         HDC dc = nullptr;
         HFONT font = nullptr;
@@ -360,7 +371,7 @@ std::vector<unsigned char> render(const Json &p, const Json &doc) {
             while (!part.empty()) {
                 Analysis a;
                 int pixels = measure(canvas.dc, part, a);
-                if (pixels <= width) {
+                if (pixels <= limit) {
                     wrapped.push_back(part);
                     break;
                 }
@@ -375,7 +386,7 @@ std::vector<unsigned char> render(const Json &p, const Json &doc) {
                     }
                     Analysis test;
                     int size = measure(canvas.dc, part.substr(0, mid), test);
-                    if (size <= width) {
+                    if (size <= limit) {
                         best = mid;
                         low = mid + 1;
                         if (low < part.size() && part[low] >= 0xdc00 && part[low] <= 0xdfff)
@@ -420,11 +431,14 @@ std::vector<unsigned char> render(const Json &p, const Json &doc) {
     SetTextColor(canvas.dc, RGB(0, 0, 0));
     int y = 0;
     for (const auto &text : wrapped) {
-        if (!text.empty()) {
+        if (separator(text)) {
+            RECT rule{margin, y + step / 2, width - margin, y + step / 2 + 2};
+            FillRect(canvas.dc, &rule, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+        } else if (!text.empty()) {
             Analysis a;
             int pixels = measure(canvas.dc, text, a);
-            if (FAILED(ScriptStringOut(a.a, rtl(text) ? std::max(0, width - pixels) : 0, y, 0,
-                                       nullptr, 0, 0, FALSE)))
+            int x = rtl(text) ? std::max(margin, width - margin - pixels) : margin;
+            if (FAILED(ScriptStringOut(a.a, x, y, 0, nullptr, 0, 0, FALSE)))
                 throw Error("ESC_POS_ERROR", "Cannot draw shaped text");
         }
         y += step;

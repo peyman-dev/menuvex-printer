@@ -66,6 +66,9 @@ impl Document {
             Err(AgentError::new("INVALID_JOB", "Document limits or text validation failed"))
         }
     }
+    /// Plain-text projection of the document for diagnostics and tests. This is **not** the
+    /// printed design: paper output is produced by [`crate::print::layout`], which draws its own
+    /// separators as pixels and keeps Persian on the right and amounts on the left margin.
     pub fn lines(&self) -> Vec<String> {
         match self {
             Self::Receipt { lines } => lines.clone(),
@@ -73,7 +76,7 @@ impl Document {
                 let mut lines = vec![
                     d.store_name.clone(),
                     format!("سفارش: {}", d.order_number),
-                    "────────────────".into()
+                    "-".repeat(16)
                 ];
                 for i in &d.items {
                     lines.push(i.name.clone());
@@ -86,7 +89,7 @@ impl Document {
                         )
                     );
                 }
-                lines.push("────────────────".into());
+                lines.push("-".repeat(16));
                 lines.push(format!("جمع: {}", d.total));
                 lines.push(d.footer.clone());
                 lines

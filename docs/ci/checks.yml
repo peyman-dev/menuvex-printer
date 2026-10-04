@@ -20,6 +20,16 @@ jobs:
       - run: node --test scripts/tests/collect-installers.test.mjs
       - run: npm run build
       - run: npm audit --audit-level=high
+      - name: Receipt design preview and layout checks
+        run: |
+          python3 -m pip install --quiet uharfbuzz freetype-py pillow
+          npm run preview:receipt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Receipt-Design-Preview
+          path: dist/receipt-preview/
+          if-no-files-found: error
+          retention-days: 14
   native:
     needs: frontend
     timeout-minutes: 60

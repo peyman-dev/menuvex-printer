@@ -118,10 +118,10 @@ impl State {
                     &printer_id,
                     &(Document::Receipt {
                         lines: vec![
-                            "MenuVex Printer Agent".into(),
-                            "آزمون چاپ فارسی — سلام دنیا".into(),
-                            "0123456789 / ۱۲۳۴۵۶۷۸۹۰".into(),
-                            "Test print / USB · LAN / ESC-POS".into()
+                            "آزمون چاپ MenuVex".into(),
+                            "سلام دنیا — بدون مشکل".into(),
+                            "۰۱۲۳۴۵۶۷۸۹ / 0123456789".into(),
+                            "USB · LAN · ESC/POS".into()
                         ],
                     })
                 ),

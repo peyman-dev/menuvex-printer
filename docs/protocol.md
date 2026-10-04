@@ -102,6 +102,8 @@ The illustration is protocol documentation, not seeded order data. Total is supp
 
 `receipt`: `{ "type":"receipt", "lines":["..."] }`, max 100 lines / 500 UTF-8 bytes each. Invoice store name 300 bytes, item name 300, order number 128, footer 1000. Rust byte-length limits are authoritative (JS length checks can be less restrictive for multibyte text). Rendered output ≤4096 pixel rows; longer receipts must be explicitly split into stable sub-job IDs. No raw ESC/POS or image URL variant is exposed in v1. QR/barcode/drawer are encoder APIs only, not remote hardware commands.
 
+The **design** of the paper is the Agent's (right margin for Persian, left margin for amounts, pixel separators, emphasised store name and total — see [ESC/POS](escpos.md#printed-design)); the PWA only supplies semantics. `receipt` lines are printed as given, each hanging on the margin of its own writing direction. Empty `footer`/`orderNumber` simply omit their line; nothing is invented for them.
+
 Paper mm, actual dots, copies, font and cut are stored local profile fields; no remote `width` override. Roles (`invoice`, `kitchen`, `bar`) and `autoPrint` appear in status. PWA respects them; Agent does not subscribe directly to MenuVex order events.
 
 ## Events and status semantics

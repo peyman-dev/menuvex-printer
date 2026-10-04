@@ -2,7 +2,7 @@
 
 ## Profiles
 
-Each configured printer has a stable internal ID, display name, tagged `connection`, 58/80 paper mm, actual raster width (128–832, divisible by 8), copies (1–3), cutter enable, local font family and size (12–48 px). Default UI uses 80mm/576 dots; changing paper size does **not** silently overwrite actual dot width. Choose 384 for common 58mm mechanisms only if the manual agrees. Saved job profiles are immutable snapshots.
+Each configured printer has a stable internal ID, display name, tagged `connection`, 58/80 paper mm, actual raster width (128–832, divisible by 8), copies (1–3), cutter enable, local font family and size (12–48 px). Font size is the base size of the receipt body in dots; the invoice header and total rows scale it by fixed percentages, so one setting rescales the whole design (see [ESC/POS and Persian rendering](escpos.md#printed-design)). Default UI uses 80mm/576 dots; changing paper size does **not** silently overwrite actual dot width. Choose 384 for common 58mm mechanisms only if the manual agrees. Saved job profiles are immutable snapshots.
 
 USB descriptor: VID/PID, optional serial, bus and port topology, interface, alternate setting, bulk OUT endpoint. Manufacturer/product are discovery metadata. With serial: match VID/PID/serial; multiple matches rejected. Without serial: physical topology is used, never bus address (which changes on reconnect). Changing hub/port or bus topology can require re-selection; identical serial-less printers cannot be magically distinguished. Access-denied discovery can list descriptors but not serial/product. Re-select after permission setup if needed.
 
