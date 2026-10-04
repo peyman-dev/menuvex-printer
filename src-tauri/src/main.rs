@@ -159,20 +159,9 @@ fn main() {
                     &MenuItem::with_id(app, "quit", "خروج از برنامه", true, None::<&str>)?,
                 ]
             )?;
-            let mut rgba = vec![0u8;32*32*4];
-            for y in 0..32 {
-                for x in 0..32 {
-                    let i = (y * 32 + x) * 4;
-                    let on = (5..27).contains(&x) && (7..26).contains(&y);
-                    rgba[i..i + 4].copy_from_slice(
-                        if on {
-                            &[30, 190, 145, 255]
-                        } else {
-                            &[0, 0, 0, 0]
-                        }
-                    );
-                }
-            }
+            // Tray icon: the MenuVex printer logo, pre-rendered as raw 32x32 RGBA
+            // (`icons/tray-32.rgba`, regenerated alongside the other icon sizes).
+            let rgba = include_bytes!("../icons/tray-32.rgba").to_vec();
             TrayIconBuilder::new()
                 .icon(tauri::image::Image::new_owned(rgba, 32, 32))
                 .tooltip("منووکس پرینتر")
