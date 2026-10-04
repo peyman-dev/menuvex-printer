@@ -191,16 +191,27 @@ struct Server::Impl {
             broadcast_job(job);
             return job;
         }
+        if (type == "queue.clear") {
+            auto result = store.clear();
+            for (const auto &job : result["cancelledJobs"])
+                broadcast_job(job);
+            broadcast({{"type", "resync"}, {"version", 1}});
+            return {{"cancelled", result["cancelledJobs"].size()}, {"removed", result["removed"]}};
+        }
+        if (type == "printers.installed") {
+            Json out = Json::array();
+            for (const auto &queue : installed_printers())
+                out.push_back({{"queueName", queue}});
+            return out;
+        }
         if (type == "print" || type == "printer.test") {
             if (!worker_ok)
                 throw Error("AGENT_NOT_READY", "Print worker stopped; reconcile and restart");
-            Json doc =
-                type == "print"
-                    ? r["document"]
-                    : Json({{"type", "receipt"},
-                            {"lines",
-                             {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy",
-                              u8"0123456789 / ۱۲۳۴۵۶۷۸۹۰"}}});
+            Json doc = type == "print" ? r["document"]
+                                       : Json({{"type", "receipt"},
+                                               {"lines",
+                                                {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy",
+                                                 u8"0123456789 / ۱۲۳۴۵۶۷۸۹۰"}}});
             auto job = store.enqueue(r["jobId"], r["printerId"], doc);
             broadcast_job(job);
             return job;

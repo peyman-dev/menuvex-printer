@@ -4,9 +4,12 @@
 //! into a monochrome raster. No font access happens in this module, so the layout is
 //! unit-testable without a `FontSystem`.
 //!
-//! Persian receipts are read right to left: Persian text hangs on the **right** margin and money
-//! on the **left** margin of the same row. Amounts are grouped (`240000` → `240,000`) for
-//! readability only; the value itself is never converted or recalculated, see `docs/escpos.md`.
+//! Invoices follow the MenuVex app template (without the logo): centered store header, a titled
+//! slip row, label/value detail rows, an items table, the emphasised payable amount, an optional
+//! note between dashed rules and the brand line. Persian receipts are read right to left:
+//! Persian text hangs on the **right** margin and amounts on the **left** margin of the same
+//! row. Amounts are grouped (`240000` → `۲۴۰,۰۰۰`) and shown in Persian digits for readability
+//! only; the value itself is never converted or recalculated, see `docs/escpos.md`.
 
 use crate::protocol::{Document, InvoiceData};
 
@@ -28,6 +31,15 @@ pub struct Line {
     pub bold: bool,
 }
 
+/// One column of a [`Item::Cells`] table row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cell {
+    pub text: String,
+    pub align: Align,
+    /// Relative column width; the renderer divides the printable width by the weight sum.
+    pub weight: u16,
+}
+
 /// A drawing instruction produced by [`plan`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Item {
@@ -40,8 +52,17 @@ pub enum Item {
         size: u16,
         bold: bool,
     },
+    /// A table row. Cells are listed in reading order and laid out right-to-left: the first
+    /// cell takes the rightmost column. Text wraps inside its own column.
+    Cells {
+        cells: Vec<Cell>,
+        size: u16,
+        bold: bool,
+    },
     /// Full width separator line, drawn as pixels (never as font glyphs).
     Rule,
+    /// Full width dashed separator, drawn as pixels.
+    Dashed,
     /// Vertical whitespace in dots.
     Space(u16),
 }
@@ -52,6 +73,12 @@ const STORE: u32 = 132;
 const TOTAL: u32 = 120;
 /// Size of secondary detail lines, percent of the local font size.
 const DETAIL: u32 = 84;
+/// Size of the brand line, percent of the local font size.
+const BRAND: u32 = 66;
+/// Minimum printable dots for the four column items table; narrower paper stacks the items.
+const TABLE_MIN_DOTS: u16 = 464;
+/// Brand line printed under every invoice, same as the MenuVex app template.
+const BRAND_LINE: &str = "POWERED BY MENUVEX.IR";
 
 /// Scale a base font size, clamped to sane dot sizes.
 pub fn scaled(size: u16, percent: u32) -> u16 {
@@ -75,6 +102,18 @@ pub fn is_rtl(text: &str) -> bool {
     false
 }
 
+/// Map ASCII digits to Persian digits (`۰`–`۹`). Presentation only.
+pub fn fa_digits(text: &str) -> String {
+    text.chars()
+        .map(|c| match c {
+            '0'..='9' => {
+                char::from_u32(0x06f0 + (c as u32 - '0' as u32)).unwrap_or(c)
+            }
+            _ => c,
+        })
+        .collect()
+}
+
 /// Group digits in threes: `240000` → `240,000`. Presentation only.
 pub fn money(value: u64) -> String {
     let digits = value.to_string();
@@ -88,82 +127,185 @@ pub fn money(value: u64) -> String {
     out
 }
 
-/// Build the printed design of `doc`.
-pub fn plan(doc: &Document, font_size: u16) -> Vec<Item> {
+/// Grouped amount in Persian digits, with the adapter supplied currency word when present.
+/// The agent never invents a currency.
+pub fn amount(value: u64, currency: &str) -> String {
+    let grouped = fa_digits(&money(value));
+    let currency = currency.trim();
+    if currency.is_empty() {
+        grouped
+    } else {
+        format!("{grouped} {currency}")
+    }
+}
+
+/// Build the printed design of `doc` for a paper of `width_dots` printable dots.
+pub fn plan(doc: &Document, font_size: u16, width_dots: u16) -> Vec<Item> {
     match doc {
-        Document::Invoice { data } => invoice(data, font_size),
+        Document::Invoice { data } => invoice(data, font_size, width_dots),
         Document::Receipt { lines } => receipt(lines, font_size),
     }
 }
 
-/// Persian invoice: store header, order number, item rows with the amount on the left margin,
-/// emphasised total and an optional centered footer.
-fn invoice(data: &InvoiceData, font_size: u16) -> Vec<Item> {
+fn text(text: impl Into<String>, align: Align, size: u16, bold: bool) -> Item {
+    Item::Text(Line { text: text.into(), align, size, bold })
+}
+
+fn row(right: impl Into<String>, left: impl Into<String>, size: u16, bold: bool) -> Item {
+    Item::Row { right: right.into(), left: left.into(), size, bold }
+}
+
+/// Persian invoice following the app template without the logo: centered store header with
+/// address and phone, the slip row, label/value details, the items table (stacked on narrow
+/// paper), counters, the emphasised payable amount, note and brand line.
+fn invoice(data: &InvoiceData, font_size: u16, width_dots: u16) -> Vec<Item> {
+    let detail = scaled(font_size, DETAIL);
     let mut out = Vec::new();
     let store = data.store_name.trim();
     if !store.is_empty() {
-        out.push(Item::Text(Line {
-            text: store.to_string(),
-            align: Align::Center,
-            size: scaled(font_size, STORE),
-            bold: true,
-        }));
+        out.push(text(store, Align::Center, scaled(font_size, STORE), true));
     }
-    let order = data.order_number.trim();
-    if !order.is_empty() {
-        out.push(Item::Text(Line {
-            text: format!("شماره سفارش: {order}"),
-            align: Align::Center,
-            size: font_size,
-            bold: false,
-        }));
+    let address = data.address.trim();
+    if !address.is_empty() {
+        out.push(text(address, Align::Center, detail, false));
+    }
+    let phone = data.phone.trim();
+    if !phone.is_empty() {
+        out.push(text(
+            format!("تلفن: {}", fa_digits(phone)),
+            Align::Center,
+            detail,
+            false,
+        ));
     }
     out.push(Item::Rule);
-    out.push(Item::Row {
-        right: "کالا".into(),
-        left: "مبلغ".into(),
-        size: font_size,
+    let title = data.title.trim();
+    let title = if title.is_empty() { "فاکتور فروش" } else { title };
+    let order = data.order_number.trim();
+    if order.is_empty() {
+        out.push(text(title, Align::Center, font_size, true));
+    } else {
+        out.push(row(title, format!("فیش {}", fa_digits(order)), font_size, true));
+    }
+    out.push(Item::Rule);
+    let mut details = 0;
+    for (label, value) in [
+        ("تاریخ", &data.date),
+        ("وضعیت", &data.status),
+        ("نوع سفارش", &data.order_type),
+        ("میز", &data.table),
+    ] {
+        let value = value.trim();
+        if !value.is_empty() {
+            out.push(row(label, fa_digits(value), font_size, false));
+            details += 1;
+        }
+    }
+    if details > 0 {
+        out.push(Item::Rule);
+    }
+    if width_dots >= TABLE_MIN_DOTS {
+        table_items(data, font_size, &mut out);
+    } else {
+        stacked_items(data, font_size, &mut out);
+    }
+    out.push(Item::Rule);
+    out.push(row(
+        "تعداد اقلام",
+        fa_digits(&data.items.len().to_string()),
+        font_size,
+        false,
+    ));
+    if let Some(subtotal) = data.subtotal {
+        out.push(row("جمع اقلام", amount(subtotal, &data.currency), font_size, false));
+    }
+    out.push(Item::Rule);
+    out.push(row(
+        "مبلغ قابل پرداخت",
+        amount(data.total, &data.currency),
+        scaled(font_size, TOTAL),
+        true,
+    ));
+    let note = data.note.trim();
+    if !note.is_empty() {
+        out.push(Item::Space(font_size / 4));
+        out.push(Item::Dashed);
+        out.push(Item::Space(font_size / 4));
+        out.push(text(format!("یادداشت: {note}"), Align::Center, detail, false));
+        out.push(Item::Space(font_size / 4));
+        out.push(Item::Dashed);
+    }
+    let footer = data.footer.trim();
+    if !footer.is_empty() {
+        out.push(Item::Space(font_size / 2));
+        out.push(text(footer, Align::Center, detail, true));
+    }
+    out.push(Item::Space(font_size / 2));
+    out.push(text(BRAND_LINE, Align::Center, scaled(font_size, BRAND), false));
+    out
+}
+
+/// Wide paper (80 mm): four column table like the app template — item, quantity, unit price
+/// and line amount. Line amounts come straight from `quantity × unitPrice` of the adapter
+/// payload; nothing else is derived.
+fn table_items(data: &InvoiceData, font_size: u16, out: &mut Vec<Item>) {
+    let detail = scaled(font_size, DETAIL);
+    let header = ["شرح کالا", "تعداد", "قیمت واحد", "جمع"];
+    let weights = [34u16, 12, 27, 27];
+    let aligns = [Align::Right, Align::Center, Align::Center, Align::Left];
+    out.push(Item::Cells {
+        cells: header
+            .iter()
+            .zip(weights)
+            .zip(aligns)
+            .map(|((text, weight), align)| Cell { text: (*text).into(), align, weight })
+            .collect(),
+        size: detail,
         bold: true,
     });
     out.push(Item::Rule);
     for item in &data.items {
-        out.push(Item::Row {
-            right: item.name.clone(),
-            left: money(item.quantity as u64 * item.unit_price),
+        let columns = [
+            item.name.clone(),
+            fa_digits(&item.quantity.to_string()),
+            fa_digits(&money(item.unit_price)),
+            fa_digits(&money(item.quantity as u64 * item.unit_price)),
+        ];
+        out.push(Item::Cells {
+            cells: columns
+                .into_iter()
+                .zip(weights)
+                .zip(aligns)
+                .map(|((text, weight), align)| Cell { text, align, weight })
+                .collect(),
             size: font_size,
             bold: false,
         });
+    }
+}
+
+/// Narrow paper (58 mm): the four columns cannot fit, so every item prints as a name/amount
+/// row plus a `quantity × unit price` detail line underneath.
+fn stacked_items(data: &InvoiceData, font_size: u16, out: &mut Vec<Item>) {
+    let detail = scaled(font_size, DETAIL);
+    out.push(row("شرح کالا", "جمع", font_size, true));
+    out.push(Item::Rule);
+    for item in &data.items {
+        out.push(row(
+            item.name.clone(),
+            fa_digits(&money(item.quantity as u64 * item.unit_price)),
+            font_size,
+            false,
+        ));
         if item.quantity > 1 {
-            out.push(Item::Text(Line {
-                text: format!(
-                    "{} × {}",
-                    money(item.quantity as u64),
-                    money(item.unit_price)
-                ),
-                align: Align::Right,
-                size: scaled(font_size, DETAIL),
-                bold: false,
-            }));
+            out.push(text(
+                fa_digits(&format!("{} × {}", item.quantity, money(item.unit_price))),
+                Align::Right,
+                detail,
+                false,
+            ));
         }
     }
-    out.push(Item::Rule);
-    out.push(Item::Row {
-        right: "جمع کل".into(),
-        left: money(data.total),
-        size: scaled(font_size, TOTAL),
-        bold: true,
-    });
-    let footer = data.footer.trim();
-    if !footer.is_empty() {
-        out.push(Item::Space(font_size / 2));
-        out.push(Item::Text(Line {
-            text: footer.to_string(),
-            align: Align::Center,
-            size: scaled(font_size, DETAIL),
-            bold: false,
-        }));
-    }
-    out
 }
 
 /// Free-form receipt (kitchen/bar ticket, test print): every supplied line is printed as it is,
@@ -193,8 +335,8 @@ mod tests {
 
     fn invoice_data() -> InvoiceData {
         InvoiceData {
-            store_name: "کافه ونک".into(),
-            order_number: "1842".into(),
+            store_name: "کافه رترو".into(),
+            order_number: "10195".into(),
             items: vec![
                 InvoiceItem {
                     name: "اسپرسو دوبل".into(),
@@ -208,8 +350,28 @@ mod tests {
                 },
             ],
             total: 285_000,
-            footer: "با سپاس از خرید شما".into(),
+            footer: "از خرید شما سپاسگزاریم".into(),
+            title: String::new(),
+            address: "زنجان، میدان کوه نورد، کافه رترو".into(),
+            phone: "09362114096".into(),
+            date: "۱۴۰۵/۰۷/۱۲ ۲۱:۴۷".into(),
+            status: "تکمیل‌شده".into(),
+            order_type: "حضوری".into(),
+            table: "3".into(),
+            note: "بسته شده در پایان روز کاری".into(),
+            currency: "تومان".into(),
+            subtotal: Some(285_000),
         }
+    }
+
+    fn texts(items: &[Item]) -> Vec<String> {
+        items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Text(line) => Some(line.text.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
@@ -222,6 +384,14 @@ mod tests {
     }
 
     #[test]
+    fn amounts_use_persian_digits_and_adapter_currency_only() {
+        assert_eq!(fa_digits("230,000"), "۲۳۰,۰۰۰");
+        assert_eq!(amount(230_000, "تومان"), "۲۳۰,۰۰۰ تومان");
+        assert_eq!(amount(230_000, ""), "۲۳۰,۰۰۰");
+        assert_eq!(amount(230_000, "  "), "۲۳۰,۰۰۰");
+    }
+
+    #[test]
     fn direction_is_detected_from_the_first_strong_character() {
         assert!(is_rtl("قهوه"));
         assert!(is_rtl("۲ عدد چای"));
@@ -231,66 +401,136 @@ mod tests {
     }
 
     #[test]
-    fn invoice_has_header_columns_and_total() {
-        let items = plan(&Document::Invoice { data: invoice_data() }, 24);
+    fn wide_invoice_follows_the_app_template() {
+        let items = plan(&Document::Invoice { data: invoice_data() }, 24, 576);
         assert_eq!(
             items.first(),
             Some(&Item::Text(Line {
-                text: "کافه ونک".into(),
+                text: "کافه رترو".into(),
                 align: Align::Center,
                 size: scaled(24, STORE),
                 bold: true,
             }))
         );
-        assert!(items.contains(&Item::Rule));
+        let lines = texts(&items);
+        assert!(lines.contains(&"زنجان، میدان کوه نورد، کافه رترو".to_string()));
+        assert!(lines.contains(&"تلفن: ۰۹۳۶۲۱۱۴۰۹۶".to_string()));
+        // Default title with the slip number in Persian digits.
         assert!(items.contains(&Item::Row {
-            right: "کالا".into(),
-            left: "مبلغ".into(),
+            right: "فاکتور فروش".into(),
+            left: "فیش ۱۰۱۹۵".into(),
             size: 24,
             bold: true,
         }));
-        // The first item shares one row with its grouped amount.
+        // Detail rows keep label right and value left.
+        assert!(items.contains(&Item::Row {
+            right: "وضعیت".into(),
+            left: "تکمیل‌شده".into(),
+            size: 24,
+            bold: false,
+        }));
+        assert!(items.contains(&Item::Row {
+            right: "میز".into(),
+            left: "۳".into(),
+            size: 24,
+            bold: false,
+        }));
+        // Four column table: header then one row per item with the line amount.
+        let tables: Vec<_> = items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Cells { cells, .. } => Some(cells.iter().map(|c| c.text.clone()).collect::<Vec<_>>()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(tables[0], vec!["شرح کالا", "تعداد", "قیمت واحد", "جمع"]);
+        assert_eq!(tables[1], vec!["اسپرسو دوبل", "۲", "۱۲۰,۰۰۰", "۲۴۰,۰۰۰"]);
+        assert_eq!(tables[2], vec!["چای", "۱", "۴۵,۰۰۰", "۴۵,۰۰۰"]);
+        // Counters and subtotal come from the payload; nothing is derived.
+        assert!(items.contains(&Item::Row {
+            right: "تعداد اقلام".into(),
+            left: "۲".into(),
+            size: 24,
+            bold: false,
+        }));
+        assert!(items.contains(&Item::Row {
+            right: "جمع اقلام".into(),
+            left: "۲۸۵,۰۰۰ تومان".into(),
+            size: 24,
+            bold: false,
+        }));
+        assert!(items.contains(&Item::Row {
+            right: "مبلغ قابل پرداخت".into(),
+            left: "۲۸۵,۰۰۰ تومان".into(),
+            size: scaled(24, TOTAL),
+            bold: true,
+        }));
+        // Note sits between dashed rules; brand line closes the slip.
+        assert!(lines.contains(&"یادداشت: بسته شده در پایان روز کاری".to_string()));
+        assert_eq!(items.iter().filter(|i| matches!(i, Item::Dashed)).count(), 2);
+        assert_eq!(lines.last().map(String::as_str), Some(BRAND_LINE));
+    }
+
+    #[test]
+    fn narrow_invoice_stacks_items_instead_of_columns() {
+        let items = plan(&Document::Invoice { data: invoice_data() }, 24, 384);
+        assert!(!items.iter().any(|item| matches!(item, Item::Cells { .. })));
         assert!(items.contains(&Item::Row {
             right: "اسپرسو دوبل".into(),
-            left: "240,000".into(),
+            left: "۲۴۰,۰۰۰".into(),
             size: 24,
             bold: false,
         }));
         // Quantity > 1 adds a secondary `quantity × unit price` line.
         assert!(items.contains(&Item::Text(Line {
-            text: "2 × 120,000".into(),
+            text: "۲ × ۱۲۰,۰۰۰".into(),
             align: Align::Right,
             size: scaled(24, DETAIL),
             bold: false,
         })));
-        // Quantity 1 adds no secondary line and no extra row.
-        assert!(!items.iter().any(|item| matches!(item, Item::Text(line) if line.text.starts_with("1 ×"))));
-        // Total is emphasised and carries the authoritative value from the adapter.
-        assert!(items.contains(&Item::Row {
-            right: "جمع کل".into(),
-            left: "285,000".into(),
-            size: scaled(24, TOTAL),
-            bold: true,
-        }));
-        assert_eq!(
-            items.last(),
-            Some(&Item::Text(Line {
-                text: "با سپاس از خرید شما".into(),
-                align: Align::Center,
-                size: scaled(24, DETAIL),
-                bold: false,
-            }))
-        );
+        // Quantity 1 adds no secondary line.
+        assert!(!items.iter().any(
+            |item| matches!(item, Item::Text(line) if line.text.starts_with("۱ ×"))
+        ));
     }
 
     #[test]
-    fn invoice_without_footer_and_order_number_stays_compact() {
-        let mut data = invoice_data();
-        data.footer = "   ".into();
-        data.order_number = String::new();
-        let items = plan(&Document::Invoice { data }, 24);
-        assert!(!items.iter().any(|item| matches!(item, Item::Text(line) if line.text.contains("سفارش"))));
-        assert!(!items.iter().any(|item| matches!(item, Item::Space(_))));
+    fn minimal_invoice_stays_compact_and_backwards_compatible() {
+        let data = InvoiceData {
+            store_name: "کافه ونک".into(),
+            order_number: "1842".into(),
+            items: vec![InvoiceItem { name: "چای".into(), quantity: 1, unit_price: 45_000 }],
+            total: 45_000,
+            footer: String::new(),
+            title: String::new(),
+            address: String::new(),
+            phone: String::new(),
+            date: String::new(),
+            status: String::new(),
+            order_type: String::new(),
+            table: String::new(),
+            note: String::new(),
+            currency: String::new(),
+            subtotal: None,
+        };
+        let items = plan(&Document::Invoice { data }, 24, 576);
+        let lines = texts(&items);
+        // No invented data: no currency word, no subtotal row, no note, no detail rows.
+        assert!(!lines.iter().any(|l| l.contains("تومان")));
+        assert!(!items.iter().any(
+            |item| matches!(item, Item::Row { right, .. } if right == "جمع اقلام")
+        ));
+        assert!(!items.iter().any(|item| matches!(item, Item::Dashed)));
+        assert!(!items.iter().any(
+            |item| matches!(item, Item::Row { right, .. } if right == "تاریخ")
+        ));
+        // Total amount prints bare because no currency was supplied.
+        assert!(items.contains(&Item::Row {
+            right: "مبلغ قابل پرداخت".into(),
+            left: "۴۵,۰۰۰".into(),
+            size: scaled(24, TOTAL),
+            bold: true,
+        }));
     }
 
     #[test]
@@ -302,7 +542,7 @@ mod tests {
                 String::new(),
             ],
         };
-        let items = plan(&doc, 20);
+        let items = plan(&doc, 20, 576);
         assert_eq!(
             items,
             vec![

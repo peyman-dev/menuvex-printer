@@ -158,6 +158,33 @@ impl Storage {
         self.db.execute("UPDATE jobs SET status='cancelled' WHERE job_id=?1", [id])?;
         self.job(id)
     }
+    /// Empty the queue: cancel every queued job and delete all finished history rows. A job in
+    /// `printing` is never touched — its bytes may already be at the printer. Deleting history
+    /// also removes the duplicate-submission protection of those job IDs (documented in
+    /// `docs/protocol.md`). Returns the cancelled jobs (for events) and the deleted row count.
+    pub fn clear(&mut self) -> Result<(Vec<Job>, usize)> {
+        let tx = self.db.transaction()?;
+        let cancelled = {
+            let mut s = tx.prepare(
+                &format!("SELECT {COLS} FROM jobs WHERE status='queued' ORDER BY created_at,rowid")
+            )?;
+            let rows = s.query_map([], read_job)?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        tx.execute("UPDATE jobs SET status='cancelled' WHERE status='queued'", [])?;
+        let removed = tx.execute("DELETE FROM jobs WHERE status != 'printing'", [])?;
+        tx.commit()?;
+        Ok((
+            cancelled
+                .into_iter()
+                .map(|mut j| {
+                    j.status = "cancelled".into();
+                    j
+                })
+                .collect(),
+            removed,
+        ))
+    }
 }
 pub fn deliver(transport: &dyn Transport, printer: &Printer, bytes: &[u8]) -> Result<()> {
     for copy in 0..printer.copies {
@@ -237,6 +264,33 @@ mod tests {
         s.enqueue("cancel", &printer(), &doc()).unwrap();
         assert_eq!(s.cancel("cancel").unwrap().status, "cancelled");
         assert_eq!(backoff(100), 60);
+    }
+    #[test]
+    fn clear_cancels_queued_deletes_history_and_keeps_printing() {
+        let d = tempfile::tempdir().unwrap();
+        let mut s = Storage::open(&d.path().join("q.db")).unwrap();
+        // One job finishes, one starts printing, two stay queued.
+        s.enqueue("done", &printer(), &doc()).unwrap();
+        s.claim(now()).unwrap();
+        s.finish("done", Ok(()), 3, now()).unwrap();
+        s.enqueue("active", &printer(), &doc()).unwrap();
+        s.claim(now()).unwrap();
+        s.enqueue("waiting:1", &printer(), &doc()).unwrap();
+        s.enqueue("waiting:2", &printer(), &doc()).unwrap();
+        let (cancelled, removed) = s.clear().unwrap();
+        assert_eq!(
+            cancelled.iter().map(|j| j.job_id.as_str()).collect::<Vec<_>>(),
+            vec!["waiting:1", "waiting:2"]
+        );
+        assert!(cancelled.iter().all(|j| j.status == "cancelled"));
+        // `done` plus both cancelled jobs are deleted; the printing job survives untouched.
+        assert_eq!(removed, 3);
+        let left = s.queue().unwrap();
+        assert_eq!(left.len(), 1);
+        assert_eq!(left[0].job_id, "active");
+        assert_eq!(left[0].status, "printing");
+        // Cleared IDs lose dedup protection and may be submitted again.
+        s.enqueue("done", &printer(), &doc()).unwrap();
     }
     struct TestTransport;
     impl Transport for TestTransport {

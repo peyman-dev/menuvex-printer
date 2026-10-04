@@ -151,8 +151,21 @@ impl State {
                 self.job_event(&j);
                 Ok(json!(j))
             }
+            Command::QueueClear => {
+                let (cancelled, removed) = self.store
+                    .lock()
+                    .map_err(|_| lock_error())?
+                    .clear()?;
+                for job in &cancelled {
+                    self.job_event(job);
+                }
+                self.event(json!({"type":"resync","version":1}));
+                Ok(json!({"cancelled":cancelled.len(),"removed":removed}))
+            }
             Command::DiscoverNetwork =>
                 Ok(json!(crate::printers::network::discover()?)),
+            Command::PrintersInstalled =>
+                Ok(json!(crate::printers::spooler::list()?)),
             Command::PrinterSave { printer } => self.save_printer(printer),
             Command::Shutdown =>
                 Err(

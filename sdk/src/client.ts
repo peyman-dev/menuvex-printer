@@ -15,6 +15,10 @@ import {
   type DiscoveredNetworkPrinter,
   printerInputSchema,
   type PrinterInput,
+  installedPrinterSchema,
+  type InstalledPrinter,
+  queueClearResultSchema,
+  type QueueClearResult,
   id,
 } from './types';
 import { VERSION, serverMessageSchema, stableStringify } from './protocol';
@@ -364,6 +368,10 @@ export class PrinterAgentClient {
   discoverNetwork(): Promise<DiscoveredNetworkPrinter[]> {
     return this.rpc('discover.network', {}, z.array(discoveredNetworkPrinterSchema));
   }
+  /** Installed OS print queues (Windows spooler / CUPS) for spooler connections. */
+  getInstalledPrinters(): Promise<InstalledPrinter[]> {
+    return this.rpc('printers.installed', {}, z.array(installedPrinterSchema));
+  }
   savePrinter(printer: PrinterInput): Promise<Printer> {
     return this.rpc('printer.save', { printer: printerInputSchema.parse(printer) }, printerSchema);
   }
@@ -401,6 +409,14 @@ export class PrinterAgentClient {
   }
   async cancelJob(jobId: string): Promise<void> {
     await this.rpc('queue.cancel', { jobId: id.parse(jobId) }, jobSchema);
+  }
+  /**
+   * Empty the queue: cancels every queued job and deletes finished history. A job that is
+   * currently printing is never touched. Deleted job IDs lose duplicate-submission
+   * protection, so a cleared ID submitted again will print again.
+   */
+  clearQueue(): Promise<QueueClearResult> {
+    return this.rpc('queue.clear', {}, queueClearResultSchema);
   }
   ping() {
     return this.rpc('ping', {}, z.object({ version: z.literal(1), agentVersion: z.string() }));

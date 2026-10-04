@@ -18,6 +18,9 @@ pub struct InvoiceItem {
     pub quantity: u32,
     pub unit_price: u64,
 }
+/// Invoice payload. Only `storeName`, `orderNumber`, `items` and `total` are required; every
+/// other field is optional and is printed only when the adapter supplies it. The agent never
+/// invents business data: no currency word, subtotal or date is computed locally.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct InvoiceData {
@@ -26,6 +29,19 @@ pub struct InvoiceData {
     pub items: Vec<InvoiceItem>,
     pub total: u64,
     #[serde(default)] pub footer: String,
+    /// Document title shown next to the slip number, e.g. "فاکتور فروش" or "بلیط آشپزخانه".
+    #[serde(default)] pub title: String,
+    #[serde(default)] pub address: String,
+    #[serde(default)] pub phone: String,
+    #[serde(default)] pub date: String,
+    #[serde(default)] pub status: String,
+    #[serde(default)] pub order_type: String,
+    #[serde(default)] pub table: String,
+    #[serde(default)] pub note: String,
+    /// Currency word appended to amounts, e.g. "تومان". Amounts print bare when empty.
+    #[serde(default)] pub currency: String,
+    /// Items subtotal as sent by the adapter; the agent never derives it from the items.
+    #[serde(default)] pub subtotal: Option<u64>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
@@ -44,6 +60,16 @@ impl Document {
                 text_ok(&data.store_name, 300) &&
                     text_ok(&data.order_number, 128) &&
                     text_ok(&data.footer, 1000) &&
+                    text_ok(&data.title, 128) &&
+                    text_ok(&data.address, 500) &&
+                    text_ok(&data.phone, 64) &&
+                    text_ok(&data.date, 64) &&
+                    text_ok(&data.status, 128) &&
+                    text_ok(&data.order_type, 128) &&
+                    text_ok(&data.table, 64) &&
+                    text_ok(&data.note, 500) &&
+                    text_ok(&data.currency, 32) &&
+                    data.subtotal.map_or(true, |v| v <= 9_000_000_000_000) &&
                     !data.items.is_empty() &&
                     data.items.len() <= 100 &&
                     data.total <= 9_000_000_000_000 &&
@@ -78,6 +104,16 @@ impl Document {
                     format!("سفارش: {}", d.order_number),
                     "-".repeat(16)
                 ];
+                for (label, value) in [
+                    ("تاریخ", &d.date),
+                    ("وضعیت", &d.status),
+                    ("نوع سفارش", &d.order_type),
+                    ("میز", &d.table),
+                ] {
+                    if !value.trim().is_empty() {
+                        lines.push(format!("{label}: {value}"));
+                    }
+                }
                 for i in &d.items {
                     lines.push(i.name.clone());
                     lines.push(
@@ -132,7 +168,9 @@ pub enum Command {
     #[serde(rename = "queue.cancel")] QueueCancel {
         #[serde(rename = "jobId")] job_id: String,
     },
+    #[serde(rename = "queue.clear")] QueueClear,
     #[serde(rename = "discover.network")] DiscoverNetwork,
+    #[serde(rename = "printers.installed")] PrintersInstalled,
     #[serde(rename = "printer.save")] PrinterSave {
         printer: crate::printers::Printer,
     },
@@ -165,8 +203,8 @@ pub fn parse(text: &str) -> Result<Request> {
     // for every command, including zero-argument commands such as ping.
     let command_fields: &[&str] = match &command {
         Command::Hello | Command::Ping | Command::AgentStatus |
-        Command::PrintersList | Command::QueueList | Command::Shutdown |
-        Command::DiscoverNetwork => &[],
+        Command::PrintersList | Command::QueueList | Command::QueueClear |
+        Command::Shutdown | Command::DiscoverNetwork | Command::PrintersInstalled => &[],
         Command::Authenticate { .. } => &["proof"],
         Command::PrinterGet { .. } => &["printerId"],
         Command::PrinterSave { .. } => &["printer"],
@@ -227,6 +265,9 @@ mod tests {
             json!({"type":"print.status","jobId":"order:1"}),
             json!({"type":"queue.list"}),
             json!({"type":"queue.cancel","jobId":"order:1"}),
+            json!({"type":"queue.clear"}),
+            json!({"type":"discover.network"}),
+            json!({"type":"printers.installed"}),
             json!({"type":"agent.shutdown"}),
         ];
         for mut command in commands {
@@ -259,6 +300,43 @@ mod tests {
             ],"total":100
         }});
         assert!(parse(&request.to_string()).is_err());
+    }
+
+    #[test]
+    fn invoice_optional_fields_are_accepted_and_validated() {
+        use serde_json::json;
+        let request = |data: serde_json::Value| {
+            json!({"version":1,"requestId":"r1","type":"print","printerId":"p1",
+                "jobId":"order:1","document":{"type":"invoice","data":data}}).to_string()
+        };
+        // Minimal invoice stays valid (backwards compatible).
+        let minimal = json!({"storeName":"کافه","orderNumber":"1","items":[
+            {"name":"چای","quantity":1,"unitPrice":100}],"total":100});
+        assert!(parse(&request(minimal.clone())).is_ok());
+        // Full invoice with the app template fields.
+        let mut full = minimal.clone();
+        for (key, value) in [
+            ("title", json!("فاکتور فروش")),
+            ("address", json!("زنجان، میدان کوه نورد")),
+            ("phone", json!("09120000000")),
+            ("date", json!("۱۴۰۵/۰۷/۱۲ ۲۱:۴۷")),
+            ("status", json!("تکمیل‌شده")),
+            ("orderType", json!("حضوری")),
+            ("table", json!("۳")),
+            ("note", json!("بدون شکر")),
+            ("currency", json!("تومان")),
+            ("subtotal", json!(100)),
+        ] {
+            full[key] = value;
+        }
+        assert!(parse(&request(full)).is_ok());
+        // Limits are enforced on the optional fields too.
+        let mut long = minimal.clone();
+        long["currency"] = json!("x".repeat(33));
+        assert!(parse(&request(long)).is_err());
+        let mut subtotal = minimal;
+        subtotal["subtotal"] = json!(9_000_000_000_001u64);
+        assert!(parse(&request(subtotal)).is_err());
     }
 
     #[test]

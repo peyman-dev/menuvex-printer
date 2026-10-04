@@ -19,8 +19,10 @@ pixel, and one image pixel is one printer dot before the 2x zoom.
 
 The script **checks its invariants before rendering** and exits non-zero if one is violated:
 
-- money grouping (`240000` → `240,000`) and the planner labels/sizes/emphasis against the real
-  `layout.rs` (both must not drift apart),
+- money grouping (`240000` → `240,000`, shown as Persian digits `۲۴۰,۰۰۰` with the
+  adapter-supplied currency word only) and the planner labels/sizes/emphasis of the app-template
+  design (slip row, four column table on 80mm, stacked items on 58mm, dashed note frame, brand
+  line) against the real `layout.rs` (both must not drift apart),
 - every planned character has a glyph in the bundled font — the previous design's `─` (U+2500)
   separator did not, which is why it printed as boxes, and the missing-glyph case is asserted,
 - every sample stays inside the 4096 row protocol limit.

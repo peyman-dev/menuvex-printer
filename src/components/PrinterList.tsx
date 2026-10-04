@@ -11,6 +11,8 @@ interface Props {
 }
 export function PrinterList({ printers, config, disabled, run, save }: Props) {
   const [devices, setDevices] = useState<UsbDevice[]>([]);
+  const [network, setNetwork] = useState<{ host: string; port: number }[] | null>(null);
+  const [queues, setQueues] = useState<{ queueName: string }[] | null>(null);
   const [edit, setEdit] = useState<PrinterConfig | null>(null);
   const fresh = (connection: PrinterConfig['connection']): PrinterConfig => ({
     id: `printer:${crypto.randomUUID()}`,
@@ -40,6 +42,28 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
             disabled={disabled}
             onClick={() =>
               run(async () => {
+                setQueues(await api.installed());
+              })
+            }
+          >
+            پرینترهای نصب‌شده
+          </button>
+          <button
+            className="secondary"
+            disabled={disabled}
+            onClick={() =>
+              run(async () => {
+                setNetwork(await api.discoverNetwork());
+              })
+            }
+          >
+            جستجوی شبکه
+          </button>
+          <button
+            className="secondary"
+            disabled={disabled}
+            onClick={() =>
+              run(async () => {
                 setDevices(await api.discover());
               })
             }
@@ -50,7 +74,7 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
             disabled={disabled}
             onClick={() => setEdit(fresh({ type: 'network', host: '', port: 9100 }))}
           >
-            ＋ افزودن پرینتر شبکه
+            ＋ افزودن دستی
           </button>
         </div>
       </div>
@@ -108,8 +132,8 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
                   </small>
                 )}
                 <small>
-                  این فهرست دستگاه‌های USB است، نه صف‌های چاپ ویندوز. نصب درایور چاپ ویندوز
-                  لزوماً دسترسی مستقیم USB را فراهم نمی‌کند.
+                  این فهرست دستگاه‌های USB است، نه صف‌های چاپ ویندوز. نصب درایور چاپ ویندوز لزوماً
+                  دسترسی مستقیم USB را فراهم نمی‌کند.
                 </small>
               </span>
               <button
@@ -122,6 +146,84 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
               </button>
             </div>
           ))}
+        </div>
+      )}
+      {queues && (
+        <div className="panel">
+          <div className="section-heading">
+            <h3>پرینترهای نصب‌شده روی سیستم‌عامل</h3>
+            <button type="button" className="subtle" onClick={() => setQueues(null)}>
+              بستن ×
+            </button>
+          </div>
+          <p className="muted">
+            چاپ از طریق درایور نصب‌شده (صف چاپ ویندوز / CUPS) انجام می‌شود؛ نیازی به تعویض درایور
+            USB نیست. ساده‌ترین راه برای پرینترهای USB همین است.
+          </p>
+          {queues.length === 0 ? (
+            <p className="muted">هیچ صف چاپی روی این سیستم پیدا نشد.</p>
+          ) : (
+            queues.map((q) => (
+              <div className="discovered" key={q.queueName}>
+                <span>
+                  {q.queueName} <small>صف چاپ سیستم‌عامل</small>
+                </span>
+                <button
+                  onClick={() => {
+                    setEdit({
+                      ...fresh({ type: 'spooler', queueName: q.queueName }),
+                      name: q.queueName,
+                    });
+                    setQueues(null);
+                  }}
+                >
+                  انتخاب
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+      {network && (
+        <div className="panel">
+          <div className="section-heading">
+            <h3>پرینترهای شبکه پیدا‌شده</h3>
+            <button type="button" className="subtle" onClick={() => setNetwork(null)}>
+              بستن ×
+            </button>
+          </div>
+          <p className="muted">
+            شبکه محلی برای پورت‌های چاپ (مثل 9100) جستجو شد. یکی را انتخاب کنید؛ IP و پورت به‌صورت
+            خودکار پر می‌شود.
+          </p>
+          {network.length === 0 ? (
+            <p className="muted">
+              پرینتری پیدا نشد. مطمئن شوید پرینتر روشن و به همین شبکه وصل است، سپس دوباره جستجو
+              کنید.
+            </p>
+          ) : (
+            network.map((n) => (
+              <div className="discovered" key={`${n.host}:${n.port}`}>
+                <span>
+                  <span dir="ltr">
+                    {n.host}:{n.port}
+                  </span>{' '}
+                  <small>پرینتر شبکه (RAW/JetDirect)</small>
+                </span>
+                <button
+                  onClick={() => {
+                    setEdit({
+                      ...fresh({ type: 'network', host: n.host, port: n.port }),
+                      name: `پرینتر ${n.host}`,
+                    });
+                    setNetwork(null);
+                  }}
+                >
+                  انتخاب
+                </button>
+              </div>
+            ))
+          )}
         </div>
       )}
       {edit && (
@@ -155,6 +257,21 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
                 onChange={(e) => update('name', e.target.value)}
               />
             </label>
+            {edit.connection.type === 'spooler' && (
+              <label>
+                نام صف چاپ سیستم‌عامل
+                <input
+                  dir="ltr"
+                  required
+                  maxLength={256}
+                  value={edit.connection.queueName}
+                  onChange={(e) => {
+                    if (edit.connection.type === 'spooler')
+                      update('connection', { ...edit.connection, queueName: e.target.value });
+                  }}
+                />
+              </label>
+            )}
             {edit.connection.type === 'network' && (
               <div className="form-grid">
                 <label>

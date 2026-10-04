@@ -106,11 +106,22 @@ void document(const Json &j) {
     } else if (j["type"] == "invoice") {
         fields(j, {"type", "data"});
         const auto &d = j["data"];
-        fields(d, {"storeName", "orderNumber", "items", "total"}, {"footer"});
+        fields(d, {"storeName", "orderNumber", "items", "total"},
+               {"footer", "title", "address", "phone", "date", "status", "orderType", "table",
+                "note", "currency", "subtotal"});
         require(text(d["storeName"], 300) && text(d["orderNumber"], 128) &&
                     (!d.contains("footer") || text(d["footer"], 1000)),
                 "Invalid invoice text");
+        // Optional app-template fields; printed only when supplied, never invented locally.
+        const std::pair<const char *, std::size_t> optional_text[] = {
+            {"title", 128},     {"address", 500}, {"phone", 64}, {"date", 64},     {"status", 128},
+            {"orderType", 128}, {"table", 64},    {"note", 500}, {"currency", 32},
+        };
+        for (const auto &[key, limit] : optional_text)
+            require(!d.contains(key) || text(d[key], limit), "Invalid invoice text");
         require(number(d["total"], 0, 9000000000000LL), "Invalid total");
+        require(!d.contains("subtotal") || number(d["subtotal"], 0, 9000000000000LL),
+                "Invalid subtotal");
         require(d["items"].is_array() && !d["items"].empty() && d["items"].size() <= 100,
                 "Invalid invoice items");
         for (const auto &i : d["items"]) {
@@ -145,8 +156,8 @@ Json parse_request(const std::string &raw) {
         require(j.contains("type") && j["type"].is_string(), "Missing command");
         auto type = j["type"].get<std::string>();
         if (type == "hello" || type == "ping" || type == "agent.status" ||
-            type == "printers.list" || type == "queue.list" || type == "agent.shutdown" ||
-            type == "discover.network")
+            type == "printers.list" || type == "queue.list" || type == "queue.clear" ||
+            type == "agent.shutdown" || type == "discover.network" || type == "printers.installed")
             fields(j, {"version", "requestId", "type"});
         else if (type == "authenticate") {
             fields(j, {"version", "requestId", "type", "proof"});
@@ -274,11 +285,33 @@ std::vector<std::string> lines(const Json &doc) {
     if (doc["type"] == "receipt")
         return doc["lines"].get<std::vector<std::string>>();
     const auto &d = doc["data"];
-    // Persian lines hang on the right margin, number-only lines on the left margin; a run of
-    // dashes becomes a solid separator rule in the renderer.
-    std::vector<std::string> out = {
-        d["storeName"], std::string(u8"شماره سفارش: ") + d["orderNumber"].get<std::string>(),
-        std::string(16, '-')};
+    // App-template projection (docs/escpos.md): optional fields print only when supplied and
+    // the agent never invents business data (no local currency word or subtotal). Persian
+    // lines hang on the right margin, number-only lines on the left margin; a run of dashes
+    // becomes a solid separator rule in the renderer.
+    const std::string currency = d.value("currency", std::string{});
+    auto amount = [&](std::int64_t value) {
+        return currency.empty() ? group(value) : group(value) + " " + currency;
+    };
+    std::vector<std::string> out = {d["storeName"]};
+    if (d.contains("address") && !d["address"].get<std::string>().empty())
+        out.push_back(d["address"]);
+    if (d.contains("phone") && !d["phone"].get<std::string>().empty())
+        out.push_back(std::string(u8"تلفن: ") + d["phone"].get<std::string>());
+    out.push_back(std::string(16, '-'));
+    std::string title = d.value("title", std::string{});
+    if (title.empty())
+        title = u8"فاکتور فروش";
+    out.push_back(title + u8" | فیش " + d["orderNumber"].get<std::string>());
+    out.push_back(std::string(16, '-'));
+    const std::pair<const char *, const char *> details[] = {{"date", u8"تاریخ: "},
+                                                             {"status", u8"وضعیت: "},
+                                                             {"orderType", u8"نوع سفارش: "},
+                                                             {"table", u8"میز: "}};
+    for (const auto &[key, label] : details)
+        if (d.contains(key) && !d[key].get<std::string>().empty())
+            out.push_back(label + d[key].get<std::string>());
+    out.push_back(std::string(16, '-'));
     for (const auto &i : d["items"]) {
         out.push_back(i["name"]);
         out.push_back(
@@ -287,8 +320,14 @@ std::vector<std::string> lines(const Json &doc) {
             group(i["quantity"].get<std::int64_t>() * i["unitPrice"].get<std::int64_t>()));
     }
     out.push_back(std::string(16, '-'));
-    out.push_back(std::string(u8"جمع کل: ") + group(d["total"].get<std::int64_t>()));
+    out.push_back(std::string(u8"تعداد اقلام: ") + std::to_string(d["items"].size()));
+    if (d.contains("subtotal"))
+        out.push_back(std::string(u8"جمع اقلام: ") + amount(d["subtotal"].get<std::int64_t>()));
+    out.push_back(std::string(u8"مبلغ قابل پرداخت: ") + amount(d["total"].get<std::int64_t>()));
+    if (d.contains("note") && !d["note"].get<std::string>().empty())
+        out.push_back(std::string(u8"یادداشت: ") + d["note"].get<std::string>());
     out.push_back(d.value("footer", std::string{}));
+    out.push_back("POWERED BY MENUVEX.IR");
     return out;
 }
 std::vector<unsigned char> raster(unsigned width, unsigned height,
@@ -530,5 +569,33 @@ Json Store::cancel(const std::string &id) {
     u.bind(1, id);
     u.row();
     return job_unlocked(id);
+}
+// Empty the queue: cancel every queued job and delete finished history. A job in 'printing'
+// is never touched — the spooler may already own its bytes. Deleting history removes the
+// duplicate-submission protection of those job IDs (docs/protocol.md).
+Json Store::clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    Transaction tx(db_);
+    std::vector<std::string> queued;
+    {
+        Statement q(db_, "SELECT id FROM jobs WHERE status='queued' ORDER BY rowid");
+        while (q.row())
+            queued.push_back(q.str(0));
+    }
+    {
+        Statement u(db_, "UPDATE jobs SET status='cancelled' WHERE status='queued'");
+        u.row();
+    }
+    Json cancelled = Json::array();
+    for (const auto &id : queued)
+        cancelled.push_back(job_unlocked(id));
+    {
+        Statement d(db_, "DELETE FROM jobs WHERE status != 'printing'");
+        d.row();
+    }
+    int removed = sqlite3_changes(db_);
+    tx.commit();
+    // `cancelledJobs` feeds the event broadcast; clients receive {cancelled, removed} counts.
+    return {{"cancelledJobs", cancelled}, {"removed", removed}};
 }
 } // namespace mv

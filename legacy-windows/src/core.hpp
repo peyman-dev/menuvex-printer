@@ -49,5 +49,6 @@ class Store {
     Json claim(std::int64_t timestamp);
     Json finish(const std::string &id, const Json &error, int max_attempts, std::int64_t timestamp);
     Json cancel(const std::string &id);
+    Json clear();
 };
 } // namespace mv

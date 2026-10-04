@@ -20,13 +20,18 @@ The renderer wraps to actual dot width and limits output to 4096 rows. It thresh
 
 ## Printed design
 
-`src-tauri/src/print/layout.rs` turns a semantic document into drawing instructions; `print/mod.rs` paints them. The design is deliberately readable for Persian receipts, which are read right to left:
+`src-tauri/src/print/layout.rs` turns a semantic document into drawing instructions; `print/mod.rs` paints them. Invoices follow the MenuVex app invoice template (deliberately **without** the logo), read right to left:
 
-- Persian text hangs on the **right** margin, amounts on the **left** margin of the same row.
-- Store name is centered and printed 32% larger and emboldened; the total row is 20% larger and emboldened.
-- Item rows are `name | line amount`; when the quantity is greater than one, a secondary right-aligned line shows `quantity × unit price` in 84% size for kitchen/audit checks.
+- Centered header: store name 32% larger and emboldened, then the optional `address` and `تلفن: <phone>` lines at 84%.
+- A bold slip row between two rules: `title` (default `فاکتور فروش`) on the right, `فیش <orderNumber>` on the left.
+- Optional label/value rows (`تاریخ`, `وضعیت`, `نوع سفارش`, `میز`): label on the **right** margin, value on the **left** margin. Rows appear only when the adapter supplied the field.
+- Items on 80 mm paper (≥ 464 printable dots) print as a four column table — `شرح کالا | تعداد | قیمت واحد | جمع` — with a 84% bold header; the description column wraps inside its own column. On 58 mm paper the four columns cannot fit, so each item prints as a `name | line amount` row plus a `quantity × unit price` detail line when the quantity is greater than one.
+- Counters after the items: `تعداد اقلام` (the number of item lines) and, only when the adapter sent `subtotal`, `جمع اقلام`.
+- The payable row `مبلغ قابل پرداخت` is 20% larger and emboldened. When the adapter sent `currency` (e.g. `تومان`), it is appended to amounts; the agent never invents a currency word.
+- An optional `note` prints centered between two **dashed** pixel rules, like the app's note frame.
+- The optional `footer` is centered and bold; `POWERED BY MENUVEX.IR` closes every invoice at 66% size, exactly like the app template.
+- Amounts and counters are shown in Persian digits with ASCII thousands separators (`240000` → `۲۴۰,۰۰۰`) for readability only. The value is never converted, rounded or recalculated; `total`, `subtotal` and the per-item `quantity × unitPrice` products remain whatever the business adapter supplied.
 - Separators are drawn as **pixels** (2 dots at the default font size), never as a font glyph, so the design cannot depend on a character the bundled font may not have. The previous design printed `────────────────` (U+2500), which is absent from Noto Sans Arabic and reached the paper as tofu boxes or, on printers without a fallback, as blank.
-- Money is grouped in threes (`240000` → `240,000`) for readability only. The value is never converted, rounded or recalculated; `total` remains whatever the business adapter supplied.
 - `receipt` lines are printed as given, each hanging on the margin of its own writing direction (Persian right, Latin/number left) — identical to the Legacy Windows renderer, so the same document looks the same on both agents.
 - A 2% side margin (2–24 dots) keeps text off the mechanism edges; the printable width is reduced by it.
 - Lines that do not fit one row keep both values: the row is stacked into two aligned lines instead of overflowing or clipping.

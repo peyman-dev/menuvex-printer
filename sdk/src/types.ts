@@ -27,6 +27,18 @@ export const documentSchema = z.discriminatedUnion('type', [
         .max(100),
       total: z.number().int().min(0).max(9_000_000_000_000),
       footer: text(1000).default(''),
+      // Optional app-template fields. The agent prints them only when supplied and never
+      // invents business data (no local currency word, subtotal or date).
+      title: text(128).optional(),
+      address: text(500).optional(),
+      phone: text(64).optional(),
+      date: text(64).optional(),
+      status: text(128).optional(),
+      orderType: text(128).optional(),
+      table: text(64).optional(),
+      note: text(500).optional(),
+      currency: text(32).optional(),
+      subtotal: z.number().int().min(0).max(9_000_000_000_000).optional(),
     }),
   }),
   z.strictObject({ type: z.literal('receipt'), lines: z.array(text(500)).min(1).max(100) }),
@@ -98,6 +110,13 @@ export const discoveredNetworkPrinterSchema = z.object({
 });
 /** A printer profile to create/update via printer.save (no server-computed status). */
 export const printerInputSchema = printerSchema.omit({ status: true });
+/** An installed OS print queue (Windows spooler / CUPS) returned by printers.installed. */
+export const installedPrinterSchema = z.object({ queueName: z.string() });
+/** Result of queue.clear: cancelled queued jobs and deleted history rows. */
+export const queueClearResultSchema = z.object({
+  cancelled: z.number().int(),
+  removed: z.number().int(),
+});
 export type PrintDocument = z.input<typeof documentSchema>;
 export type PrintRequest = z.input<typeof printRequestSchema>;
 export type PrintJob = z.infer<typeof jobSchema>;
@@ -106,6 +125,8 @@ export type PrinterStatus = z.infer<typeof printerStatusSchema>;
 export type AgentStatus = z.infer<typeof statusSchema>;
 export type DiscoveredNetworkPrinter = z.infer<typeof discoveredNetworkPrinterSchema>;
 export type PrinterInput = z.infer<typeof printerInputSchema>;
+export type InstalledPrinter = z.infer<typeof installedPrinterSchema>;
+export type QueueClearResult = z.infer<typeof queueClearResultSchema>;
 export type ConnectionState =
   'connected' | 'disconnected' | 'connecting' | 'unauthorized' | 'error';
 export type PrinterStatusEvent = { printerId: string; status: PrinterStatus };

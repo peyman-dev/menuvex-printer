@@ -35,20 +35,22 @@ Success: `{"type":"authenticated","version":1,"requestId":"auth:1","agentVersion
 
 Every request has `version: 1`, unique correlation `requestId`, and `type`. Unknown fields and commands rejected. IDs: 1–128 ASCII alphanumeric, `-`, `_`, `:`, `.`. Integers must be integers, not strings. No control characters except newline in document text.
 
-| Type               | Additional fields          | Response data                                   |
-| ------------------ | -------------------------- | ----------------------------------------------- |
-| `hello`, `ping`    | none                       | version, agentVersion                           |
-| `agent.status`     | none                       | ready, agentVersion, port, routes, serverError  |
-| `printers.list`    | none                       | configured printers with status                 |
-| `discover.network` | none                       | LAN candidates `[{host, port}]` on port 9100    |
-| `printer.get`      | printerId                  | one configured printer                          |
-| `printer.save`     | printer                    | the saved printer (create or update by id)      |
-| `printer.test`     | printerId, jobId           | persistent test job                             |
-| `print`            | printerId, jobId, document | existing/new persistent job                     |
-| `print.status`     | jobId                      | job                                             |
-| `queue.list`       | none                       | active-first / recent history, at most 500 jobs |
-| `queue.cancel`     | jobId                      | cancelled job; only queued jobs cancellable     |
-| `agent.shutdown`   | none                       | `LOCAL_CONFIRMATION_REQUIRED` (tray only)       |
+| Type                 | Additional fields          | Response data                                   |
+| -------------------- | -------------------------- | ----------------------------------------------- |
+| `hello`, `ping`      | none                       | version, agentVersion                           |
+| `agent.status`       | none                       | ready, agentVersion, port, routes, serverError  |
+| `printers.list`      | none                       | configured printers with status                 |
+| `discover.network`   | none                       | LAN candidates `[{host, port}]` on port 9100    |
+| `printers.installed` | none                       | OS print queues `[{queueName}]` (spooler/CUPS)  |
+| `printer.get`        | printerId                  | one configured printer                          |
+| `printer.save`       | printer                    | the saved printer (create or update by id)      |
+| `printer.test`       | printerId, jobId           | persistent test job                             |
+| `print`              | printerId, jobId, document | existing/new persistent job                     |
+| `print.status`       | jobId                      | job                                             |
+| `queue.list`         | none                       | active-first / recent history, at most 500 jobs |
+| `queue.cancel`       | jobId                      | cancelled job; only queued jobs cancellable     |
+| `queue.clear`        | none                       | `{cancelled, removed}` counts (see below)       |
+| `agent.shutdown`     | none                       | `LOCAL_CONFIRMATION_REQUIRED` (tray only)       |
 
 Successful command response:
 
@@ -74,7 +76,11 @@ Error response:
 
 Malformed envelopes may not have a usable requestId; server sends an uncorrelated error and closes. SDK validates envelopes **and** method-specific response data, uses request deadlines and rejects pending promises on disconnect.
 
-`discover.network` performs a passive scan of the local subnet for hosts accepting a RAW TCP connection on port 9100 and returns candidates `[{host, port}]`; it never sends print data. A candidate is only confirmed by `printer.test`. This lets the web app list printers without the operator finding IPs through OS tools. The modern agent scans the LAN; the Legacy agent exposes installed Windows queues through configuration instead.
+`discover.network` performs a passive scan of the local subnet for hosts accepting a RAW TCP connection on port 9100 and returns candidates `[{host, port}]`; it never sends print data. A candidate is only confirmed by `printer.test`. This lets the web app list printers without the operator finding IPs through OS tools.
+
+`printers.installed` lists the print queues already installed on the operating system (`EnumPrinters` on Windows, `lpstat -e` on CUPS platforms) as `[{queueName}]`, for configuring a `spooler` connection. Both agents answer it.
+
+`queue.clear` empties the queue in one call: every `queued` job becomes `cancelled` (each emits a `print.cancelled` event) and all finished rows (`completed`, `failed`, `cancelled`) are deleted, followed by a `resync` event. A job currently `printing` is never touched — its bytes may already be at the printer. **Deleting history removes the duplicate-submission protection of those job IDs**: a cleared ID submitted again prints again. The response is `{cancelled, removed}` counts.
 
 ## Semantic documents
 
@@ -99,6 +105,8 @@ Malformed envelopes may not have a usable requestId; server sends an uncorrelate
 ```
 
 The illustration is protocol documentation, not seeded order data. Total is supplied by the real business adapter (taxes/discounts may make it differ from sum of items); Agent does not recalculate business accounting. Item quantity 1–9999; unitPrice ≤900,000,000; total ≤9,000,000,000,000; max 100 items. Fractional quantities require a future version/business adapter, not silent rounding. Currency is not automatically converted.
+
+Invoices also accept **optional** app-template fields, printed only when present (additive; both agents accept them): `title` (slip title, default `فاکتور فروش`; byte limit 128), `address` (500), `phone` (64), `date` (64, passed through verbatim — the agent does not read clocks or convert calendars), `status` (128), `orderType` (128), `table` (64), `note` (500), `currency` (32, the word appended to amounts, e.g. `تومان`) and `subtotal` (integer ≤9,000,000,000,000, shown as `جمع اقلام`). The agent never invents any of them: omitted fields simply do not print, amounts stay bare without `currency`, and `subtotal` is never derived from the items.
 
 `receipt`: `{ "type":"receipt", "lines":["..."] }`, max 100 lines / 500 UTF-8 bytes each. Invoice store name 300 bytes, item name 300, order number 128, footer 1000. Rust byte-length limits are authoritative (JS length checks can be less restrictive for multibyte text). Rendered output ≤4096 pixel rows; longer receipts must be explicitly split into stable sub-job IDs. No raw ESC/POS or image URL variant is exposed in v1. QR/barcode/drawer are encoder APIs only, not remote hardware commands.
 

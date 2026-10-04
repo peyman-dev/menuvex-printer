@@ -193,13 +193,32 @@ export default function App() {
                   <p className="eyebrow">PRINT QUEUE</p>
                   <h2>صف چاپ</h2>
                 </div>
-                <button
-                  className="secondary"
-                  disabled={!desktop || busy}
-                  onClick={() => run(refresh)}
-                >
-                  به‌روزرسانی
-                </button>
+                <div className="actions">
+                  <button
+                    className="secondary"
+                    disabled={!desktop || busy}
+                    onClick={() => run(refresh)}
+                  >
+                    به‌روزرسانی
+                  </button>
+                  <button
+                    className="danger"
+                    disabled={!desktop || busy || jobs.length === 0}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          'صف چاپ خالی شود؟ jobهای در انتظار لغو و تاریخچه حذف می‌شود. job در حال چاپ دست نمی‌خورد و شناسه‌های حذف‌شده در صورت ارسال دوباره، دوباره چاپ می‌شوند.',
+                        )
+                      )
+                        run(async () => {
+                          await api.clearQueue();
+                          await refresh();
+                        });
+                    }}
+                  >
+                    پاک‌سازی صف
+                  </button>
+                </div>
               </div>
               <p className="muted">
                 ۵۰۰ job اخیر · «ارسال شد» تأیید چاپ فیزیکی نیست. نتیجه نامشخص را قبل از چاپ مجدد

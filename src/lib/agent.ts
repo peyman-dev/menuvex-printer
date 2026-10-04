@@ -37,6 +37,9 @@ export const api = {
   queue: () => rpc<PrintJob[]>('queue.list'),
   status: () => rpc<AgentStatus>('agent.status'),
   discover: () => call<UsbDevice[]>('discover_usb'),
+  discoverNetwork: () => rpc<{ host: string; port: number }[]>('discover.network'),
+  installed: () => rpc<{ queueName: string }[]>('printers.installed'),
+  clearQueue: () => rpc<{ cancelled: number; removed: number }>('queue.clear'),
   test: (printerId: string) =>
     rpc<PrintJob>('printer.test', { printerId, jobId: `test:${crypto.randomUUID()}` }),
   cancel: (jobId: string) => rpc<PrintJob>('queue.cancel', { jobId }),

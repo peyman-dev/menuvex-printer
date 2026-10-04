@@ -48,6 +48,9 @@ FONT_PATH = os.path.join(ROOT, "src-tauri", "assets", "NotoSansArabic-Regular.tt
 STORE = 132
 TOTAL = 120
 DETAIL = 84
+BRAND = 66
+TABLE_MIN_DOTS = 464
+BRAND_LINE = "POWERED BY MENUVEX.IR"
 LEADING = 1.45
 LEGACY_LEADING = 1.5
 INK = 100  # of 255
@@ -83,35 +86,114 @@ def money(value: int) -> str:
     return "".join(out)
 
 
+FA_DIGITS = {ord("0") + i: chr(0x06F0 + i) for i in range(10)}
+
+
+def fa_digits(text: str) -> str:
+    return text.translate(FA_DIGITS)
+
+
+def amount(value: int, currency: str) -> str:
+    grouped = fa_digits(money(value))
+    currency = currency.strip()
+    return f"{grouped} {currency}" if currency else grouped
+
+
 # --- design plans ----------------------------------------------------------------------
-def plan(doc: dict, font_size: int) -> list[dict]:
+def plan(doc: dict, font_size: int, width_dots: int) -> list[dict]:
     """Mirror of `layout::plan` — the new design."""
     if doc["type"] == "invoice":
-        return invoice(doc["data"], font_size)
+        return invoice(doc["data"], font_size, width_dots)
     return receipt(doc["lines"], font_size)
 
 
-def invoice(data: dict, font_size: int) -> list[dict]:
+def _text(text: str, align: str, size: int, bold: bool) -> dict:
+    return {"kind": "text", "text": text, "align": align, "size": size, "bold": bold}
+
+
+def _row(right: str, left: str, size: int, bold: bool) -> dict:
+    return {"kind": "row", "right": right, "left": left, "size": size, "bold": bold}
+
+
+TABLE_HEADER = ["شرح کالا", "تعداد", "قیمت واحد", "جمع"]
+TABLE_WEIGHTS = [34, 12, 27, 27]
+TABLE_ALIGNS = ["right", "center", "center", "left"]
+
+
+def invoice(data: dict, font_size: int, width_dots: int) -> list[dict]:
+    detail = scaled(font_size, DETAIL)
     items: list[dict] = []
     store = data["storeName"].strip()
     if store:
-        items.append({"kind": "text", "text": store, "align": "center", "size": scaled(font_size, STORE), "bold": True})
+        items.append(_text(store, "center", scaled(font_size, STORE), True))
+    address = data.get("address", "").strip()
+    if address:
+        items.append(_text(address, "center", detail, False))
+    phone = data.get("phone", "").strip()
+    if phone:
+        items.append(_text(f"تلفن: {fa_digits(phone)}", "center", detail, False))
+    items.append({"kind": "rule"})
+    title = data.get("title", "").strip() or "فاکتور فروش"
     order = data["orderNumber"].strip()
     if order:
-        items.append({"kind": "text", "text": f"شماره سفارش: {order}", "align": "center", "size": font_size, "bold": False})
+        items.append(_row(title, f"فیش {fa_digits(order)}", font_size, True))
+    else:
+        items.append(_text(title, "center", font_size, True))
     items.append({"kind": "rule"})
-    items.append({"kind": "row", "right": "کالا", "left": "مبلغ", "size": font_size, "bold": True})
+    details = 0
+    for label, key in [("تاریخ", "date"), ("وضعیت", "status"), ("نوع سفارش", "orderType"), ("میز", "table")]:
+        value = data.get(key, "").strip()
+        if value:
+            items.append(_row(label, fa_digits(value), font_size, False))
+            details += 1
+    if details:
+        items.append({"kind": "rule"})
+    if width_dots >= TABLE_MIN_DOTS:
+        cells = [
+            {"text": text, "align": align, "weight": weight}
+            for text, weight, align in zip(TABLE_HEADER, TABLE_WEIGHTS, TABLE_ALIGNS)
+        ]
+        items.append({"kind": "cells", "cells": cells, "size": detail, "bold": True})
+        items.append({"kind": "rule"})
+        for item in data["items"]:
+            columns = [
+                item["name"],
+                fa_digits(str(item["quantity"])),
+                fa_digits(money(item["unitPrice"])),
+                fa_digits(money(item["quantity"] * item["unitPrice"])),
+            ]
+            cells = [
+                {"text": text, "align": align, "weight": weight}
+                for text, weight, align in zip(columns, TABLE_WEIGHTS, TABLE_ALIGNS)
+            ]
+            items.append({"kind": "cells", "cells": cells, "size": font_size, "bold": False})
+    else:
+        items.append(_row("شرح کالا", "جمع", font_size, True))
+        items.append({"kind": "rule"})
+        for item in data["items"]:
+            items.append(_row(item["name"], fa_digits(money(item["quantity"] * item["unitPrice"])), font_size, False))
+            if item["quantity"] > 1:
+                items.append(_text(fa_digits(f"{item['quantity']} × {money(item['unitPrice'])}"), "right", detail, False))
     items.append({"kind": "rule"})
-    for item in data["items"]:
-        items.append({"kind": "row", "right": item["name"], "left": money(item["quantity"] * item["unitPrice"]), "size": font_size, "bold": False})
-        if item["quantity"] > 1:
-            items.append({"kind": "text", "text": f"{money(item['quantity'])} × {money(item['unitPrice'])}", "align": "right", "size": scaled(font_size, DETAIL), "bold": False})
+    items.append(_row("تعداد اقلام", fa_digits(str(len(data["items"]))), font_size, False))
+    if data.get("subtotal") is not None:
+        items.append(_row("جمع اقلام", amount(data["subtotal"], data.get("currency", "")), font_size, False))
     items.append({"kind": "rule"})
-    items.append({"kind": "row", "right": "جمع کل", "left": money(data["total"]), "size": scaled(font_size, TOTAL), "bold": True})
+    items.append(_row("مبلغ قابل پرداخت", amount(data["total"], data.get("currency", "")), scaled(font_size, TOTAL), True))
+    note = data.get("note", "").strip()
+    if note:
+        items.append({"kind": "space", "dots": font_size // 4})
+        items.append({"kind": "dashed"})
+        items.append({"kind": "space", "dots": font_size // 4})
+        items.append(_text(f"یادداشت: {note}", "center", detail, False))
+        items.append({"kind": "space", "dots": font_size // 4})
+        items.append({"kind": "dashed"})
     footer = data["footer"].strip()
     if footer:
         items.append({"kind": "space", "dots": font_size // 2})
-        items.append({"kind": "text", "text": footer, "align": "center", "size": scaled(font_size, DETAIL), "bold": False})
+        items.append(_text(footer, "center", detail, True))
+    items.append({"kind": "space", "dots": font_size // 2})
+    items.append(_text(BRAND_LINE, "center", scaled(font_size, BRAND), False))
     return items
 
 
@@ -173,16 +255,33 @@ class Shaper:
         the same base-direction rule and lays segments out right-to-left for Persian lines.
         """
         base_rtl = is_rtl(text)
-        segments: list[list[str]] = []
+        base = "rtl" if base_rtl else "ltr"
+        # Pass 1: strong classification. Digits (including Persian ۰-۹) are numbers in the
+        # UBA: they keep their left-to-right order even inside a right-to-left line.
+        kinds: list[str | None] = []
         for char in text:
-            if _is_rtl_char(char):
-                kind = "rtl"
-            elif char.isdigit() or (char.isascii() and char.isalpha()):
-                kind = "ltr"
+            if char.isdigit() or (char.isascii() and char.isalpha()):
+                kinds.append("ltr")
+            elif _is_rtl_char(char):
+                kinds.append("rtl")
             else:
-                kind = None
-            if kind is None:
-                kind = segments[-1][0] if segments else ("rtl" if base_rtl else "ltr")
+                kinds.append(None)
+        # Pass 2: resolve neutrals. Whitespace takes the base direction (so number runs
+        # reorder as units in RTL lines); other neutrals (، : / ,) join their neighbours
+        # when both sides agree, otherwise the base direction.
+        resolved: list[str] = []
+        for index, (char, kind) in enumerate(zip(text, kinds)):
+            if kind is not None:
+                resolved.append(kind)
+                continue
+            if char.isspace():
+                resolved.append(base)
+                continue
+            prev_kind = next((k for k in reversed(kinds[:index]) if k), None)
+            next_kind = next((k for k in kinds[index + 1:] if k), None)
+            resolved.append(prev_kind if prev_kind == next_kind and prev_kind else base)
+        segments: list[list[str]] = []
+        for char, kind in zip(text, resolved):
             if segments and segments[-1][0] == kind:
                 segments[-1][1] += char
             else:
@@ -252,10 +351,18 @@ class Paper:
         self.y += dots
 
     def rule(self, thickness: int) -> None:
+        self.separator(thickness, None)
+
+    def dashed(self, thickness: int) -> None:
+        self.separator(thickness, (8, 5))
+
+    def separator(self, thickness: int, dash: tuple[int, int] | None) -> None:
         self.y += 3.0
         top = round(self.y)
         for row in range(top, min(top + thickness, MAX_ROWS)):
             for x in range(self.margin, self.width - self.margin):
+                if dash and (x - self.margin) % (dash[0] + dash[1]) >= dash[0]:
+                    continue
                 self.plot(x, row)
         self.y = min(top + thickness, MAX_ROWS) + 3.0
 
@@ -275,14 +382,18 @@ class Preview:
         self.leading = LEADING if design == "new" else LEGACY_LEADING
 
     def run(self, doc: dict) -> Image.Image:
-        items = plan(doc, self.font_size) if self.leading == LEADING else current_plan(doc, self.font_size)
+        items = plan(doc, self.font_size, self.paper.width) if self.leading == LEADING else current_plan(doc, self.font_size)
         for item in items:
             if item["kind"] == "text":
                 self.text(item["text"], item["size"], item["align"], item["bold"])
             elif item["kind"] == "row":
                 self.row(item["right"], item["left"], item["size"], item["bold"])
+            elif item["kind"] == "cells":
+                self.cells(item["cells"], item["size"], item["bold"])
             elif item["kind"] == "rule":
                 self.paper.rule(max(1, self.font_size // 12))
+            elif item["kind"] == "dashed":
+                self.paper.dashed(max(1, self.font_size // 12))
             else:
                 self.paper.space(item["dots"])
         return self.paper.image()
@@ -309,17 +420,37 @@ class Preview:
             self.draw(right, size, "right", bold)
             self.draw(left, size, "left", bold)
 
-    def draw(self, text: str, size: int, align: str, bold: bool) -> None:
-        lines = self.wrap(text, size)
-        left_edge = self.paper.margin
-        right_edge = self.paper.width - self.paper.margin
+    def cells(self, cells: list[dict], size: int, bold: bool) -> None:
+        """Mirror of `Renderer::cells`: right-to-left column regions, tallest cell wins."""
+        gutter = max(4.0, size / 3)
+        weight_sum = sum(max(1, c["weight"]) for c in cells)
+        usable = self.paper.usable() - gutter * (len(cells) - 1)
+        top = self.paper.y
+        bottom = top
+        right = float(self.paper.width - self.paper.margin)
+        for cell in cells:
+            width = usable * max(1, cell["weight"]) / weight_sum
+            left = right - width
+            self.paper.y = top
+            self.draw(cell["text"], size, cell["align"], bold, left, right)
+            bottom = max(bottom, self.paper.y)
+            right = left - gutter
+        self.paper.y = bottom
+
+    def draw(self, text: str, size: int, align: str, bold: bool,
+             left_edge: float | None = None, right_edge: float | None = None) -> None:
+        if left_edge is None:
+            left_edge = float(self.paper.margin)
+        if right_edge is None:
+            right_edge = float(self.paper.width - self.paper.margin)
+        lines = self.wrap(text, size, right_edge - left_edge)
         line_height = size * self.leading
         for number, (runs, width) in enumerate(lines):
             top = self.paper.y + number * line_height
             if align == "right":
                 x = right_edge - width
             elif align == "center":
-                x = (self.paper.width - width) / 2
+                x = (left_edge + right_edge - width) / 2
             else:
                 x = left_edge
             x = max(x, left_edge)
@@ -340,9 +471,10 @@ class Preview:
                     pen += advance
         self.paper.y += line_height * len(lines)
 
-    def wrap(self, text: str, size: int) -> list[tuple[list[tuple[str, str]], float]]:
+    def wrap(self, text: str, size: int, limit: float | None = None) -> list[tuple[list[tuple[str, str]], float]]:
         """Greedy word wrapping mirroring cosmic-text `Wrap::WordOrGlyph` closely enough."""
-        limit = self.paper.usable()
+        if limit is None:
+            limit = self.paper.usable()
         out: list[tuple[list[tuple[str, str]], float]] = []
         for hard in text.split("\n"):
             words = hard.split(" ")
@@ -364,18 +496,28 @@ class Preview:
 
 
 SAMPLES: dict[str, dict] = {
+    # Mirrors the MenuVex app invoice template (without the logo).
     "invoice": {
         "type": "invoice",
         "data": {
-            "storeName": "کافه ونک",
-            "orderNumber": "1842",
+            "storeName": "کافه رترو",
+            "orderNumber": "10195",
+            "title": "فاکتور فروش",
+            "address": "زنجان، میدان کوه نورد، کافه رترو",
+            "phone": "09362114096",
+            "date": "۱۴۰۵/۰۷/۱۲ ۲۱:۴۷",
+            "status": "تکمیل‌شده",
+            "orderType": "حضوری",
             "items": [
+                {"name": "آیس ماچا توت فرنگی", "quantity": 1, "unitPrice": 230000},
                 {"name": "اسپرسو دوبل", "quantity": 2, "unitPrice": 120000},
-                {"name": "کیک شکلاتی", "quantity": 1, "unitPrice": 95000},
-                {"name": "آب معدنی", "quantity": 3, "unitPrice": 8000},
+                {"name": "کیک سن سباستین", "quantity": 1, "unitPrice": 287000},
             ],
-            "total": 359000,
-            "footer": "با سپاس از خرید شما",
+            "subtotal": 757000,
+            "total": 757000,
+            "currency": "تومان",
+            "note": "بسته شده در پایان روز کاری ۰۰:۰۵",
+            "footer": "از خرید شما سپاسگزاریم",
         },
     },
     "kitchen": {
@@ -415,25 +557,43 @@ def check_money() -> None:
 
 
 def check_plan(samples: dict[str, dict], font_size: int = 24) -> None:
-    items = plan(samples["invoice"], font_size)
+    items = plan(samples["invoice"], font_size, 576)
     first = items[0]
     require(first["kind"] == "text" and first["align"] == "center", "store name must be centered")
     require(first["size"] == scaled(font_size, STORE) and first["bold"], "store name must be larger and bold")
     require(any(item["kind"] == "rule" for item in items), "invoice must contain a separator rule")
     require(
-        {"kind": "row", "right": "کالا", "left": "مبلغ", "size": font_size, "bold": True} in items,
-        "invoice must have the right/left column header",
+        {"kind": "row", "right": "فاکتور فروش", "left": "فیش ۱۰۱۹۵", "size": font_size, "bold": True} in items,
+        "invoice must have the bold title/slip row",
     )
-    amounts = {item["left"] for item in items if item["kind"] == "row"}
-    require("240,000" in amounts, "line amounts must be grouped")
-    total = [item for item in items if item["kind"] == "row" and item["right"] == "جمع کل"]
-    require(len(total) == 1, "invoice must have exactly one total row")
-    require(total[0]["size"] == scaled(font_size, TOTAL) and total[0]["bold"], "total must be emphasised")
+    tables = [item["cells"] for item in items if item["kind"] == "cells"]
+    require(tables and [cell["text"] for cell in tables[0]] == TABLE_HEADER, "wide invoice must start with the 4 column header")
     require(
-        all(item["kind"] != "text" or "1 ×" not in item["text"] for item in items),
-        "unit price breakdown belongs to quantity > 1 only",
+        [cell["text"] for cell in tables[1]] == ["آیس ماچا توت فرنگی", "۱", "۲۳۰,۰۰۰", "۲۳۰,۰۰۰"],
+        "item rows must carry quantity, grouped unit price and line amount in Persian digits",
     )
-    lines = [line["text"] for line in plan(samples["kitchen"], font_size)]
+    total = [item for item in items if item["kind"] == "row" and item["right"] == "مبلغ قابل پرداخت"]
+    require(len(total) == 1, "invoice must have exactly one payable row")
+    require(total[0]["size"] == scaled(font_size, TOTAL) and total[0]["bold"], "payable amount must be emphasised")
+    require(total[0]["left"] == "۷۵۷,۰۰۰ تومان", "payable amount must keep the adapter currency word")
+    require(sum(1 for item in items if item["kind"] == "dashed") == 2, "the note must sit between two dashed rules")
+    texts = [item["text"] for item in items if item["kind"] == "text"]
+    require(texts[-1] == BRAND_LINE, "the brand line must close the invoice")
+    narrow = plan(samples["invoice"], font_size, 384)
+    require(all(item["kind"] != "cells" for item in narrow), "narrow paper must stack items instead of columns")
+    require(
+        any(item["kind"] == "text" and item["text"] == "۲ × ۱۲۰,۰۰۰" for item in narrow),
+        "narrow paper keeps the quantity × unit price breakdown for quantity > 1",
+    )
+    minimal = plan({"type": "invoice", "data": {
+        "storeName": "کافه", "orderNumber": "1", "footer": "",
+        "items": [{"name": "چای", "quantity": 1, "unitPrice": 45000}], "total": 45000,
+    }}, font_size, 576)
+    require(
+        all("تومان" not in (item.get("text", "") + item.get("left", "")) for item in minimal),
+        "the agent must never invent a currency word",
+    )
+    lines = [line["text"] for line in plan(samples["kitchen"], font_size, 576)]
     require(lines[0].startswith("میز") and lines[1].startswith("اسپرسو"), "receipt lines must keep their order")
 
 
@@ -441,12 +601,17 @@ def check_layout_source() -> None:
     """The mirror must not drift from the real planner."""
     with open(LAYOUT_RS, encoding="utf-8") as handle:
         source = handle.read()
-    for name, value in (("STORE", STORE), ("TOTAL", TOTAL), ("DETAIL", DETAIL)):
+    for name, value in (("STORE", STORE), ("TOTAL", TOTAL), ("DETAIL", DETAIL), ("BRAND", BRAND)):
         require(
             f"const {name}: u32 = {value};" in source,
             f"layout.rs {name} no longer matches the preview constant {value}",
         )
-    for label in ["شماره سفارش: ", "کالا", "مبلغ", "جمع کل"]:
+    require(
+        f"const TABLE_MIN_DOTS: u16 = {TABLE_MIN_DOTS};" in source,
+        "layout.rs table threshold no longer matches the preview constant",
+    )
+    for label in ["فاکتور فروش", "فیش ", "شرح کالا", "تعداد", "قیمت واحد", "جمع",
+                  "تعداد اقلام", "جمع اقلام", "مبلغ قابل پرداخت", "یادداشت: ", BRAND_LINE]:
         require(label in source, f"layout.rs no longer contains the label {label!r}")
     require(
         '"────────────────"' not in source,
@@ -458,11 +623,13 @@ def check_font_coverage(shaper: Shaper, samples: dict[str, dict], font_size: int
     """Every planned character must have a glyph; the old U+2500 design did not."""
     texts: list[str] = []
     for doc in samples.values():
-        for item in plan(doc, font_size):
+        for item in plan(doc, font_size, 576):
             if item["kind"] == "text":
                 texts.append(item["text"])
             elif item["kind"] == "row":
                 texts.extend([item["right"], item["left"]])
+            elif item["kind"] == "cells":
+                texts.extend(cell["text"] for cell in item["cells"])
     for text in texts:
         for char in text:
             if char.isspace():

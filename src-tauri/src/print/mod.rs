@@ -5,7 +5,7 @@
 //! emphasised header/total and pixel separators. Font selection is local-only.
 use cosmic_text::{Attrs, Buffer, Color, Family, FontSystem, Metrics, Shaping, SwashCache, Wrap};
 use crate::{ error::{ AgentError, Result }, printers::Printer, protocol::Document };
-use layout::{ Align, Item, Line };
+use layout::{ Align, Cell, Item, Line };
 pub mod escpos;
 pub mod layout;
 pub mod queue;
@@ -69,6 +69,13 @@ impl Paper {
     }
     /// Separator drawn as real pixels, so the design never depends on a font having `─`.
     fn rule(&mut self, thickness: u16) {
+        self.separator(thickness, None);
+    }
+    /// Dashed separator (note frame of the app template), drawn as pixels.
+    fn dashed(&mut self, thickness: u16) {
+        self.separator(thickness, Some((8, 5)));
+    }
+    fn separator(&mut self, thickness: u16, dash: Option<(u16, u16)>) {
         self.y += 3.0;
         let top = self.y.round() as u16;
         let bottom = top.saturating_add(thickness).min(MAX_ROWS);
@@ -76,6 +83,11 @@ impl Paper {
         let stride = self.stride;
         for row in top..bottom {
             for x in self.margin..(self.width - self.margin) {
+                if let Some((on, off)) = dash {
+                    if (x - self.margin) % (on + off) >= on {
+                        continue;
+                    }
+                }
                 self.bits[row as usize * stride + x as usize / 8] |= 0x80u8 >> ((x as usize % 8) as u8);
             }
         }
@@ -117,12 +129,15 @@ impl Renderer {
         }
         let attrs = Attrs::new().family(Family::Name(&p.font_family));
         let mut paper = Paper::new(p.width_dots);
-        for item in layout::plan(doc, p.font_size) {
+        for item in layout::plan(doc, p.font_size, p.width_dots) {
             match item {
                 Item::Text(line) => self.text(&attrs, &mut paper, &line)?,
                 Item::Row { right, left, size, bold } =>
                     self.row(&attrs, &mut paper, &right, &left, size, bold)?,
+                Item::Cells { cells, size, bold } =>
+                    self.cells(&attrs, &mut paper, &cells, size, bold)?,
                 Item::Rule => paper.rule((p.font_size / 12).max(1)),
+                Item::Dashed => paper.dashed((p.font_size / 12).max(1)),
                 Item::Space(dots) => paper.space(dots),
             }
         }
@@ -182,6 +197,46 @@ impl Renderer {
             self.draw(attrs, paper, left, size, Align::Left, bold)
         }
     }
+    /// One table row. Cells are laid out right-to-left (the first cell owns the rightmost
+    /// column); each cell wraps inside its own column and the row advances by the tallest cell.
+    fn cells(
+        &mut self,
+        attrs: &Attrs,
+        paper: &mut Paper,
+        cells: &[Cell],
+        size: u16,
+        bold: bool
+    ) -> Result<()> {
+        if cells.is_empty() {
+            return Ok(());
+        }
+        let gutter = ((size as f32) / 3.0).max(4.0);
+        let weight_sum: f32 = cells
+            .iter()
+            .map(|c| c.weight.max(1) as f32)
+            .sum();
+        let usable = (paper.usable() as f32) - gutter * ((cells.len() - 1) as f32);
+        if usable < cells.len() as f32 {
+            // Degenerate narrow paper: stack the cells instead of overlapping columns.
+            for cell in cells {
+                self.draw(attrs, paper, &cell.text, size, cell.align, bold)?;
+            }
+            return Ok(());
+        }
+        let top = paper.y;
+        let mut bottom = paper.y;
+        let mut right = (paper.width - paper.margin) as f32;
+        for cell in cells {
+            let width = usable * (cell.weight.max(1) as f32) / weight_sum;
+            let left = right - width;
+            paper.y = top;
+            self.draw_bounded(attrs, paper, &cell.text, size, cell.align, bold, left, right)?;
+            bottom = bottom.max(paper.y);
+            right = left - gutter;
+        }
+        paper.y = bottom;
+        Ok(())
+    }
     /// Natural width of `text` when it is not wrapped by the paper width.
     fn measure(&mut self, attrs: &Attrs, text: &str, size: u16) -> Result<f32> {
         let metrics = Metrics::new(size as f32, (size as f32) * LEADING);
@@ -197,7 +252,7 @@ impl Renderer {
         }
         Ok(width)
     }
-    /// Shape one block and paint it at the current cursor, then advance the cursor.
+    /// Shape one block and paint it at the current cursor over the full printable width.
     fn draw(
         &mut self,
         attrs: &Attrs,
@@ -207,15 +262,31 @@ impl Renderer {
         align: Align,
         bold: bool
     ) -> Result<()> {
+        let left = paper.margin as f32;
+        let right = (paper.width - paper.margin) as f32;
+        self.draw_bounded(attrs, paper, text, size, align, bold, left, right)
+    }
+    /// Shape one block and paint it between the `left_edge`/`right_edge` column bounds at the
+    /// current cursor, then advance the cursor.
+    #[allow(clippy::too_many_arguments)]
+    fn draw_bounded(
+        &mut self,
+        attrs: &Attrs,
+        paper: &mut Paper,
+        text: &str,
+        size: u16,
+        align: Align,
+        bold: bool,
+        left_edge: f32,
+        right_edge: f32
+    ) -> Result<()> {
         let metrics = Metrics::new(size as f32, (size as f32) * LEADING);
         let mut buffer = Buffer::new(&mut self.fonts, metrics);
         let mut b = buffer.borrow_with(&mut self.fonts);
         b.set_wrap(Wrap::WordOrGlyph);
-        b.set_size(Some(paper.usable() as f32), None);
+        b.set_size(Some((right_edge - left_edge).max(1.0)), None);
         b.set_text(text, attrs, Shaping::Advanced);
         b.shape_until_scroll(true);
-        let left_edge = paper.margin as f32;
-        let right_edge = (paper.width - paper.margin) as f32;
         let mut bands: Vec<(i32, i32, i32)> = Vec::new();
         let mut block_height = 0f32;
         for run in b.layout_runs() {
@@ -229,7 +300,7 @@ impl Renderer {
             }
             let x = match align {
                 Align::Right => (right_edge - run.line_w).max(left_edge),
-                Align::Center => (((paper.width as f32) - run.line_w) / 2.0).max(left_edge),
+                Align::Center => ((left_edge + right_edge - run.line_w) / 2.0).max(left_edge),
                 Align::Left => left_edge,
             };
             bands.push((

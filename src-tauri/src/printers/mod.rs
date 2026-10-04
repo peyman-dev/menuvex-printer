@@ -1,5 +1,6 @@
 pub mod discovery;
 pub mod network;
+pub mod spooler;
 pub mod usb;
 use crate::{ error::{ AgentError, Result }, protocol::{ valid_id, text_ok } };
 use serde::{ Serialize, Deserialize };
@@ -9,6 +10,11 @@ pub enum Connection {
     Network {
         host: String,
         port: u16,
+    },
+    /// An installed OS print queue (Windows spooler or CUPS). The recommended connection for
+    /// USB printers: the vendor driver stays installed, no libusb driver replacement.
+    Spooler {
+        #[serde(rename = "queueName")] queue_name: String,
     },
     Usb {
         #[serde(rename = "vendorId")] vendor_id: u16,
@@ -54,6 +60,11 @@ impl Printer {
             Connection::Network { host, port } => {
                 network::address(host, *port)?;
             }
+            Connection::Spooler { queue_name } => {
+                if queue_name.trim().is_empty() || !text_ok(queue_name, 256) {
+                    return Err(AgentError::new("INVALID_CONFIG", "Invalid print queue name"));
+                }
+            }
             Connection::Usb { vendor_id, product_id, serial, ports, endpoint, .. } => {
                 if
                     *vendor_id == 0 ||
@@ -80,6 +91,7 @@ impl Transport for HardwareTransport {
     fn send(&self, p: &Printer, b: &[u8]) -> Result<()> {
         match &p.connection {
             Connection::Network { host, port } => network::send(host, *port, b),
+            Connection::Spooler { queue_name } => spooler::send(queue_name, b),
             Connection::Usb { .. } => usb::send(&p.connection, b),
         }
     }
@@ -87,6 +99,7 @@ impl Transport for HardwareTransport {
         match &p.connection {
             Connection::Network { host, port } =>
                 (if network::probe(host, *port).is_ok() { "online" } else { "offline" }).into(),
+            Connection::Spooler { queue_name } => spooler::status(queue_name),
             Connection::Usb { .. } =>
                 (
                     match usb::present(&p.connection) {
