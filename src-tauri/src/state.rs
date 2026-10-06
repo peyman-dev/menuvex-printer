@@ -26,6 +26,22 @@ pub struct State {
     pub active: Mutex<Option<String>>,
     pub transport: Arc<dyn Transport>,
 }
+
+/// A repeatable width-check ticket. The profile dimensions are printed as a label and are also
+/// used by `Renderer::encode` for wrapping and raster width; the agent cannot query physical paper
+/// width generically through ESC/POS or an installed spooler driver.
+fn test_receipt_lines(paper_mm: u16, width_dots: u16) -> Vec<String> {
+    vec![
+        "[center] MenuVex printer test".into(),
+        format!("Paper profile | {paper_mm} mm | {width_dots} dots"),
+        "Item | Qty | Amount".into(),
+        "Espresso | 2 | 240,000".into(),
+        "----------------------------------------".into(),
+        "آزمون چاپ فارسی — سلام دنیا".into(),
+        "۰۱۲۳۴۵۶۷۸۹ / 0123456789".into(),
+    ]
+}
+
 impl State {
     pub fn new(store: Storage, secret: Secret, transport: Arc<dyn Transport>) -> Arc<Self> {
         let (events, _) = broadcast::channel(256);
@@ -72,6 +88,9 @@ impl State {
                     .printers.iter()
                     .map(|p| {
                         let mut v = serde_json::to_value(p).unwrap_or(Value::Null);
+                        // Keep the local config and print queue truthful (`type: spooler`), but
+                        // publish the reserved USB-shaped descriptor expected by older clients.
+                        v["connection"] = p.connection.api_value();
                         v["status"] = json!(
                             if active.as_deref() == Some(&p.id) {
                                 "busy"
@@ -112,19 +131,16 @@ impl State {
                     .ok_or_else(|| AgentError::new("PRINTER_NOT_FOUND", "Printer not configured")),
             Command::Print { printer_id, job_id, document } =>
                 self.enqueue(&job_id, &printer_id, &document),
-            Command::PrinterTest { printer_id, job_id } =>
+            Command::PrinterTest { printer_id, job_id } => {
+                let printer = self.printer(&printer_id)?;
                 self.enqueue(
                     &job_id,
                     &printer_id,
-                    &(Document::Receipt {
-                        lines: vec![
-                            "آزمون چاپ MenuVex".into(),
-                            "سلام دنیا — بدون مشکل".into(),
-                            "۰۱۲۳۴۵۶۷۸۹ / 0123456789".into(),
-                            "USB · LAN · ESC/POS".into()
-                        ],
-                    })
-                ),
+                    &Document::Receipt {
+                        lines: test_receipt_lines(printer.paper_mm, printer.width_dots),
+                    },
+                )
+            }
             Command::PrintStatus { job_id } =>
                 Ok(
                     json!(
@@ -183,7 +199,10 @@ impl State {
                 ),
         }
     }
-    fn save_printer(&self, printer: Printer) -> Result<Value> {
+    fn save_printer(&self, mut printer: Printer) -> Result<Value> {
+        // Older frontends can only send USB descriptors. Accept our reserved `queue:` form and
+        // store a real spooler profile so transport and status handling stay explicit internally.
+        printer.connection.normalize_api_compat();
         printer.validate()?;
         let id = printer.id.clone();
         let mut config = self.config()?;
@@ -297,5 +316,67 @@ pub async fn monitor(s: Arc<State>) {
             }
         }).await;
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    }
+}
+
+#[cfg(test)]
+mod test_print_tests {
+    use super::*;
+    use crate::{print::layout::{self, Align, Item}, printers::Connection};
+
+    struct TestTransport;
+    impl Transport for TestTransport {
+        fn send(&self, _: &Printer, _: &[u8]) -> crate::error::Result<()> {
+            Ok(())
+        }
+        fn status(&self, _: &Printer) -> String {
+            "unknown".into()
+        }
+    }
+
+    #[test]
+    fn test_ticket_identifies_configured_paper_and_exercises_receipt_layout() {
+        let lines = test_receipt_lines(58, 384);
+        assert!(lines.iter().any(|line| line == "Paper profile | 58 mm | 384 dots"));
+        let items = layout::plan(&Document::Receipt { lines }, 24, 384);
+        assert!(matches!(&items[0], Item::Text(line) if line.align == Align::Center));
+        assert!(items.iter().any(|item| matches!(item, Item::Cells { .. })));
+        assert!(items.iter().any(|item| matches!(item, Item::Rule)));
+    }
+
+    #[test]
+    fn printer_save_normalizes_compat_descriptor_but_api_lists_spooler_shape() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Storage::open(&directory.path().join("agent.sqlite3")).unwrap();
+        let state = State::new(store, Secret::test_secret(), Arc::new(TestTransport));
+        let printer = Printer {
+            id: "printer:queue".into(),
+            name: "Kitchen POS".into(),
+            connection: Connection::Usb {
+                vendor_id: 0,
+                product_id: 0,
+                serial: Some("queue:Kitchen POS".into()),
+                bus: 0,
+                ports: vec![],
+                interface: 0,
+                endpoint: 0,
+                alternate: 0,
+            },
+            paper_mm: 80,
+            width_dots: 576,
+            copies: 1,
+            cut: true,
+            font_family: "Noto Sans Arabic".into(),
+            font_size: 24,
+        };
+
+        let saved = state.dispatch(Command::PrinterSave { printer }).unwrap();
+        assert_eq!(saved["connection"]["serial"], "queue:Kitchen POS");
+        assert_eq!(saved["connection"]["vendorId"], 0);
+        let saved_config = state.config().unwrap();
+        assert!(matches!(&saved_config.printers[0].connection,
+            Connection::Spooler { queue_name } if queue_name == "Kitchen POS"));
+        let listed = state.dispatch(Command::PrintersList).unwrap();
+        assert_eq!(listed[0]["connection"]["type"], "usb");
     }
 }

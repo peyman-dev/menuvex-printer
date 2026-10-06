@@ -107,8 +107,15 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
               })
             }
             onEdit={() => {
-              const { status: _, ...profile } = p;
-              setEdit(profile);
+              // Use the local stored profile (which keeps `type: spooler`) rather than the
+              // compatibility-shaped `printers.list` response sent to older frontends.
+              const local = config.printers.find((printer) => printer.id === p.id);
+              if (local) {
+                setEdit(local);
+              } else {
+                const { status: _status, ...profile } = p;
+                setEdit(profile);
+              }
             }}
           />
         ))}

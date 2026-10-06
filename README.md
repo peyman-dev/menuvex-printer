@@ -15,14 +15,14 @@ Standalone Tauri 2 / Rust / React agent for local USB and LAN ESC/POS printing, 
 - OS print-queue (spooler) transport on every platform — Windows `winspool` RAW, CUPS `lp -o raw` on Linux/macOS — so a USB printer prints through its **already installed vendor driver**; no libusb/libusbK driver replacement needed. `printers.installed` lists the queues for one-click setup. Direct USB Printer Class discovery and bulk transfer through `rusb`/libusb remain available for driverless setups.
 - Manual private IPv4 LAN setup, TCP/9100 with configurable port and deadlines, plus `discover.network` LAN auto-discovery (the UI's «جستجوی شبکه») so the operator just picks a found IP.
 - SQLite WAL persistent jobs, unique IDs, atomic claims, crash recovery, persistent deduplication, cancellation, capped retries and one-click `queue.clear` (cancel queued + delete history, never the printing job). Ambiguous transfers **never automatically replay**.
-- Semantic invoice/receipt documents → Rust Arabic shaping/BiDi/rasterization → ESC/POS. Bundled OFL Noto Sans Arabic; configurable actual dot width, paper size, font size, copies, cutter. Persian receipts use a right-to-left design (amounts on the left margin, pixel separators, emphasised store name and total); `npm run preview:receipt` renders before/after PNG previews of that design without a printer, see [ESC/POS](docs/escpos.md#printed-design).
+- Semantic invoice/receipt documents → Rust Arabic shaping/BiDi/rasterization → ESC/POS. Bundled OFL Noto Sans Arabic; configurable actual dot width, paper size, font size, copies, cutter. Free-form receipts support pixel rules, centered lines and right-to-left pipe-separated columns; test tickets print the configured millimeters/dots profile. The renderer never claims generic physical-width sensing. `npm run preview:receipt` renders and checks the design without a printer; see [ESC/POS](docs/escpos.md#printed-design).
 - Local printer/profile/routing configuration, independent test print, queue UI, status events, system tray, close-to-hide, optional default-on autostart.
 - SDK reconnect, response validation, subscriptions, migration adapters, durable browser routing and optional React provider.
 - Device-specific Linux udev setup helper; per-OS native candidate CI; bounded daily logs without tokens/order contents.
 
 ## Windows 7 Legacy variant
 
-A separate native Win32/C++ Agent is now implemented under [`legacy-windows/`](legacy-windows/README.md). It uses installed Windows RAW spooler queues or direct LAN TCP/9100 to a private IPv4 (chosen per printer), SQLite and Uniscribe Persian raster printing, with the same HMAC protocol and additive `spooler` / `network` SDK descriptors. The Windows installer collection stage builds x86/x64 Legacy candidates in addition to the modern output. Real Windows 7 SP1/driver/browser acceptance remains required; no compatibility certification is claimed from modern CI alone.
+A separate native Win32/C++ Agent is implemented under [`legacy-windows/`](legacy-windows/README.md). It uses installed Windows RAW spooler queues or direct LAN TCP/9100 to a private IPv4 (chosen per printer), SQLite and Uniscribe Persian raster printing, with the same HMAC protocol and receipt layout hints. Spooler profiles remain explicit internally and use the reserved USB-compatible `queue:` wire marker for older frontends; use SDK `spoolerQueueName()` rather than opening WebUSB. The Windows installer collection stage builds x86/x64 Legacy candidates in addition to the modern output. Real Windows 7 SP1/driver/browser acceptance remains required; no compatibility certification is claimed from modern CI alone.
 
 ## Installer downloads for café testing
 
@@ -106,7 +106,7 @@ if (route?.autoPrint) {
 
 RAW ESC/POS has no transactional exactly-once physical-print acknowledgement. `completed` means all bytes were accepted by the transport, **not** proof of paper output. A partial write or crash during `printing` becomes `failed / PRINT_OUTCOME_UNKNOWN`; a human must inspect the paper. Reprinting deliberately uses a new ID. Pre-send offline failures retry at 2, 4, 8… seconds, capped at 60 seconds and configured attempts.
 
-USB compatibility is **not universal**: Windows typically needs a compatible WinUSB driver for direct libusb access; changing it can break vendor-driver printing. Printer Class only is deliberately conservative. Prefer LAN where driver changes are unacceptable; a Windows RAW spooler transport is not included.
+Direct-USB compatibility is **not universal**: Windows typically needs a compatible WinUSB driver for direct libusb access; changing it can break vendor-driver printing. Printer Class only is deliberately conservative. Prefer an installed Windows RAW spooler queue or LAN where driver changes are unacceptable; spooler keeps the vendor driver in place.
 
 Browser loopback access can be blocked by CSP, browser local-network permissions, enterprise policy or mixed-content handling. “Unreachable” does not prove “not installed.” Test the actual HTTPS PWA on supported browsers; do not instruct cashiers to disable browser security. See [security](docs/security.md).
 

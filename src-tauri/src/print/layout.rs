@@ -308,22 +308,93 @@ fn stacked_items(data: &InvoiceData, font_size: u16, out: &mut Vec<Item>) {
     }
 }
 
-/// Free-form receipt (kitchen/bar ticket, test print): every supplied line is printed as it is,
-/// hanging on the margin of its own writing direction — exactly like the Legacy Windows agent.
+/// A standalone line made only from separator marks is drawn as a rule, not sent to the font.
+/// This includes common ASCII and box-drawing characters typed by receipt templates.
+fn separator_line(text: &str) -> bool {
+    let mut chars = text.trim().chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    let is_mark = |c: char| {
+        matches!(
+            c,
+            '-' | '_' | '=' | '*' | '‐' | '‑' | '‒' | '–' | '—' | '―' | '﹘' | '﹣' | '－' |
+            '─' | '━' | '═'
+        )
+    };
+    is_mark(first) && text.trim().chars().count() >= 3 && chars.all(is_mark)
+}
+
+fn columns(text: &str) -> Option<Vec<String>> {
+    let cells = text.split('|').map(str::trim).map(str::to_owned).collect::<Vec<_>>();
+    (2..=4).contains(&cells.len()).then_some(cells)
+}
+
+fn column_weights(count: usize) -> &'static [u16] {
+    match count {
+        2 => &[3, 2],
+        3 => &[45, 15, 40],
+        4 => &[34, 12, 27, 27],
+        _ => &[],
+    }
+}
+
+/// Free-form receipt (kitchen/bar ticket, test print). Templates may use `---` for a pixel rule,
+/// `a | b | c` for a right-to-left column row, and `[center] text` for a centered line. Ordinary
+/// text keeps hanging alignment based on its writing direction.
 fn receipt(lines: &[String], font_size: u16) -> Vec<Item> {
     let mut out = Vec::new();
     for line in lines {
-        let text = line.trim_end();
-        if text.trim().is_empty() {
+        let source = line.trim_end();
+        let text = source.trim();
+        if text.is_empty() {
             out.push(Item::Space(font_size / 2));
-            continue;
+        } else if separator_line(text) {
+            out.push(Item::Rule);
+        } else if let Some(centered) = text.strip_prefix("[center]") {
+            let mut centered = centered.trim_start();
+            if let Some(without_colon) = centered.strip_prefix(':') {
+                centered = without_colon.trim_start();
+            }
+            if centered.is_empty() {
+                out.push(Item::Space(font_size / 2));
+            } else {
+                out.push(Item::Text(Line {
+                    text: centered.to_owned(),
+                    align: Align::Center,
+                    size: font_size,
+                    bold: false,
+                }));
+            }
+        } else if let Some(cells) = columns(text) {
+            let weights = column_weights(cells.len());
+            out.push(Item::Cells {
+                cells: cells
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, text)| Cell {
+                        text,
+                        align: if index == 0 {
+                            Align::Right
+                        } else if index + 1 == weights.len() {
+                            Align::Left
+                        } else {
+                            Align::Center
+                        },
+                        weight: weights[index],
+                    })
+                    .collect(),
+                size: font_size,
+                bold: false,
+            });
+        } else {
+            out.push(Item::Text(Line {
+                text: text.to_owned(),
+                align: if is_rtl(text) { Align::Right } else { Align::Left },
+                size: font_size,
+                bold: false,
+            }));
         }
-        out.push(Item::Text(Line {
-            text: text.to_string(),
-            align: if is_rtl(text) { Align::Right } else { Align::Left },
-            size: font_size,
-            bold: false,
-        }));
     }
     out
 }
@@ -561,5 +632,35 @@ mod tests {
                 Item::Space(10),
             ]
         );
+    }
+
+    #[test]
+    fn receipt_templates_render_pixel_rules_columns_and_centered_lines() {
+        let doc = Document::Receipt {
+            lines: vec![
+                "[center] Kitchen ticket".into(),
+                "میز ۴ | اسپرسو دوبل | ۲۴۰,۰۰۰".into(),
+                "--------------------------------".into(),
+                "Tea | 1 | 45,000".into(),
+            ],
+        };
+        let items = plan(&doc, 20, 384);
+        assert_eq!(
+            items[0],
+            Item::Text(Line {
+                text: "Kitchen ticket".into(),
+                align: Align::Center,
+                size: 20,
+                bold: false,
+            })
+        );
+        assert!(matches!(items[1], Item::Cells { ref cells, .. }
+            if cells.iter().map(|cell| cell.align).collect::<Vec<_>>()
+                == vec![Align::Right, Align::Center, Align::Left]
+                && cells[0].weight == 45 && cells[2].weight == 40));
+        assert_eq!(items[2], Item::Rule);
+        assert!(matches!(items[3], Item::Cells { ref cells, .. }
+            if cells.iter().map(|cell| cell.text.as_str()).collect::<Vec<_>>()
+                == vec!["Tea", "1", "45,000"]));
     }
 }

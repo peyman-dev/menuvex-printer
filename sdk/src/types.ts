@@ -62,6 +62,8 @@ export const connectionSchema = z.discriminatedUnion('type', [
     alternate: z.number().int(),
   }),
 ]);
+export type Connection = z.infer<typeof connectionSchema>;
+
 export const printerStatusSchema = z.enum(['online', 'offline', 'unknown', 'busy', 'error']);
 export const printerSchema = z.object({
   id,

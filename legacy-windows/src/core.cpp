@@ -240,20 +240,69 @@ void validate_config(const Json &c) {
                 "Invalid route");
     }
 }
+Json compatible_printers(Json printers) {
+    require(printers.is_array(), "Printer list must be an array");
+    for (auto &printer : printers) {
+        if (!printer.is_object() || !printer.contains("connection"))
+            continue;
+        auto &connection = printer["connection"];
+        if (connection.is_object() && connection.value("type", std::string()) == "spooler") {
+            const auto queue = connection.at("queueName").get<std::string>();
+            connection = {{"type", "usb"},
+                          {"vendorId", 0},
+                          {"productId", 0},
+                          {"serial", "queue:" + queue},
+                          {"bus", 0},
+                          {"ports", Json::array()},
+                          {"interface", 0},
+                          {"endpoint", 0},
+                          {"alternate", 0}};
+        }
+    }
+    return printers;
+}
+
+static Json normalize_printer_wire(const Json &printer) {
+    Json normalized = printer;
+    auto &connection = normalized.at("connection");
+    const bool queue_compat = connection.is_object() && connection.contains("type") &&
+                              connection["type"].is_string() && connection["type"] == "usb" &&
+                              connection.contains("vendorId") &&
+                              number(connection["vendorId"], 0, 0) &&
+                              connection.contains("productId") &&
+                              number(connection["productId"], 0, 65535) &&
+                              connection.contains("serial") && connection["serial"].is_string() &&
+                              connection["serial"].get<std::string>().rfind("queue:", 0) == 0;
+    if (queue_compat) {
+        fields(connection, {"type", "vendorId", "productId", "serial", "bus", "ports",
+                            "interface", "endpoint", "alternate"});
+        require(number(connection["bus"], 0, 0) && connection["ports"].is_array() &&
+                    connection["ports"].empty() && number(connection["interface"], 0, 0) &&
+                    number(connection["endpoint"], 0, 0) && number(connection["alternate"], 0, 0),
+                "Invalid spooler compatibility descriptor");
+        const auto serial = connection["serial"].get<std::string>();
+        const std::string queue = serial.substr(6);
+        require(!queue.empty() && text(queue, 512), "Invalid spooler queue");
+        normalized["connection"] = {{"type", "spooler"}, {"queueName", queue}};
+    }
+    return normalized;
+}
+
 Json upsert_printer(const Json &config, const Json &printer) {
+    const Json normalized = normalize_printer_wire(printer);
     // Validate the single profile through the shared config validator first.
     Json probe = config;
-    probe["printers"] = Json::array({printer});
+    probe["printers"] = Json::array({normalized});
     probe["routes"] = Json::array();
     validate_config(probe);
     Json next = config;
     if (!next.contains("printers") || !next["printers"].is_array())
         next["printers"] = Json::array();
-    const std::string id = printer.at("id").get<std::string>();
+    const std::string id = normalized.at("id").get<std::string>();
     bool replaced = false;
     for (auto &p : next["printers"]) {
         if (p.is_object() && p.value("id", std::string()) == id) {
-            p = printer;
+            p = normalized;
             replaced = true;
             break;
         }
@@ -261,7 +310,7 @@ Json upsert_printer(const Json &config, const Json &printer) {
     if (!replaced) {
         if (next["printers"].size() >= 16)
             throw Error("INVALID_CONFIG", "Too many printers", false);
-        next["printers"].push_back(printer);
+        next["printers"].push_back(normalized);
     }
     validate_config(next);
     return next;
@@ -329,6 +378,109 @@ std::vector<std::string> lines(const Json &doc) {
     out.push_back(d.value("footer", std::string{}));
     out.push_back("POWERED BY MENUVEX.IR");
     return out;
+}
+static std::string fa_digits(const std::string &text) {
+    static const char *digits[] = {u8"۰", u8"۱", u8"۲", u8"۳", u8"۴",
+                                   u8"۵", u8"۶", u8"۷", u8"۸", u8"۹"};
+    std::string out;
+    for (char c : text)
+        if (c >= '0' && c <= '9')
+            out += digits[c - '0'];
+        else
+            out.push_back(c);
+    return out;
+}
+std::vector<std::string> printable_lines(const Json &doc, unsigned width_dots) {
+    document(doc);
+    if (doc["type"] == "receipt")
+        return doc["lines"].get<std::vector<std::string>>();
+
+    const auto &d = doc["data"];
+    const auto currency = d.value("currency", std::string{});
+    auto amount = [&](std::int64_t value) {
+        auto grouped = fa_digits(group(value));
+        return currency.empty() ? grouped : grouped + " " + currency;
+    };
+    std::vector<std::string> out;
+    auto append_centered = [&](const std::string &value) {
+        if (!value.empty())
+            out.push_back("[center] " + value);
+    };
+    append_centered(d["storeName"].get<std::string>());
+    if (d.contains("address"))
+        append_centered(d["address"].get<std::string>());
+    if (d.contains("phone") && !d["phone"].get<std::string>().empty())
+        append_centered(std::string(u8"تلفن: ") + fa_digits(d["phone"].get<std::string>()));
+
+    const std::string rule(24, '-');
+    const std::string title = d.value("title", std::string{}).empty()
+                                  ? std::string(u8"فاکتور فروش")
+                                  : d.value("title", std::string{});
+    out.push_back(rule);
+    out.push_back(title + " | " + std::string(u8"فیش ") + fa_digits(d["orderNumber"]));
+    out.push_back(rule);
+    const std::pair<const char *, const char *> details[] = {{"date", u8"تاریخ"},
+                                                             {"status", u8"وضعیت"},
+                                                             {"orderType", u8"نوع سفارش"},
+                                                             {"table", u8"میز"}};
+    for (const auto &[key, label] : details)
+        if (d.contains(key) && !d[key].get<std::string>().empty())
+            out.push_back(std::string(label) + " | " + fa_digits(d[key].get<std::string>()));
+
+    if (width_dots >= 464) {
+        out.push_back(rule);
+        out.push_back(std::string(u8"شرح کالا | تعداد | قیمت واحد | جمع"));
+        out.push_back(rule);
+        for (const auto &item : d["items"]) {
+            const auto quantity = item["quantity"].get<std::int64_t>();
+            const auto unit_price = item["unitPrice"].get<std::int64_t>();
+            const auto line_total = quantity * unit_price;
+            out.push_back(item["name"].get<std::string>() + " | " +
+                          fa_digits(std::to_string(quantity)) + " | " +
+                          fa_digits(group(unit_price)) + " | " + fa_digits(group(line_total)));
+        }
+    } else {
+        out.push_back(rule);
+        out.push_back(std::string(u8"شرح کالا | جمع"));
+        out.push_back(rule);
+        for (const auto &item : d["items"]) {
+            const auto quantity = item["quantity"].get<std::int64_t>();
+            const auto unit_price = item["unitPrice"].get<std::int64_t>();
+            out.push_back(item["name"].get<std::string>() + " | " +
+                          fa_digits(group(quantity * unit_price)));
+            if (quantity > 1)
+                out.push_back(fa_digits(std::to_string(quantity)) + " × " +
+                              fa_digits(group(unit_price)));
+        }
+    }
+    out.push_back(rule);
+    out.push_back(std::string(u8"تعداد اقلام") + " | " +
+                  fa_digits(std::to_string(d["items"].size())));
+    if (d.contains("subtotal"))
+        out.push_back(std::string(u8"جمع اقلام") + " | " + amount(d["subtotal"]));
+    out.push_back(rule);
+    out.push_back(std::string(u8"مبلغ قابل پرداخت") + " | " + amount(d["total"]));
+    if (d.contains("note") && !d["note"].get<std::string>().empty()) {
+        out.push_back("[dashed]");
+        append_centered(std::string(u8"یادداشت: ") + d["note"].get<std::string>());
+        out.push_back("[dashed]");
+    }
+    append_centered(d.value("footer", std::string{}));
+    append_centered("POWERED BY MENUVEX.IR");
+    return out;
+}
+Json printer_test_document(const Json &profile) {
+    const int paper_mm = profile.at("paperMm").get<int>();
+    const int width_dots = profile.at("widthDots").get<int>();
+    return {{"type", "receipt"},
+            {"lines", {"[center] MenuVex printer test",
+                       "Paper profile | " + std::to_string(paper_mm) + " mm | " +
+                           std::to_string(width_dots) + " dots",
+                       "Item | Qty | Amount",
+                       "Espresso | 2 | 240,000",
+                       std::string(40, '-'),
+                       u8"آزمون چاپ فارسی — سلام دنیا",
+                       u8"۰۱۲۳۴۵۶۷۸۹ / 0123456789"}}};
 }
 std::vector<unsigned char> raster(unsigned width, unsigned height,
                                   const std::vector<unsigned char> &bits, bool cut) {
