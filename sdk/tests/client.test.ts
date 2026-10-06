@@ -208,14 +208,15 @@ describe('PrinterAgentClient', () => {
     expect(printers.map((p) => p.connection)).toEqual(connections);
   });
 
-  it('reports schema mismatch instead of blaming USB permissions or accepting unknown types', async () => {
+  it('logs the untouched printer payload before reporting a connection schema mismatch', async () => {
     const { c, sockets } = make();
     await c.connect();
-    sockets[0].printers = [
+    const connection = { type: 'lan', host: '192.168.1.50', port: 9100 };
+    const payload = [
       {
         id: 'printer:1',
         name: 'پرینتر',
-        connection: { type: 'lan', host: '192.168.1.50', port: 9100 },
+        connection,
         paperMm: 80,
         widthDots: 576,
         copies: 1,
@@ -225,8 +226,28 @@ describe('PrinterAgentClient', () => {
         status: 'unknown',
       },
     ];
-    await expect(c.getPrinters()).rejects.toMatchObject({ code: 'CONNECTION_SCHEMA_MISMATCH' });
-    expect(c.isConnected()).toBe(true);
+    sockets[0].printers = payload;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await expect(c.getPrinters()).rejects.toMatchObject({
+        code: 'CONNECTION_SCHEMA_MISMATCH',
+      });
+      expect(log).toHaveBeenNthCalledWith(
+        1,
+        'RAW PRINTER PAYLOAD:',
+        JSON.stringify(payload, null, 2),
+      );
+      expect(log).toHaveBeenNthCalledWith(2, 'CONNECTION DEBUG:', {
+        connection,
+        type: 'lan',
+        typeOf: 'string',
+        typeString: '"lan"',
+        keys: ['type', 'host', 'port'],
+      });
+      expect(c.isConnected()).toBe(true);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it('uses one authenticated connection and refreshes subscriptions', async () => {
