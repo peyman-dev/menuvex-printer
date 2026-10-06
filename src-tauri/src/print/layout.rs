@@ -144,6 +144,10 @@ pub fn plan(doc: &Document, font_size: u16, width_dots: u16) -> Vec<Item> {
     match doc {
         Document::Invoice { data } => invoice(data, font_size, width_dots),
         Document::Receipt { lines } => receipt(lines, font_size),
+        // Raw ESC/POS already contains the final printer bytes and deliberately bypasses layout.
+        // `Renderer::encode` returns those bytes before calling this function; keeping this arm a
+        // no-op also makes direct callers incapable of accidentally re-rendering raw data.
+        Document::Escpos { .. } => Vec::new(),
     }
 }
 
@@ -602,6 +606,12 @@ mod tests {
             size: scaled(24, TOTAL),
             bold: true,
         }));
+    }
+
+    #[test]
+    fn raw_escpos_bypasses_semantic_layout() {
+        let doc = Document::Escpos { commands: vec![27, 64], data: String::new() };
+        assert!(plan(&doc, 20, 576).is_empty());
     }
 
     #[test]

@@ -47,7 +47,37 @@ type Pending = {
   resolve: (v: unknown) => void;
   reject: (e: Error) => void;
   timer: ReturnType<typeof setTimeout>;
+  type: string;
 };
+/**
+ * Log the untouched `printers.list` data before the response envelope or printer schemas see it.
+ * This is intentionally limited to printer profiles: print documents, jobs and credentials must
+ * never be written to the browser console.
+ */
+function logRawPrinterPayload(payload: unknown): void {
+  const first = Array.isArray(payload) ? payload[0] : undefined;
+  const connection =
+    first !== null && typeof first === 'object'
+      ? (first as Record<PropertyKey, unknown>).connection
+      : undefined;
+  const connectionObject =
+    connection !== null && typeof connection === 'object'
+      ? (connection as Record<PropertyKey, unknown>)
+      : undefined;
+  const connectionType = connectionObject?.type;
+
+  // These logs intentionally run before printerSchema sees the value. Do not replace them with
+  // Zod's error object: an invalid_union issue omits the exact discriminator and raw wire shape.
+  console.log('RAW PRINTER PAYLOAD:', JSON.stringify(payload, null, 2));
+  console.log('CONNECTION DEBUG:', {
+    connection,
+    type: connectionType,
+    typeOf: typeof connectionType,
+    typeString: JSON.stringify(connectionType),
+    keys: Object.keys(connectionObject ?? {}),
+  });
+}
+
 /**
  * Turn a rejected `connection` into a message that names the offending value.
  *
@@ -263,7 +293,21 @@ export class PrinterAgentClient {
   private async message(raw: unknown) {
     if (typeof raw !== 'string' || raw.length > 512 * 1024)
       throw new AgentError('INVALID_RESPONSE', 'Unexpected message encoding/size');
-    const msg = serverMessageSchema.parse(JSON.parse(raw));
+    const decoded: unknown = JSON.parse(raw);
+    // Inspect the untouched response before *any* Zod validation. `serverMessageSchema` keeps
+    // response data unknown, but logging here makes that ordering explicit and future-proof.
+    if (decoded !== null && typeof decoded === 'object') {
+      const envelope = decoded as Record<PropertyKey, unknown>;
+      const requestId = envelope.requestId;
+      if (
+        envelope.type === 'response' &&
+        typeof requestId === 'string' &&
+        this.pending.get(requestId)?.type === 'printers.list'
+      ) {
+        logRawPrinterPayload(envelope.data);
+      }
+    }
+    const msg = serverMessageSchema.parse(decoded);
     if (msg.type === 'hello') {
       const sessionSocket = this.socket;
       if (this.authenticated) throw new AgentError('INVALID_RESPONSE', 'Repeated hello');
@@ -367,7 +411,7 @@ export class PrinterAgentClient {
           ),
         );
       }, this.timeoutMs);
-      this.pending.set(requestId, { resolve, reject, timer });
+      this.pending.set(requestId, { resolve, reject, timer, type });
       try {
         this.socket!.send(JSON.stringify({ version: VERSION, requestId, type, ...fields }));
       } catch {
