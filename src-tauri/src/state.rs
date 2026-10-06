@@ -348,7 +348,7 @@ mod test_print_tests {
     fn printer_save_normalizes_compat_descriptor_but_api_lists_spooler_shape() {
         let directory = tempfile::tempdir().unwrap();
         let store = Storage::open(&directory.path().join("agent.sqlite3")).unwrap();
-        let state = State::new(store, Secret::test_secret(), Arc::new(TestTransport));
+        let state = State::new(store, crate::security::test_secret(), Arc::new(TestTransport));
         let printer = Printer {
             id: "printer:queue".into(),
             name: "Kitchen POS".into(),
