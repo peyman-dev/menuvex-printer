@@ -28,7 +28,36 @@ pub enum Connection {
     },
 }
 
+/// Connection types this agent understands. Anything else is rejected by name, so an operator
+/// sees the offending value instead of a generic parser error.
+pub const CONNECTION_TYPES: [&str; 3] = ["network", "usb", "spooler"];
+
+/// Reject an unknown `connection.type` **before** serde turns it into the anonymous
+/// `INVALID_PAYLOAD: Invalid or unsupported payload` message. Called on every path that can
+/// receive a printer profile from outside the process (WebSocket `printer.save`, the local
+/// `save_config` command and the persisted config row).
+pub fn check_connection_tag(connection: &serde_json::Value) -> Result<()> {
+    let received = connection
+        .get("type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if CONNECTION_TYPES.contains(&received) {
+        Ok(())
+    } else {
+        Err(AgentError::unsupported_connection_type(received))
+    }
+}
+
 impl Connection {
+    /// Stable name of the transport, for structured logs that must never include receipt data.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Network { .. } => "network",
+            Self::Spooler { .. } => "spooler",
+            Self::Usb { .. } => "usb",
+        }
+    }
+
     /// Return the backwards-compatible wire descriptor used by `printers.list`/`printer.get`.
     /// Older MenuVex frontends only understand USB connections; reserve VID 0 and a `queue:`
     /// serial for OS spooler queues while keeping the stored transport explicitly tagged.
@@ -78,6 +107,10 @@ pub struct Printer {
     pub cut: bool,
     pub font_family: String,
     pub font_size: u16,
+    /// Operator-owned switch for frontend-authored raw ESC/POS (`document.type == "escpos"`).
+    /// Defaults to `false` for every existing profile, is only writable from the local desktop
+    /// window (`save_config`), and is forced back to its stored value on a remote `printer.save`.
+    #[serde(default)] pub raw_passthrough: bool,
 }
 impl Printer {
     pub fn validate(&self) -> Result<()> {
@@ -137,6 +170,7 @@ mod compatibility_tests {
             cut: true,
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
+            raw_passthrough: false,
         }
     }
 
@@ -153,6 +187,66 @@ mod compatibility_tests {
         printer.connection.normalize_api_compat();
         assert_eq!(printer.connection, spooler);
         printer.validate().unwrap();
+    }
+
+    /// The website only understands `network` and `usb` discriminators, so every connection
+    /// published to it must serialize to one of those two. A `spooler` value on that wire is
+    /// what makes a strict `z.discriminatedUnion('type', [network, usb])` reject the whole
+    /// `printers.list` payload with `invalid_union`.
+    #[test]
+    fn wire_descriptor_never_exposes_a_third_connection_type() {
+        let spooler = Connection::Spooler { queue_name: "POS-80".into() };
+        let direct_usb = Connection::Usb {
+            vendor_id: 1,
+            product_id: 2,
+            serial: None,
+            bus: 1,
+            ports: vec![1],
+            interface: 0,
+            endpoint: 1,
+            alternate: 0,
+        };
+        let lan = Connection::Network { host: "192.168.1.50".into(), port: 9100 };
+        for (connection, expected) in
+            [(&spooler, "usb"), (&direct_usb, "usb"), (&lan, "network")]
+        {
+            let value = connection.api_value();
+            assert_eq!(value["type"], expected, "unexpected wire type for {connection:?}");
+            assert!(["network", "usb"].contains(&value["type"].as_str().unwrap()));
+        }
+        assert_eq!(spooler.kind(), "spooler");
+        assert_eq!(direct_usb.kind(), "usb");
+        assert_eq!(lan.kind(), "network");
+    }
+
+    #[test]
+    fn unknown_connection_types_are_rejected_by_name() {
+        for (received, expected) in [
+            (serde_json::json!({"type":"lan","host":"192.168.1.50","port":9100}), "\"lan\""),
+            (serde_json::json!({"type":"bluetooth"}), "\"bluetooth\""),
+            (serde_json::json!({"host":"192.168.1.50"}), "<missing>"),
+            (serde_json::json!({"type":null}), "<missing>"),
+        ] {
+            let error = check_connection_tag(&received).expect_err("must be rejected");
+            assert_eq!(error.code, "UNSUPPORTED_CONNECTION_TYPE");
+            assert!(
+                error.message.contains(expected),
+                "message {:?} must name {expected}",
+                error.message
+            );
+            assert!(error.message.starts_with("Unsupported printer connection type:"));
+        }
+        for ok in ["network", "usb", "spooler"] {
+            check_connection_tag(&serde_json::json!({ "type": ok })).unwrap();
+        }
+    }
+
+    #[test]
+    fn echoed_connection_type_is_truncated_and_sanitized() {
+        let hostile = format!("{}\u{1b}[31m", "x".repeat(4096));
+        let error = AgentError::unsupported_connection_type(&hostile);
+        assert!(error.message.len() < 200, "message must stay short: {}", error.message.len());
+        assert!(!error.message.contains('\u{1b}'));
     }
 
     #[test]
@@ -206,13 +300,30 @@ pub trait Transport: Send + Sync {
 pub struct HardwareTransport;
 impl Transport for HardwareTransport {
     fn send(&self, p: &Printer, b: &[u8]) -> Result<()> {
-        match &p.connection {
+        let outcome = match &p.connection {
             Connection::Network { host, port } => network::send(host, *port, b),
             Connection::Spooler { queue_name } => spooler::send(queue_name, b),
             Connection::Usb { .. } => usb::send(&p.connection, b),
+        };
+        // A transport failure is a property of one printer. It is returned, never panicked,
+        // so the queue worker and the WebSocket server stay alive.
+        if let Err(e) = &outcome {
+            tracing::warn!(
+                target: "print",
+                event = "TRANSPORT_SEND_FAILED",
+                printer_id = %p.id,
+                connection = p.connection.kind(),
+                error_code = %e.code,
+                error_message = %e.message,
+                uncertain = e.uncertain,
+                "transport rejected the job"
+            );
         }
+        outcome
     }
     fn status(&self, p: &Printer) -> String {
+        // Never propagate a probe failure as an error: an unreachable printer reports a status,
+        // it does not break the monitor loop that also serves every other printer.
         match &p.connection {
             Connection::Network { host, port } =>
                 (if network::probe(host, *port).is_ok() { "online" } else { "offline" }).into(),
@@ -222,7 +333,17 @@ impl Transport for HardwareTransport {
                     match usb::present(&p.connection) {
                         Ok(true) => "online",
                         Ok(false) => "offline",
-                        Err(_) => "unknown",
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "usb",
+                                event = "USB_STATUS_UNKNOWN",
+                                printer_id = %p.id,
+                                connection = "usb",
+                                error_code = %e.code,
+                                "USB presence probe failed; reporting unknown"
+                            );
+                            "unknown"
+                        }
                     }
                 ).into(),
         }

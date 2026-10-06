@@ -223,7 +223,12 @@ void validate_config(const Json &c) {
                     "Use a literal private IPv4 address (e.g. 192.168.1.50)");
             require(number(conn["port"], 1, 65535), "Invalid LAN port (1-65535)");
         } else {
-            throw Error("INVALID_CONFIG", "Connection type must be spooler or network");
+            // Name the rejected value: an operator adding a printer must see which type their
+            // client sent, not a generic message (same rule as the modern agent).
+            throw Error("UNSUPPORTED_CONNECTION_TYPE",
+                        "Unsupported printer connection type: \"" +
+                            (ctype.size() > 64 ? ctype.substr(0, 64) : ctype) +
+                            "\". The Legacy agent supports \"spooler\" and \"network\".");
         }
         require(number(p["paperMm"], 58, 80) && (p["paperMm"] == 58 || p["paperMm"] == 80) &&
                     number(p["widthDots"], 128, 832) && p["widthDots"].get<int>() % 8 == 0,

@@ -19,7 +19,13 @@ pub struct Config {
 }
 impl Default for Config {
     fn default() -> Self {
-        Self { port: 8765, max_attempts: 3, autostart: true, printers: vec![], routes: vec![] }
+        Self {
+            port: 8765,
+            max_attempts: 3,
+            autostart: true,
+            printers: vec![],
+            routes: vec![],
+        }
     }
 }
 impl Config {

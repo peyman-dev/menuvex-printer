@@ -18,6 +18,17 @@ Noto Sans Arabic Regular is embedded, including SIL Open Font License in `src-ta
 
 The renderer wraps to actual dot width and limits output to 4096 rows. It thresholds alpha at 100 (out of 255); it is not grayscale photography dithering. Paper mm is metadata, width dots controls output. Text scale uses pixels; no native Persian codepage is required. Mixed Persian/Latin numbers and punctuation must pass visual hardware acceptance.
 
+## Who owns the design
+
+There are exactly two answers, and they must not be confused:
+
+| Document             | Who decides the paper layout                                                                                                   | Where the layout lives          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| `invoice`, `receipt` | **The agent.** The frontend sends order data only; the agent shapes, positions and rasterizes it.                              | `src-tauri/src/print/layout.rs` |
+| `escpos`             | **The frontend.** The agent forwards the finished bytes with no rendering, no font substitution and no added `ESC @`/feed/cut. | The website                     |
+
+So if a receipt's printed design must match a template the MenuVex app owns, the app has to send `escpos` (enabled per printer by the operator through `rawPassthrough`). Sending `invoice` and expecting the agent to reproduce an HTML/CSS template is not supported: the agent has no HTML or CSS engine and will apply its own invoice layout instead. That mismatch — not a rendering bug — is the usual reason "the design changed". See [`protocol.md`](protocol.md#frontend-owned-layout-escpos).
+
 ## Printed design
 
 `src-tauri/src/print/layout.rs` turns a semantic document into drawing instructions; `print/mod.rs` paints them. Invoices follow the MenuVex app invoice template (deliberately **without** the logo), read right to left:

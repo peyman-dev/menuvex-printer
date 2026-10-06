@@ -11,11 +11,13 @@ static void check(bool value, const char *reason) {
     if (!value)
         throw std::runtime_error(reason);
 }
-template <class F> void rejects(F f, const char *code = nullptr) {
+template <class F> void rejects(F f, const char *code = nullptr, const char *message = nullptr) {
     try {
         f();
     } catch (const Error &e) {
         check(!code || e.code == code, "Unexpected error code");
+        check(!message || std::string(e.what()).find(message) != std::string::npos,
+              "Error message does not name the rejected value");
         return;
     }
     throw std::runtime_error("Invalid input was accepted");
@@ -106,8 +108,11 @@ int main() {
             nc["port"] = 9100;
             validate_config(net);
         }
+        // The Legacy agent has no direct-USB transport; the rejection must name the type.
         nc["type"] = "usb";
-        rejects([&] { validate_config(net); }, "INVALID_CONFIG");
+        rejects([&] { validate_config(net); }, "UNSUPPORTED_CONNECTION_TYPE", "\"usb\"");
+        nc["type"] = "lan";
+        rejects([&] { validate_config(net); }, "UNSUPPORTED_CONNECTION_TYPE", "\"lan\"");
         nc["type"] = "network";
         nc["extra"] = 1;
         rejects([&] { validate_config(net); });
@@ -150,7 +155,8 @@ int main() {
               "legacy invoice lines use shared center/column markers and narrow-width layout");
         Json usb = profile();
         usb["connection"] = {{"type", "usb"}, {"vendorId", 1}};
-        rejects([&] { upsert_printer(default_config(), usb); }, "INVALID_CONFIG");
+        rejects([&] { upsert_printer(default_config(), usb); }, "UNSUPPORTED_CONNECTION_TYPE",
+                "\"usb\"");
         auto full = default_config();
         for (int i = 0; i < 16; ++i) {
             Json p = profile();

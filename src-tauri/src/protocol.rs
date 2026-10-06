@@ -52,9 +52,29 @@ pub enum Document {
     Receipt {
         lines: Vec<String>,
     },
+    /// Frontend-authored raw ESC/POS, forwarded to the transport **verbatim**.
+    ///
+    /// This is the channel that makes the frontend the source of truth for the printed design:
+    /// the agent performs no rendering, no shaping, no font substitution and adds no
+    /// initialize/feed/cut of its own. It exists because `invoice` documents are laid out by
+    /// [`crate::print::layout`] inside the agent. Gated behind the operator-owned
+    /// `rawPassthrough` switch, so a website cannot send raw bytes to a printer the operator has
+    /// not unlocked (see `State::enqueue`).
+    Escpos {
+        /// Byte values, e.g. `[27, 64]`. Convenient for short command sequences.
+        #[serde(default)] commands: Vec<u8>,
+        /// Base64 of the same bytes. Use this for full raster receipts; a JSON number array for
+        /// a raster image would exceed the 128 KiB message limit.
+        #[serde(default)] data: String,
+    },
 }
+/// Upper bound for one raw ESC/POS document. Below `MAX_MESSAGE` because base64 inflates by 4/3.
+pub const MAX_ESCPOS: usize = 96 * 1024;
 impl Document {
     pub fn validate(&self) -> Result<()> {
+        if let Self::Escpos { .. } = self {
+            self.escpos_bytes()?;
+        }
         let valid = match self {
             Self::Invoice { data } =>
                 text_ok(&data.store_name, 300) &&
@@ -85,6 +105,8 @@ impl Document {
                         ),
             Self::Receipt { lines } =>
                 !lines.is_empty() && lines.len() <= 100 && lines.iter().all(|s| text_ok(s, 500)),
+            // Bounds and base64 were already checked by `escpos_bytes` above.
+            Self::Escpos { .. } => true,
         };
         if valid {
             Ok(())
@@ -92,12 +114,51 @@ impl Document {
             Err(AgentError::new("INVALID_JOB", "Document limits or text validation failed"))
         }
     }
+    /// The exact bytes of a raw ESC/POS document. `commands` come first, then `data`; nothing is
+    /// added, reordered or removed. Any other document type is a programming error.
+    pub fn escpos_bytes(&self) -> Result<Vec<u8>> {
+        let Self::Escpos { commands, data } = self else {
+            return Err(AgentError::new("INVALID_JOB", "Not a raw ESC/POS document"));
+        };
+        let encoded = data.trim();
+        let decoded = if encoded.is_empty() {
+            Vec::new()
+        } else {
+            use base64::{ engine::general_purpose::STANDARD, Engine };
+            STANDARD
+                .decode(encoded)
+                .map_err(|_| AgentError::new("INVALID_JOB", "Raw ESC/POS payload is not valid base64"))?
+        };
+        let mut bytes = commands.clone();
+        bytes.extend(decoded);
+        if bytes.is_empty() {
+            return Err(AgentError::new("INVALID_JOB", "Raw ESC/POS document carries no bytes"));
+        }
+        if bytes.len() > MAX_ESCPOS {
+            return Err(
+                AgentError::new(
+                    "INVALID_JOB",
+                    &format!("Raw ESC/POS document exceeds {MAX_ESCPOS} bytes"),
+                )
+            );
+        }
+        Ok(bytes)
+    }
     /// Plain-text projection of the document for diagnostics and tests. This is **not** the
     /// printed design: paper output is produced by [`crate::print::layout`], which draws its own
     /// separators as pixels and keeps Persian on the right and amounts on the left margin.
     pub fn lines(&self) -> Vec<String> {
         match self {
             Self::Receipt { lines } => lines.clone(),
+            // Diagnostics only: the raw bytes are the design, they are never projected to text.
+            Self::Escpos { commands, data } =>
+                vec![
+                    format!(
+                        "<raw ESC/POS passthrough: {} inline byte(s), {} base64 char(s)>",
+                        commands.len(),
+                        data.trim().len()
+                    ),
+                ],
             Self::Invoice { data: d } => {
                 let mut lines = vec![
                     d.store_name.clone(),
@@ -197,6 +258,14 @@ pub fn parse(text: &str) -> Result<Request> {
     let mut body = obj.clone();
     body.remove("version");
     body.remove("requestId");
+    // Reject an unknown `connection.type` *before* serde collapses it into the anonymous
+    // `INVALID_PAYLOAD: Invalid or unsupported payload`. The operator has to see which value
+    // their client sent, otherwise "add a USB printer" fails with no actionable message.
+    if obj.get("type").and_then(|v| v.as_str()) == Some("printer.save") {
+        if let Some(connection) = body.get("printer").and_then(|p| p.get("connection")) {
+            crate::printers::check_connection_tag(connection)?;
+        }
+    }
     let command: Command = serde_json::from_value(body.into())?;
     // Serde's internally tagged unit variants can ignore extra fields even with
     // deny_unknown_fields. Enforce the complete envelope allowlist explicitly
@@ -353,5 +422,113 @@ mod tests {
         assert!(parse(r#"{"version":1,"requestId":"x","type":"exec"}"#).is_err());
         assert!(!text_ok("\u{1b}@", 10));
         assert!(!valid_id("../../file"));
+    }
+
+    /// The frontend owns the design when it sends raw ESC/POS: the bytes must survive parsing
+    /// and projection unchanged, with no command inserted by the agent.
+    #[test]
+    fn raw_escpos_document_is_preserved_verbatim() {
+        let request = parse(
+            r#"{"version":1,"requestId":"r1","type":"print","printerId":"p1","jobId":"order:1",
+                "document":{"type":"escpos","commands":[27,64,29,86,0]}}"#
+        ).unwrap();
+        let Command::Print { document, .. } = request.command else {
+            panic!("expected a print command")
+        };
+        assert_eq!(document.escpos_bytes().unwrap(), vec![27, 64, 29, 86, 0]);
+        // `commands` first, then the base64 `data`; nothing appended or reordered.
+        let both = parse(
+            r#"{"version":1,"requestId":"r1","type":"print","printerId":"p1","jobId":"order:1",
+                "document":{"type":"escpos","commands":[27,64],"data":"G0A="}}"#
+        ).unwrap();
+        let Command::Print { document, .. } = both.command else {
+            panic!("expected a print command")
+        };
+        assert_eq!(document.escpos_bytes().unwrap(), vec![27, 64, 27, 64]);
+        assert!(document.validate().is_ok());
+    }
+
+    #[test]
+    fn raw_escpos_document_rejects_empty_bad_and_oversized_payloads() {
+        let parse_document = |document: serde_json::Value| {
+            parse(
+                &serde_json::json!({
+                    "version":1,"requestId":"r1","type":"print","printerId":"p1",
+                    "jobId":"order:1","document":document
+                }).to_string()
+            )
+        };
+        let empty = parse_document(serde_json::json!({"type":"escpos"}));
+        assert!(empty.is_err(), "an empty raw document must be rejected");
+        let bad_base64 =
+            parse_document(serde_json::json!({"type":"escpos","data":"not base64 at all!!"}));
+        assert!(bad_base64.is_err());
+        // Unknown fields inside a raw document are still refused.
+        assert!(
+            parse_document(serde_json::json!({"type":"escpos","commands":[27],"drawer":true}))
+                .is_err()
+        );
+        // An unknown document type is refused too — the agent never guesses a rendering.
+        assert!(parse_document(serde_json::json!({"type":"html","body":"<b>x</b>"})).is_err());
+    }
+
+    /// The decoded-size cap is asserted on the document itself: base64 of anything over the cap
+    /// already exceeds the 128 KiB message limit, so it can never reach `parse` in the first
+    /// place. Both layers have to hold.
+    #[test]
+    fn raw_escpos_size_cap_applies_to_the_decoded_bytes() {
+        let over = Document::Escpos { commands: vec![0u8; MAX_ESCPOS + 1], data: String::new() };
+        assert!(over.escpos_bytes().is_err());
+        assert!(over.validate().is_err());
+        let at_limit = Document::Escpos { commands: vec![0u8; MAX_ESCPOS], data: String::new() };
+        assert_eq!(at_limit.escpos_bytes().unwrap().len(), MAX_ESCPOS);
+        assert!(at_limit.validate().is_ok());
+        // A base64 blob alone is enough; `commands` may stay empty.
+        let encoded_only = Document::Escpos { commands: vec![], data: base64_of(&[27, 64]) };
+        assert_eq!(encoded_only.escpos_bytes().unwrap(), vec![27, 64]);
+    }
+
+    fn base64_of(bytes: &[u8]) -> String {
+        use base64::{ engine::general_purpose::STANDARD, Engine };
+        STANDARD.encode(bytes)
+    }
+
+    /// A connection type this agent does not implement must be rejected **by name**, so the
+    /// operator sees `lan` (or whatever the client sent) instead of a generic payload error.
+    #[test]
+    fn printer_save_names_the_unsupported_connection_type() {
+        let save = |connection: serde_json::Value| {
+            parse(
+                &serde_json::json!({
+                    "version":1,"requestId":"r1","type":"printer.save",
+                    "printer":{
+                        "id":"printer:1","name":"POS","connection":connection,
+                        "paperMm":80,"widthDots":576,"copies":1,"cut":true,
+                        "fontFamily":"Noto Sans Arabic","fontSize":24
+                    }
+                }).to_string()
+            )
+        };
+        for (connection, expected) in [
+            (serde_json::json!({"type":"lan","host":"192.168.1.50","port":9100}), "lan"),
+            (serde_json::json!({"type":"bluetooth","address":"00:11"}), "bluetooth"),
+            (serde_json::json!({"type":"USB"}), "USB"),
+        ] {
+            let error = save(connection).expect_err("must be rejected");
+            assert_eq!(error.code, "UNSUPPORTED_CONNECTION_TYPE");
+            assert!(
+                error.message.contains(&format!("\"{expected}\"")),
+                "message {:?} must name {expected}",
+                error.message
+            );
+        }
+        for connection in [
+            serde_json::json!({"type":"network","host":"192.168.1.50","port":9100}),
+            serde_json::json!({"type":"spooler","queueName":"POS-80"}),
+            serde_json::json!({"type":"usb","vendorId":1,"productId":2,"serial":null,
+                "bus":1,"ports":[1],"interface":0,"endpoint":1,"alternate":0}),
+        ] {
+            save(connection).expect("supported connection type rejected");
+        }
     }
 }

@@ -48,6 +48,39 @@ type Pending = {
   reject: (e: Error) => void;
   timer: ReturnType<typeof setTimeout>;
 };
+/**
+ * Turn a rejected `connection` into a message that names the offending value.
+ *
+ * Zod's `invalid_union` issue only carries the discriminator name and the accepted options, so
+ * the operator used to see "Invalid input" with no idea what the agent actually sent. The raw
+ * response is still in scope here, so walk the issue path and read the real value back out.
+ */
+function connectionMismatch(error: z.ZodError, value: unknown): string {
+  const at = (path: PropertyKey[]): unknown =>
+    path.reduce<unknown>(
+      (node, key) =>
+        node !== null && typeof node === 'object'
+          ? (node as Record<PropertyKey, unknown>)[key]
+          : undefined,
+      value,
+    );
+  const issue =
+    error.issues.find((i) => i.path.at(-1) === 'type' && i.path.includes('connection')) ??
+    error.issues.find((i) => i.path.includes('connection'));
+  const received = issue ? at(issue.path) : undefined;
+  const shown =
+    typeof received === 'string' && received.length > 0
+      ? `"${received.slice(0, 64)}"`
+      : '<missing>';
+  const where = issue ? ` at ${issue.path.join('.')}` : '';
+  return (
+    `Unsupported printer connection type: ${shown}${where}. ` +
+    'Supported: "network", "usb", "spooler". ' +
+    'نوع اتصال پرینتر با SDK سازگار نیست؛ SDK و اعتبارسنجی سایت را هماهنگ کنید. ' +
+    'این خطا مربوط به مجوز USB نیست.'
+  );
+}
+
 export class PrinterAgentClient {
   private socket?: Socket;
   private credentials: CredentialStore;
@@ -350,10 +383,7 @@ export class PrinterAgentClient {
           error instanceof z.ZodError &&
           error.issues.some((issue) => issue.path.includes('connection'))
         ) {
-          throw new AgentError(
-            'CONNECTION_SCHEMA_MISMATCH',
-            'نوع اتصال پرینتر با SDK سازگار نیست. SDK و اعتبارسنجی سایت را هماهنگ کنید: usb، network و spooler. نام lan در پروتکل معتبر نیست. این خطا مربوط به مجوز USB نیست.',
-          );
+          throw new AgentError('CONNECTION_SCHEMA_MISMATCH', connectionMismatch(error, value));
         }
         throw error;
       }
