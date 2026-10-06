@@ -36,7 +36,7 @@ pub struct State {
 /// — `lock().unwrap()` — turned a single panic inside one printer's job into a permanently
 /// poisoned mutex, after which `agent.status`, `printers.list` and `queue.list` all started
 /// failing and the website looked like it had lost the agent entirely.
-pub fn lock<T>(mutex: &Mutex<T>, what: &'static str) -> MutexGuard<'_, T> {
+pub fn lock<'a, T>(mutex: &'a Mutex<T>, what: &'static str) -> MutexGuard<'a, T> {
     mutex
         .lock()
         .unwrap_or_else(|poisoned| {
@@ -361,7 +361,7 @@ async fn worker_loop(s: Arc<State>) {
             let mut painter = lock(&renderer, "renderer");
             let result = painter
                 .encode(&w.printer, &w.document)
-                .and_then(|bytes| deliver(state.transport.as_ref(), &w.printer, &bytes));
+                .and_then(|bytes: Vec<u8>| deliver(state.transport.as_ref(), &w.printer, &bytes));
             drop(painter);
             *lock(&state.active, "active") = None;
             let job =
