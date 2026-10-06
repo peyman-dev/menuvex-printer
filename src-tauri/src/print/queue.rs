@@ -209,6 +209,7 @@ mod tests {
             cut: true,
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
+            raw_passthrough: false,
         }
     }
     fn doc() -> Document {

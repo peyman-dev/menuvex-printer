@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Printer } from '../../sdk/src/types';
-import { api, type Config, type PrinterConfig, type UsbDevice } from '../lib/agent';
+import { api, errorText, type Config, type PrinterConfig, type UsbDevice } from '../lib/agent';
 import { PrinterCard } from './PrinterCard';
 interface Props {
   printers: Printer[];
@@ -14,6 +14,10 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
   const [network, setNetwork] = useState<{ host: string; port: number }[] | null>(null);
   const [queues, setQueues] = useState<{ queueName: string }[] | null>(null);
   const [edit, setEdit] = useState<PrinterConfig | null>(null);
+  /** USB enumeration is bounded in Rust but can still take tens of seconds; it must not disable
+   * the whole window while it runs, and it must surface its own error. */
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
   const fresh = (connection: PrinterConfig['connection']): PrinterConfig => ({
     id: `printer:${crypto.randomUUID()}`,
     name: '',
@@ -61,14 +65,19 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
           </button>
           <button
             className="secondary"
-            disabled={disabled}
-            onClick={() =>
-              run(async () => {
-                setDevices(await api.discover());
-              })
-            }
+            disabled={disabled || scanning}
+            onClick={() => {
+              setScanning(true);
+              setScanError('');
+              setDevices([]);
+              api
+                .discover()
+                .then(setDevices)
+                .catch((e) => setScanError(errorText(e)))
+                .finally(() => setScanning(false));
+            }}
           >
-            جستجوی USB
+            {scanning ? 'در حال جستجو…' : 'جستجوی USB'}
           </button>
           <button
             disabled={disabled}
@@ -107,12 +116,27 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
               })
             }
             onEdit={() => {
-              const { status: _, ...profile } = p;
-              setEdit(profile);
+              // Use the local stored profile (which keeps `type: spooler`) rather than the
+              // compatibility-shaped `printers.list` response sent to older frontends.
+              const local = config.printers.find((printer) => printer.id === p.id);
+              if (local) {
+                setEdit(local);
+              } else {
+                const { status: _status, ...profile } = p;
+                setEdit(profile);
+              }
             }}
           />
         ))}
       </div>
+      {scanError && (
+        <div role="alert" className="notice error" dir="ltr">
+          {scanError}
+          <button className="subtle" onClick={() => setScanError('')}>
+            ×
+          </button>
+        </div>
+      )}
       {devices.length > 0 && (
         <div className="panel">
           <h3>دستگاه‌های USB شناسایی‌شده</h3>
@@ -366,6 +390,14 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
                 onChange={(e) => update('cut', e.target.checked)}
               />
               برش خودکار — فقط پرینترهای دارای کاتر
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={edit.rawPassthrough ?? false}
+                onChange={(e) => update('rawPassthrough', e.target.checked)}
+              />
+              پذیرش ESC/POS خام از سایت — Agent بایت‌ها را بدون تغییر می‌فرستد
             </label>
             <p className="muted">
               58mm معمولاً 384 و 80mm معمولاً 576 dots است؛ مشخصات مدل خود را بررسی کنید.

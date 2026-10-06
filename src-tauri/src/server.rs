@@ -12,7 +12,8 @@ use tokio_tungstenite::{
 };
 use serde_json::json;
 use crate::{
-    state::State,
+    error::{ AgentError, Result },
+    state::{ lock, State },
     protocol::{ self, Command },
     security::{ origin_allowed, random_secret },
 };
@@ -20,14 +21,30 @@ use crate::{
 pub async fn run(state: Arc<State>) {
     let port = match state.config() {
         Ok(c) => c.port,
-        Err(_) => {
+        Err(e) => {
+            tracing::error!(
+                target: "server",
+                event = "SERVER_CONFIG_ERROR",
+                error_code = %e.code,
+                error_message = %e.message,
+                "loopback listener not started; the agent window still works"
+            );
+            *lock(&state.server_error, "server_error") =
+                Some(format!("CONFIG_ERROR: {}", e.message));
             return;
         }
     };
     let listener = match TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await {
         Ok(l) => l,
-        Err(_) => {
-            *state.server_error.lock().unwrap() = Some(
+        Err(e) => {
+            tracing::error!(
+                target: "server",
+                event = "SERVER_BIND_FAILED",
+                port,
+                error = %e,
+                "the loopback port is unavailable"
+            );
+            *lock(&state.server_error, "server_error") = Some(
                 format!(
                     "PORT_IN_USE_OR_UNAVAILABLE: 127.0.0.1:{port}; choose another port and restart"
                 )
@@ -44,7 +61,7 @@ pub async fn run(state: Arc<State>) {
             break;
         }
         tokio::select! {
-   accepted=listener.accept()=>{let Ok((stream,peer))=accepted else{continue};if !peer.ip().is_loopback(){continue;}let Ok(permit)=limit.clone().try_acquire_owned() else{continue};let s=state.clone();tokio::spawn(async move{let _permit=permit;let _=session(stream,s,port).await;});},
+   accepted=listener.accept()=>{let Ok((stream,peer))=accepted else{continue};if !peer.ip().is_loopback(){continue;}let Ok(permit)=limit.clone().try_acquire_owned() else{continue};let s=state.clone();tokio::spawn(async move{let _permit=permit;if let Err(e)=session(stream,s,port).await{tracing::debug!(target:"server",event="SESSION_CLOSED",error=%e,"WebSocket session ended");}});},
    _=tokio::time::sleep(Duration::from_secs(1))=>()
   }
     }
@@ -92,7 +109,7 @@ async fn session(
         )
     ).await??;
     let nonce = random_secret();
-    let server_proof = state.secret.lock().unwrap().server_proof(&nonce, &origin);
+    let server_proof = lock(&state.secret, "secret").server_proof(&nonce, &origin);
     let epoch = state.epoch.load(Ordering::SeqCst);
     timeout(
         Duration::from_secs(5),
@@ -110,7 +127,7 @@ async fn session(
     let request = protocol::parse(&text)?;
     let valid = match request.command {
         Command::Authenticate { proof } =>
-            state.secret.lock().unwrap().verify(&nonce, &origin, &proof),
+            lock(&state.secret, "secret").verify(&nonce, &origin, &proof),
         _ => false,
     };
     if !valid {
@@ -154,7 +171,7 @@ async fn session(
      Message::Text(text)=>{
       if window.elapsed()>Duration::from_secs(1){window=tokio::time::Instant::now();commands=0;}commands+=1;if commands>30{break;}
       let req=match protocol::parse(&text){Ok(r)=>r,Err(e)=>{timeout(Duration::from_secs(5),ws.send(Message::Text(json!({"type":"error","version":1,"error":e}).to_string().into()))).await??;break;}};
-      let s=state.clone();let result=tokio::task::spawn_blocking(move||s.dispatch(req.command)).await?;
+      let s=state.clone();let result=dispatch_isolated(s,req.command).await;
       Some(match result{Ok(data)=>json!({"type":"response","version":1,"requestId":req.request_id,"data":data}),Err(e)=>json!({"type":"error","version":1,"requestId":req.request_id,"error":e})})
      },
      Message::Close(_)=>break,
@@ -176,6 +193,42 @@ async fn session(
     let _ = timeout(Duration::from_secs(2), ws.close(None)).await;
     Ok(())
 }
+/// Run one command with the printer/queue failure domain fully isolated from this socket.
+///
+/// Both failure modes used to end the session: a `?` on the `JoinError` closed the website's
+/// WebSocket when a handler panicked, and the panic itself was invisible because nothing
+/// installed a hook. Now a panicking or failing command answers with an `error` frame and the
+/// connection — and every other printer — keeps working.
+async fn dispatch_isolated(state: Arc<State>, command: Command) -> Result<serde_json::Value> {
+    let outcome = tokio::task
+        ::spawn_blocking(move || {
+            match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| state.dispatch(command)))
+            {
+                Ok(result) => result,
+                Err(_) => {
+                    tracing::error!(
+                        target: "server",
+                        event = "COMMAND_PANIC",
+                        backtrace = %std::backtrace::Backtrace::capture(),
+                        "a command handler panicked; only this request failed"
+                    );
+                    Err(AgentError::internal("command handler panicked"))
+                }
+            }
+        })
+        .await;
+    outcome.unwrap_or_else(|join| {
+        tracing::error!(
+            target: "server",
+            event = "COMMAND_TASK_FAILED",
+            task = %join,
+            "the blocking command task did not return a result"
+        );
+        Err(AgentError::internal("command task did not complete"))
+    })
+}
+
 #[cfg(test)]
 mod integration {
     use super::*;
@@ -214,6 +267,7 @@ mod integration {
             cut: true,
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
+            raw_passthrough: false,
         });
         store.save_config(&config).unwrap();
         let count = Arc::new(AtomicUsize::new(0));

@@ -27,6 +27,27 @@ impl AgentError {
             )
         }
     }
+    /// Name the value that was rejected instead of hiding it behind a generic parser message.
+    /// `received` comes from the network, so it is truncated and control characters are dropped
+    /// before being echoed back into a message that an operator will read.
+    pub fn unsupported_connection_type(received: &str) -> Self {
+        let cleaned: String = received
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(64)
+            .collect();
+        let shown: &str = if cleaned.trim().is_empty() { "<missing>" } else { &cleaned };
+        Self::new(
+            "UNSUPPORTED_CONNECTION_TYPE",
+            &format!(
+                "Unsupported printer connection type: \"{shown}\". Supported: \"network\", \"usb\", \"spooler\"."
+            ),
+        )
+    }
+    /// An unexpected internal failure. The agent stays up; only the affected request fails.
+    pub fn internal(detail: &str) -> Self {
+        Self::new("AGENT_INTERNAL_ERROR", &format!("Agent stayed up; request failed: {detail}"))
+    }
 }
 impl std::fmt::Display for AgentError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

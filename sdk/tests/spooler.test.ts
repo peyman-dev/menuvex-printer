@@ -1,6 +1,41 @@
 import { describe, expect, it } from 'vitest';
+import { spoolerQueueName } from '../src/compat';
 import { connectionSchema, printerSchema } from '../src/types';
 describe('Legacy Windows printer descriptors', () => {
+  it('extracts a queue name from both current and USB-compatible descriptors', () => {
+    expect(spoolerQueueName({ type: 'spooler', queueName: 'POS-80' })).toBe('POS-80');
+    const compatibility = connectionSchema.parse({
+      type: 'usb',
+      vendorId: 0,
+      productId: 0,
+      serial: 'queue:Kitchen POS',
+      bus: 0,
+      ports: [],
+      interface: 0,
+      endpoint: 0,
+      alternate: 0,
+    });
+    expect(spoolerQueueName(compatibility)).toBe('Kitchen POS');
+    expect(
+      compatibility.type === 'usb'
+        ? spoolerQueueName({ ...compatibility, productId: 73 })
+        : undefined,
+    ).toBe('Kitchen POS');
+    expect(
+      spoolerQueueName({
+        type: 'usb',
+        vendorId: 1,
+        productId: 2,
+        serial: 'queue:not-a-spooler',
+        bus: 1,
+        ports: [1],
+        interface: 0,
+        endpoint: 1,
+        alternate: 0,
+      }),
+    ).toBeUndefined();
+  });
+
   it('accepts real Windows spooler queues without invented USB descriptors', () => {
     const connection = { type: 'spooler', queueName: 'POS-80' };
     expect(connectionSchema.parse(connection)).toEqual(connection);

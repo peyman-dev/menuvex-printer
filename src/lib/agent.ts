@@ -6,6 +6,8 @@ export interface Config {
   port: number;
   maxAttempts: number;
   autostart: boolean;
+  /** Per-printer `rawPassthrough` lives on each profile, not here: the Rust `Config` rejects
+   * unknown fields, so this shape must mirror `src-tauri/src/config/mod.rs` exactly. */
   printers: PrinterConfig[];
   routes: { role: string; printerId: string; autoPrint: boolean }[];
 }

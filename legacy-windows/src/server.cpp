@@ -136,7 +136,7 @@ struct Server::Impl {
         ws.send(h, value.dump(), websocketpp::frame::opcode::text, ec);
     }
     Json printers() {
-        Json result = store.config()["printers"];
+        Json result = compatible_printers(store.config()["printers"]);
         for (auto &p : result)
             p["status"] = "unknown";
         auto jobs = store.queue();
@@ -207,11 +207,21 @@ struct Server::Impl {
         if (type == "print" || type == "printer.test") {
             if (!worker_ok)
                 throw Error("AGENT_NOT_READY", "Print worker stopped; reconcile and restart");
-            Json doc = type == "print" ? r["document"]
-                                       : Json({{"type", "receipt"},
-                                               {"lines",
-                                                {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy",
-                                                 u8"0123456789 / ۱۲۳۴۵۶۷۸۹۰"}}});
+            Json doc;
+            if (type == "print") {
+                doc = r["document"];
+            } else {
+                Json profile;
+                const auto config = store.config();
+                for (const auto &candidate : config["printers"])
+                    if (candidate["id"] == r["printerId"]) {
+                        profile = candidate;
+                        break;
+                    }
+                if (profile.is_null())
+                    throw Error("PRINTER_NOT_FOUND", "Printer not configured");
+                doc = printer_test_document(profile);
+            }
             auto job = store.enqueue(r["jobId"], r["printerId"], doc);
             broadcast_job(job);
             return job;

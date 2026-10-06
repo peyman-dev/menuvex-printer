@@ -18,6 +18,17 @@ Noto Sans Arabic Regular is embedded, including SIL Open Font License in `src-ta
 
 The renderer wraps to actual dot width and limits output to 4096 rows. It thresholds alpha at 100 (out of 255); it is not grayscale photography dithering. Paper mm is metadata, width dots controls output. Text scale uses pixels; no native Persian codepage is required. Mixed Persian/Latin numbers and punctuation must pass visual hardware acceptance.
 
+## Who owns the design
+
+There are exactly two answers, and they must not be confused:
+
+| Document             | Who decides the paper layout                                                                                                   | Where the layout lives          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| `invoice`, `receipt` | **The agent.** The frontend sends order data only; the agent shapes, positions and rasterizes it.                              | `src-tauri/src/print/layout.rs` |
+| `escpos`             | **The frontend.** The agent forwards the finished bytes with no rendering, no font substitution and no added `ESC @`/feed/cut. | The website                     |
+
+So if a receipt's printed design must match a template the MenuVex app owns, the app has to send `escpos` (enabled per printer by the operator through `rawPassthrough`). Sending `invoice` and expecting the agent to reproduce an HTML/CSS template is not supported: the agent has no HTML or CSS engine and will apply its own invoice layout instead. That mismatch — not a rendering bug — is the usual reason "the design changed". See [`protocol.md`](protocol.md#frontend-owned-layout-escpos).
+
 ## Printed design
 
 `src-tauri/src/print/layout.rs` turns a semantic document into drawing instructions; `print/mod.rs` paints them. Invoices follow the MenuVex app invoice template (deliberately **without** the logo), read right to left:
@@ -32,7 +43,7 @@ The renderer wraps to actual dot width and limits output to 4096 rows. It thresh
 - The optional `footer` is centered and bold; `POWERED BY MENUVEX.IR` closes every invoice at 66% size, exactly like the app template.
 - Amounts and counters are shown in Persian digits with ASCII thousands separators (`240000` → `۲۴۰,۰۰۰`) for readability only. The value is never converted, rounded or recalculated; `total`, `subtotal` and the per-item `quantity × unitPrice` products remain whatever the business adapter supplied.
 - Separators are drawn as **pixels** (2 dots at the default font size), never as a font glyph, so the design cannot depend on a character the bundled font may not have. The previous design printed `────────────────` (U+2500), which is absent from Noto Sans Arabic and reached the paper as tofu boxes or, on printers without a fallback, as blank.
-- `receipt` lines are printed as given, each hanging on the margin of its own writing direction (Persian right, Latin/number left) — identical to the Legacy Windows renderer, so the same document looks the same on both agents.
+- `receipt` ordinary lines hang on the margin of their writing direction (Persian right, Latin/numbers left). Templates can use a line of at least three dash/equal/box-rule characters for a full-width pixel rule, `[center] text` (or `[center]: text`) to center a line, and two to four pipe-separated cells for a right-to-left column row (first cell rightmost, last leftmost, intermediate cells centered). Empty lines add spacing. These layout hints are mirrored by the Legacy Windows renderer. Ordinary receipt lines remain unchanged.
 - A 2% side margin (2–24 dots) keeps text off the mechanism edges; the printable width is reduced by it.
 - Lines that do not fit one row keep both values: the row is stacked into two aligned lines instead of overflowing or clipping.
 
