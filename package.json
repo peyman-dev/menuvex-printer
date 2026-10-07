@@ -9,6 +9,7 @@
     "test": "vitest run",
     "tauri": "tauri",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features",
+    "test:rust:libusb": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --features libusb",
     "preview:receipt": "node tools/receipt-preview/run.mjs --out dist/receipt-preview",
     "format": "prettier --write src sdk docs README.md *.json vite.config.ts"
   },

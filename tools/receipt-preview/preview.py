@@ -197,14 +197,44 @@ def invoice(data: dict, font_size: int, width_dots: int) -> list[dict]:
     return items
 
 
+def separator_line(text: str) -> bool:
+    marks = set("-_=*‐‑‒–—―﹘﹣－─━═")
+    text = text.strip()
+    return len(text) >= 3 and all(char in marks for char in text)
+
+
+def receipt_columns(text: str) -> list[str] | None:
+    cells = [cell.strip() for cell in text.split("|")]
+    return cells if 2 <= len(cells) <= 4 else None
+
+
 def receipt(lines: list[str], font_size: int) -> list[dict]:
     items: list[dict] = []
+    weights_by_count = {2: [3, 2], 3: [45, 15, 40], 4: [34, 12, 27, 27]}
     for line in lines:
-        text = line.rstrip()
-        if not text.strip():
+        text = line.rstrip().strip()
+        if not text:
             items.append({"kind": "space", "dots": font_size // 2})
-            continue
-        items.append({"kind": "text", "text": text, "align": "right" if is_rtl(text) else "left", "size": font_size, "bold": False})
+        elif separator_line(text):
+            items.append({"kind": "rule"})
+        elif text.startswith("[center]"):
+            centered = text[len("[center]"):].lstrip()
+            if centered.startswith(":"):
+                centered = centered[1:].lstrip()
+            items.append(_text(centered, "center", font_size, False) if centered else {"kind": "space", "dots": font_size // 2})
+        elif (columns := receipt_columns(text)) is not None:
+            weights = weights_by_count[len(columns)]
+            cells = [
+                {
+                    "text": cell,
+                    "align": "right" if index == 0 else "left" if index + 1 == len(columns) else "center",
+                    "weight": weights[index],
+                }
+                for index, cell in enumerate(columns)
+            ]
+            items.append({"kind": "cells", "cells": cells, "size": font_size, "bold": False})
+        else:
+            items.append(_text(text, "right" if is_rtl(text) else "left", font_size, False))
     return items
 
 
@@ -522,7 +552,13 @@ SAMPLES: dict[str, dict] = {
     },
     "kitchen": {
         "type": "receipt",
-        "lines": ["میز ۴", "اسپرسو دوبل ×۲", "کیک شکلاتی ×۱", "— بدون شکر —"],
+        "lines": [
+            "[center] سفارش آشپزخانه",
+            "میز ۴ | اسپرسو دوبل | ×۲",
+            "کیک شکلاتی | ۱ | ۲۸۷,۰۰۰",
+            "------------------------------",
+            "— بدون شکر —",
+        ],
     },
 }
 
@@ -593,8 +629,14 @@ def check_plan(samples: dict[str, dict], font_size: int = 24) -> None:
         all("تومان" not in (item.get("text", "") + item.get("left", "")) for item in minimal),
         "the agent must never invent a currency word",
     )
-    lines = [line["text"] for line in plan(samples["kitchen"], font_size, 576)]
-    require(lines[0].startswith("میز") and lines[1].startswith("اسپرسو"), "receipt lines must keep their order")
+    kitchen = plan(samples["kitchen"], font_size, 576)
+    require(kitchen[0]["kind"] == "text" and kitchen[0]["align"] == "center", "[center] receipt lines must be centered")
+    require(any(item["kind"] == "rule" for item in kitchen), "receipt dash separators must become pixel rules")
+    kitchen_rows = [item for item in kitchen if item["kind"] == "cells"]
+    require(
+        kitchen_rows and [cell["text"] for cell in kitchen_rows[0]["cells"]] == ["میز ۴", "اسپرسو دوبل", "×۲"],
+        "pipe-separated receipt text must remain an ordered column row",
+    )
 
 
 def check_layout_source() -> None:
@@ -617,6 +659,8 @@ def check_layout_source() -> None:
         '"────────────────"' not in source,
         "layout.rs must not fall back to a U+2500 separator glyph; draw the rule as pixels",
     )
+    for fragment in ["fn separator_line", "strip_prefix(\"[center]\")", "Item::Cells"]:
+        require(fragment in source, f"layout.rs is missing receipt formatting support {fragment!r}")
 
 
 def check_font_coverage(shaper: Shaper, samples: dict[str, dict], font_size: int = 24) -> None:

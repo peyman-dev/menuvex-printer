@@ -1,4 +1,7 @@
-//! Device-independent ESC/POS building blocks. Never accept raw bytes from the PWA.
+//! Device-independent ESC/POS building blocks used by the agent's own renderer.
+//!
+//! The PWA never needs these: a frontend that owns its design sends `document.type: "escpos"`,
+//! which `Renderer::encode` forwards verbatim without touching this module.
 use crate::error::{ AgentError, Result };
 #[derive(Default)]
 pub struct Encoder(pub Vec<u8>);

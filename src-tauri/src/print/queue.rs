@@ -187,12 +187,7 @@ impl Storage {
     }
 }
 pub fn deliver(transport: &dyn Transport, printer: &Printer, bytes: &[u8]) -> Result<()> {
-    for copy in 0..printer.copies {
-        if let Err(e) = transport.send(printer, bytes) {
-            return Err(if copy > 0 { AgentError::uncertain() } else { e });
-        }
-    }
-    Ok(())
+    transport.send_copies(printer, bytes, printer.copies)
 }
 #[cfg(test)]
 mod tests {
@@ -209,6 +204,9 @@ mod tests {
             cut: true,
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
+            raw_passthrough: false,
+            force_raw: false,
+            usb_fallback_target: None,
         }
     }
     fn doc() -> Document {
