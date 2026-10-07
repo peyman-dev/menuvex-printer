@@ -13,6 +13,7 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
   const [devices, setDevices] = useState<UsbDevice[]>([]);
   const [network, setNetwork] = useState<{ host: string; port: number }[] | null>(null);
   const [queues, setQueues] = useState<{ queueName: string }[] | null>(null);
+  const [fallbackQueues, setFallbackQueues] = useState<{ queueName: string }[] | null>(null);
   const [edit, setEdit] = useState<PrinterConfig | null>(null);
   /** USB enumeration is bounded in Rust but can still take tens of seconds; it must not disable
    * the whole window while it runs, and it must surface its own error. */
@@ -28,9 +29,15 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
     cut: true,
     fontFamily: 'Noto Sans Arabic',
     fontSize: 24,
+    rawPassthrough: false,
+    usbFallbackTarget: null,
   });
   const update = <K extends keyof PrinterConfig>(key: K, value: PrinterConfig[K]) =>
     setEdit((e) => (e ? { ...e, [key]: value } : e));
+  const setUsbFallback = (target: PrinterConfig['usbFallbackTarget']) =>
+    setEdit((e) => (e ? { ...e, usbFallbackTarget: target } : e));
+  const fallbackQueueName =
+    edit?.usbFallbackTarget?.type === 'spooler' ? edit.usbFallbackTarget.queueName : '';
   return (
     <section>
       <div className="section-heading">
@@ -328,6 +335,108 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
                 </label>
               </div>
             )}
+            {edit.connection.type === 'usb' && (
+              <div className="notice">
+                <label>
+                  مسیر جایگزین USB (اختیاری)
+                  <select
+                    value={edit.usbFallbackTarget?.type ?? 'none'}
+                    onChange={(e) => {
+                      if (e.target.value === 'none') setUsbFallback(null);
+                      else if (e.target.value === 'spooler')
+                        setUsbFallback({ type: 'spooler', queueName: '' });
+                      else if (e.target.value === 'network')
+                        setUsbFallback({ type: 'network', host: '', port: 9100 });
+                    }}
+                  >
+                    <option value="none">بدون مسیر جایگزین</option>
+                    <option value="spooler">صف چاپ نصب‌شده</option>
+                    <option value="network">پرینتر شبکه</option>
+                  </select>
+                </label>
+                <p className="muted">
+                  فقط وقتی USB قبل از ارسال اولین بایت باز یا آماده نشود استفاده می‌شود؛ در timeout،
+                  خطای حین ارسال یا نتیجهٔ نامشخص، مسیر جایگزین هرگز اجرا نمی‌شود.
+                </p>
+                {edit.usbFallbackTarget?.type === 'spooler' && (
+                  <>
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() =>
+                          run(async () => {
+                            setFallbackQueues(await api.installed());
+                          })
+                        }
+                      >
+                        بارگذاری صف‌های چاپ
+                      </button>
+                    </div>
+                    <label>
+                      صف جایگزین
+                      <select
+                        required
+                        value={edit.usbFallbackTarget.queueName}
+                        onChange={(e) => {
+                          if (edit.usbFallbackTarget?.type === 'spooler')
+                            setUsbFallback({
+                              ...edit.usbFallbackTarget,
+                              queueName: e.target.value,
+                            });
+                        }}
+                      >
+                        <option value="">یک صف چاپ را انتخاب کنید</option>
+                        {fallbackQueueName &&
+                          !fallbackQueues?.some((queue) => queue.queueName === fallbackQueueName) && (
+                            <option value={fallbackQueueName}>{fallbackQueueName} (ذخیره‌شده)</option>
+                          )}
+                        {fallbackQueues?.map((queue) => (
+                          <option key={queue.queueName} value={queue.queueName}>
+                            {queue.queueName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                )}
+                {edit.usbFallbackTarget?.type === 'network' && (
+                  <div className="form-grid">
+                    <label>
+                      IP خصوصی پرینتر جایگزین
+                      <input
+                        dir="ltr"
+                        required
+                        placeholder="192.168.1.50"
+                        value={edit.usbFallbackTarget.host}
+                        onChange={(e) => {
+                          if (edit.usbFallbackTarget?.type === 'network')
+                            setUsbFallback({ ...edit.usbFallbackTarget, host: e.target.value });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      پورت
+                      <input
+                        dir="ltr"
+                        type="number"
+                        min={1}
+                        max={65535}
+                        required
+                        value={edit.usbFallbackTarget.port}
+                        onChange={(e) => {
+                          if (edit.usbFallbackTarget?.type === 'network')
+                            setUsbFallback({
+                              ...edit.usbFallbackTarget,
+                              port: Number(e.target.value),
+                            });
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="form-grid">
               <label>
                 عرض کاغذ
@@ -391,16 +500,9 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
               />
               برش خودکار — فقط پرینترهای دارای کاتر
             </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={edit.rawPassthrough ?? false}
-                onChange={(e) => update('rawPassthrough', e.target.checked)}
-              />
-              پذیرش ESC/POS خام از سایت — Agent بایت‌ها را بدون تغییر می‌فرستد
-            </label>
             <p className="muted">
-              58mm معمولاً 384 و 80mm معمولاً 576 dots است؛ مشخصات مدل خود را بررسی کنید.
+              58mm معمولاً 384 و 80mm معمولاً 576 dots است؛ مشخصات مدل خود را بررسی کنید. کنترل‌های
+              ESC/POS خام و انتخاب صف RAW در بخش تنظیمات محلی قرار دارند و به‌طور پیش‌فرض خاموش‌اند.
             </p>
             <div className="actions">
               <button disabled={disabled}>ذخیره تنظیمات</button>
@@ -417,6 +519,12 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
                         await save({
                           ...config,
                           printers: config.printers.filter((p) => p.id !== edit.id),
+                          raw_passthrough: {
+                            ...config.raw_passthrough,
+                            printers: Object.fromEntries(
+                              Object.entries(config.raw_passthrough.printers).filter(([id]) => id !== edit.id),
+                            ),
+                          },
                           routes: config.routes.filter((r) => r.printerId !== edit.id),
                         });
                         setEdit(null);

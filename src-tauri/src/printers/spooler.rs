@@ -32,10 +32,24 @@ pub fn list() -> Result<Vec<InstalledPrinter>> {
     )
 }
 
-/// Hand `bytes` to the OS queue `queue`. Errors before the document is submitted are
-/// retryable; errors after submission are uncertain because the spooler may still print it.
+/// Hand `bytes` to the OS queue `queue`. On Windows the implementation is the explicit
+/// Win32 RAW StartDoc/Write/EndDoc pipeline in `raw_printer`; Linux/macOS keep using CUPS `lp -o raw`.
 pub fn send(queue: &str, bytes: &[u8]) -> Result<()> {
-    platform::send(queue, bytes)
+    send_with_options(queue, bytes, false).map(|_| ())
+}
+
+/// RAW spooler path with the optional Windows `PRINTER_DEFAULTSW.pDatatype = RAW` override.
+pub fn send_with_options(queue: &str, bytes: &[u8], force_raw: bool) -> Result<usize> {
+    #[cfg(windows)]
+    {
+        crate::printers::raw_printer::print_raw(queue, bytes, force_raw)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = force_raw;
+        platform::send(queue, bytes)?;
+        Ok(bytes.len())
+    }
 }
 
 /// `online` when the queue is installed and the spooler answers, otherwise `offline` /
@@ -51,21 +65,6 @@ pub fn status(queue: &str) -> String {
 #[cfg(windows)]
 mod platform {
     use super::*;
-    use std::ffi::c_void;
-
-    type Handle = *mut c_void;
-    #[repr(C)]
-    struct PrinterDefaultsW {
-        datatype: *mut u16,
-        dev_mode: *mut c_void,
-        desired_access: u32,
-    }
-    #[repr(C)]
-    struct DocInfo1W {
-        doc_name: *mut u16,
-        output_file: *mut u16,
-        datatype: *mut u16,
-    }
     #[repr(C)]
     struct PrinterInfo4W {
         printer_name: *mut u16,
@@ -74,13 +73,6 @@ mod platform {
     }
     #[link(name = "winspool")]
     extern "system" {
-        fn OpenPrinterW(name: *const u16, printer: *mut Handle, default: *mut PrinterDefaultsW) -> i32;
-        fn ClosePrinter(printer: Handle) -> i32;
-        fn StartDocPrinterW(printer: Handle, level: u32, info: *mut DocInfo1W) -> u32;
-        fn EndDocPrinter(printer: Handle) -> i32;
-        fn StartPagePrinter(printer: Handle) -> i32;
-        fn EndPagePrinter(printer: Handle) -> i32;
-        fn WritePrinter(printer: Handle, buf: *const c_void, len: u32, written: *mut u32) -> i32;
         fn EnumPrintersW(
             flags: u32,
             name: *const u16,
@@ -93,11 +85,6 @@ mod platform {
     }
     const PRINTER_ENUM_LOCAL: u32 = 2;
     const PRINTER_ENUM_CONNECTIONS: u32 = 4;
-    const PRINTER_ACCESS_USE: u32 = 8;
-
-    fn wide(s: &str) -> Vec<u16> {
-        s.encode_utf16().chain(std::iter::once(0)).collect()
-    }
 
     pub fn queues() -> Result<Vec<String>> {
         let flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
@@ -139,53 +126,6 @@ mod platform {
                 );
             }
             Ok(out)
-        }
-    }
-
-    pub fn send(queue: &str, bytes: &[u8]) -> Result<()> {
-        let name = wide(queue);
-        let mut datatype = wide("RAW");
-        unsafe {
-            let mut handle: Handle = std::ptr::null_mut();
-            let mut defaults = PrinterDefaultsW {
-                datatype: datatype.as_mut_ptr(),
-                dev_mode: std::ptr::null_mut(),
-                desired_access: PRINTER_ACCESS_USE,
-            };
-            if OpenPrinterW(name.as_ptr(), &mut handle, &mut defaults) == 0 || handle.is_null() {
-                return Err(AgentError::retry("PRINTER_OFFLINE"));
-            }
-            let mut doc_name = wide("MenuVex Receipt");
-            let mut info = DocInfo1W {
-                doc_name: doc_name.as_mut_ptr(),
-                output_file: std::ptr::null_mut(),
-                datatype: datatype.as_mut_ptr(),
-            };
-            if StartDocPrinterW(handle, 1, &mut info) == 0 {
-                ClosePrinter(handle);
-                return Err(AgentError::retry("PRINTER_OFFLINE"));
-            }
-            // From here on the spooler may already own the document: failures are ambiguous
-            // and must never trigger an automatic reprint.
-            let mut ok = StartPagePrinter(handle) != 0;
-            if ok {
-                let mut written = 0u32;
-                ok =
-                    WritePrinter(
-                        handle,
-                        bytes.as_ptr() as *const c_void,
-                        bytes.len() as u32,
-                        &mut written
-                    ) != 0 && (written as usize) == bytes.len();
-                ok = (EndPagePrinter(handle) != 0) && ok;
-            }
-            ok = (EndDocPrinter(handle) != 0) && ok;
-            ClosePrinter(handle);
-            if ok {
-                Ok(())
-            } else {
-                Err(AgentError::uncertain())
-            }
         }
     }
 }

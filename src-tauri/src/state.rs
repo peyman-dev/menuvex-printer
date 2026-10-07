@@ -76,6 +76,17 @@ fn test_receipt_lines(paper_mm: u16, width_dots: u16) -> Vec<String> {
     ]
 }
 
+fn raw_hex_preview(bytes: &[u8]) -> String {
+    bytes.iter().take(32).map(|byte| format!("{byte:02X}")).collect::<Vec<_>>().join(" ")
+}
+
+fn unix_time_ms() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+}
+
 /// Structured job lifecycle log. Job IDs and printer IDs are diagnostics the operator needs;
 /// document contents and receipt data are deliberately never logged.
 fn log_job(event: &'static str, job: &Job, printer: &Printer) {
@@ -239,17 +250,24 @@ impl State {
         // Older frontends can only send USB descriptors. Accept our reserved `queue:` form and
         // store a real spooler profile so transport and status handling stay explicit internally.
         printer.connection.normalize_api_compat();
-        // Raw-byte passthrough is a local, operator-owned switch. A remote client must never be
-        // able to turn it on for a printer, so the stored value always wins.
-        let stored_passthrough = self
-            .config()
-            .ok()
-            .and_then(|c| c.printers.into_iter().find(|p| p.id == printer.id))
-            .is_some_and(|existing| existing.raw_passthrough);
-        printer.raw_passthrough = stored_passthrough;
+        // Raw passthrough, target selection, force mode, and USB fallback are local operator
+        // settings. A remote printer.save cannot enable or redirect any of them.
+        let mut config = self.config()?;
+        if let Some(existing) = config.printers.iter().find(|p| p.id == printer.id) {
+            printer.raw_passthrough = existing.raw_passthrough;
+            printer.force_raw = false;
+            printer.usb_fallback_target = if matches!(&printer.connection, crate::printers::Connection::Usb { .. }) {
+                existing.usb_fallback_target.clone()
+            } else {
+                None
+            };
+        } else {
+            printer.raw_passthrough = false;
+            printer.force_raw = false;
+            printer.usb_fallback_target = None;
+        }
         printer.validate()?;
         let id = printer.id.clone();
-        let mut config = self.config()?;
         if let Some(slot) = config.printers.iter_mut().find(|p| p.id == id) {
             *slot = printer;
         } else {
@@ -290,20 +308,77 @@ impl State {
             );
         }
         let config = self.config()?;
-        let p = config
+        let mut p = config
             .printers.iter()
             .find(|p| p.id == printer_id)
             .cloned()
             .ok_or_else(|| AgentError::new("PRINTER_NOT_FOUND", "Printer is not configured"))?;
-        // Frontend-authored raw ESC/POS is only accepted where the operator enabled it for this
-        // printer in the local desktop window.
-        if matches!(document, Document::Escpos { .. }) && !p.raw_passthrough {
-            return Err(
-                AgentError::new(
+        document.validate().map_err(|mut error| {
+            error.printer = Some(p.name.clone());
+            error
+        })?;
+        if matches!(document, Document::Escpos { .. }) {
+            if !config.raw_passthrough.enabled || !p.raw_passthrough {
+                let mut error = AgentError::new(
                     "RAW_PASSTHROUGH_DISABLED",
-                    "Raw ESC/POS documents are disabled. Enable “raw passthrough” for this printer in the local agent window; the website cannot switch it on."
-                )
+                    "Raw ESC/POS documents are disabled by the local operator.",
+                );
+                error.printer = Some(p.name.clone());
+                error.action_required = Some(if !config.raw_passthrough.enabled {
+                    "Enable the global Raw ESC/POS switch and this printer's local switch in Settings. A website cannot enable them.".into()
+                } else {
+                    "Enable Raw ESC/POS for this printer in the local Settings window. A website cannot enable it.".into()
+                });
+                return Err(error);
+            }
+            // The configured raw target is local-only. It changes only this raw job's route,
+            // never rendered invoices or later copies, and is not an automatic failure fallback.
+            let raw_settings = config.raw_passthrough.printers.get(&p.id);
+            p.force_raw = raw_settings.is_some_and(|settings| settings.force_raw);
+            if let Some(queue_name) = raw_settings.and_then(|settings| settings.raw_target.clone()) {
+                p.connection = crate::printers::Connection::Spooler { queue_name };
+                p.usb_fallback_target = None;
+            }
+            let bytes = document.escpos_bytes()?;
+            if bytes.len() > config.raw_passthrough.max_bytes {
+                let mut error = AgentError::new(
+                    "RAW_PAYLOAD_TOO_LARGE",
+                    &format!(
+                        "Raw ESC/POS document exceeds the configured {}-byte limit",
+                        config.raw_passthrough.max_bytes
+                    ),
+                );
+                error.printer = Some(p.name.clone());
+                error.action_required = Some(format!(
+                    "Reduce this ESC/POS document to at most {} bytes in Settings.",
+                    config.raw_passthrough.max_bytes
+                ));
+                return Err(error);
+            }
+            let target = match &p.connection {
+                crate::printers::Connection::Spooler { queue_name } => queue_name.clone(),
+                crate::printers::Connection::Network { host, port } => format!("{host}:{port}"),
+                crate::printers::Connection::Usb { vendor_id, product_id, .. } => {
+                    format!("direct-usb:{vendor_id:04X}:{product_id:04X}")
+                }
+            };
+            let preview = raw_hex_preview(&bytes);
+            tracing::info!(
+                target: "raw_print",
+                event = "RAW_ESC_POS_ACCEPTED",
+                timestamp_unix_ms = unix_time_ms(),
+                printer = %p.name,
+                printer_id = %p.id,
+                printer_target = %target,
+                payload_bytes = bytes.len(),
+                first_32_bytes_hex = %preview,
+                force_raw = p.force_raw,
+                "accepted local-operator-enabled raw ESC/POS document"
             );
+        } else {
+            // Force RAW is intentionally scoped to ESC/POS; ordinary rendered print routes and
+            // their existing spooler defaults are not modified.
+            p.force_raw = false;
         }
         let job = lock(&self.store, "store").enqueue(id, &p, document)?;
         log_job("PRINT_JOB_RECEIVED", &job, &p);
@@ -504,6 +579,23 @@ mod test_print_tests {
         }
     }
 
+    fn test_profile(id: &str) -> Printer {
+        Printer {
+            id: id.into(),
+            name: "Test printer".into(),
+            connection: Connection::Network { host: "192.168.1.50".into(), port: 9100 },
+            paper_mm: 80,
+            width_dots: 576,
+            copies: 1,
+            cut: true,
+            font_family: "Noto Sans Arabic".into(),
+            font_size: 24,
+            raw_passthrough: false,
+            force_raw: false,
+            usb_fallback_target: None,
+        }
+    }
+
     #[test]
     fn test_ticket_identifies_configured_paper_and_exercises_receipt_layout() {
         let lines = test_receipt_lines(58, 384);
@@ -539,6 +631,8 @@ mod test_print_tests {
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
             raw_passthrough: false,
+            force_raw: false,
+            usb_fallback_target: None,
         };
 
         let saved = state.dispatch(Command::PrinterSave { printer }).unwrap();
@@ -549,6 +643,58 @@ mod test_print_tests {
             Connection::Spooler { queue_name } if queue_name == "Kitchen POS"));
         let listed = state.dispatch(Command::PrintersList).unwrap();
         assert_eq!(listed[0]["connection"]["type"], "usb");
+    }
+
+    #[test]
+    fn remote_printer_save_cannot_change_local_usb_fallback_target() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Storage::open(&directory.path().join("agent.sqlite3")).unwrap();
+        let state = State::new(store, crate::security::test_secret(), Arc::new(TestTransport));
+        let configured_target = Connection::Spooler { queue_name: "Receipt-RAW".into() };
+        let usb_connection = Connection::Usb {
+            vendor_id: 1,
+            product_id: 2,
+            serial: None,
+            bus: 1,
+            ports: vec![1],
+            interface: 0,
+            endpoint: 1,
+            alternate: 0,
+        };
+        let mut local = test_profile("printer:usb-fallback");
+        local.connection = usb_connection.clone();
+        local.usb_fallback_target = Some(configured_target.clone());
+        let mut config = state.config().unwrap();
+        config.printers.push(local);
+        config.raw_passthrough.printers.insert("printer:usb-fallback".into(), crate::config::RawPrinterSettings {
+            raw_target: Some("Local Receipt RAW".into()),
+            force_raw: true,
+            created_generic: true,
+        });
+        lock(&state.store, "store").save_config(&config).unwrap();
+
+        let mut remote = test_profile("printer:usb-fallback");
+        remote.connection = usb_connection;
+        remote.raw_passthrough = true;
+        remote.force_raw = true;
+        remote.usb_fallback_target = Some(Connection::Network {
+            host: "192.168.1.77".into(),
+            port: 9100,
+        });
+        state.dispatch(Command::PrinterSave { printer: remote.clone() }).unwrap();
+        let saved = state.config().unwrap();
+        assert_eq!(saved.printers[0].usb_fallback_target, Some(configured_target));
+        assert!(!saved.printers[0].raw_passthrough);
+        assert!(!saved.printers[0].force_raw);
+        let raw = saved.raw_passthrough.printers.get("printer:usb-fallback").unwrap();
+        assert_eq!(raw.raw_target.as_deref(), Some("Local Receipt RAW"));
+        assert!(raw.force_raw);
+        assert!(raw.created_generic);
+
+        remote.connection = Connection::Network { host: "192.168.1.50".into(), port: 9100 };
+        remote.usb_fallback_target = Some(Connection::Spooler { queue_name: "UNTRUSTED".into() });
+        state.dispatch(Command::PrinterSave { printer: remote }).unwrap();
+        assert_eq!(state.config().unwrap().printers[0].usb_fallback_target, None);
     }
 
     /// A remote `printer.save` must never be able to switch on raw ESC/POS passthrough: the flag
@@ -569,6 +715,8 @@ mod test_print_tests {
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
             raw_passthrough: true,
+            force_raw: false,
+            usb_fallback_target: None,
         };
         state.dispatch(Command::PrinterSave { printer }).unwrap();
         assert!(!state.config().unwrap().printers[0].raw_passthrough);
@@ -581,6 +729,8 @@ mod test_print_tests {
             })
             .expect_err("raw passthrough must be refused");
         assert_eq!(error.code, "RAW_PASSTHROUGH_DISABLED");
+        assert_eq!(error.printer.as_deref(), Some("Bar"));
+        assert!(error.action_required.as_deref().is_some_and(|s| s.contains("global")));
     }
 
     /// The operator can enable it locally, and only then does the agent forward the bytes
@@ -601,10 +751,18 @@ mod test_print_tests {
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
             raw_passthrough: false,
+            force_raw: false,
+            usb_fallback_target: None,
         };
         state.dispatch(Command::PrinterSave { printer }).unwrap();
         let mut config = state.config().unwrap();
+        config.raw_passthrough.enabled = true;
         config.printers[0].raw_passthrough = true;
+        config.raw_passthrough.printers.insert("printer:lan".into(), crate::config::RawPrinterSettings {
+            raw_target: Some("Test Receipt RAW".into()),
+            force_raw: true,
+            created_generic: true,
+        });
         lock(&state.store, "store").save_config(&config).unwrap();
 
         state
@@ -616,6 +774,36 @@ mod test_print_tests {
             .expect("enabled passthrough must be accepted");
         let job = lock(&state.store, "store").job("order:1:raw").unwrap();
         assert_eq!(job.status, "queued");
+        let work = lock(&state.store, "store").claim(crate::print::queue::now() + 1).unwrap().unwrap();
+        assert!(matches!(work.printer.connection,
+            Connection::Spooler { ref queue_name } if queue_name == "Test Receipt RAW"));
+        assert!(work.printer.force_raw);
+        assert!(config.raw_passthrough.printers["printer:lan"].created_generic);
+    }
+
+    #[test]
+    fn locally_configured_raw_size_limit_returns_structured_error() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Storage::open(&directory.path().join("agent.sqlite3")).unwrap();
+        let state = State::new(store, crate::security::test_secret(), Arc::new(TestTransport));
+        let mut config = state.config().unwrap();
+        let mut printer = test_profile("printer:limited-raw");
+        printer.raw_passthrough = true;
+        config.raw_passthrough.enabled = true;
+        config.raw_passthrough.max_bytes = 1024;
+        config.printers.push(printer);
+        lock(&state.store, "store").save_config(&config).unwrap();
+        let mut commands = vec![0u8; 1025];
+        commands[..2].copy_from_slice(&[0x1b, 0x40]);
+        let error = state.dispatch(Command::Print {
+            printer_id: "printer:limited-raw".into(),
+            job_id: "order:raw:oversized".into(),
+            document: Document::Escpos { commands, data: String::new() },
+        }).unwrap_err();
+        assert_eq!(error.code, "RAW_PAYLOAD_TOO_LARGE");
+        assert_eq!(error.printer.as_deref(), Some("Test printer"));
+        assert!(error.action_required.is_some());
+        assert!(lock(&state.store, "store").job("order:raw:oversized").is_err());
     }
 
     /// A poisoned mutex must be recovered, not turned into a panic that takes the agent down.

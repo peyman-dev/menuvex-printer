@@ -48,8 +48,8 @@ export const documentSchema = z.discriminatedUnion('type', [
    * truth for the printed design. Gated behind the operator-owned `rawPassthrough` printer flag;
    * without it the agent answers `RAW_PASSTHROUGH_DISABLED`.
    *
-   * Use `commands` for short sequences and `data` (base64) for full raster receipts: a JSON
-   * number array for a raster image would exceed the 128 KiB message limit.
+   * Use `commands` for short sequences and `data` (base64) for full raster receipts. The decoded
+   * byte limit is 1 MiB; the agent allows enough wire space for base64 and the JSON envelope.
    */
   z.strictObject({
     type: z.literal('escpos'),
@@ -59,7 +59,8 @@ export const documentSchema = z.discriminatedUnion('type', [
       .default([]),
     data: z
       .string()
-      .max(128 * 1024)
+      // Base64 expansion of the agent's 1 MiB decoded ESC/POS limit.
+      .max(1_398_104)
       .default(''),
   }),
 ]);
@@ -113,6 +114,10 @@ export const connectionSchema = z.discriminatedUnion(
   },
 );
 export type Connection = z.infer<typeof connectionSchema>;
+export const usbFallbackTargetSchema = connectionSchema.refine(
+  (connection) => connection.type !== 'usb',
+  'USB fallback must be a spooler queue or network printer',
+);
 
 export const printerStatusSchema = z.enum(['online', 'offline', 'unknown', 'busy', 'error']);
 export const printerSchema = z.object({
@@ -125,9 +130,11 @@ export const printerSchema = z.object({
   cut: z.boolean(),
   fontFamily: z.string(),
   fontSize: z.number().int(),
-  /** Operator-owned switch for frontend-authored raw ESC/POS. Optional so profiles written by
-   * older agents (which never set it) still parse; it is `false` when absent. */
+  /** Legacy-compatible profile field; writes from remote `printer.save` are ignored by the agent.
+   * The local opt-in and raw target configuration are not part of the website-facing Printer API. */
   rawPassthrough: z.boolean().optional(),
+  /** Local-only failover for USB profiles; a remote printer.save cannot change the stored value. */
+  usbFallbackTarget: usbFallbackTargetSchema.nullable().optional(),
   status: printerStatusSchema,
 });
 export const errorSchema = z.object({
@@ -135,6 +142,8 @@ export const errorSchema = z.object({
   message: z.string(),
   retryable: z.boolean(),
   uncertain: z.boolean(),
+  printer: z.string().optional(),
+  actionRequired: z.string().optional(),
 });
 export const jobSchema = z.object({
   jobId: id,
@@ -197,6 +206,8 @@ export class AgentError extends Error {
     message: string,
     public uncertain = false,
     public retryable = false,
+    public printer?: string,
+    public actionRequired?: string,
   ) {
     super(message);
     this.name = 'AgentError';

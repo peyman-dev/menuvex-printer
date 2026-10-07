@@ -2,14 +2,16 @@
 
 ## Environment
 
-Node 22 / npm; Rust stable (minimum declared 1.85; resolved dependencies may require a newer stable); C toolchain for bundled libusb/SQLite; Linux pkg-config, DBus and GTK/WebKit desktop packages. `src-tauri` is a standalone Cargo package. No root Cargo workspace is needed. `desktop` is the default feature; disable it for core tests.
+Node 22 / npm; Rust stable (minimum declared 1.85; resolved dependencies may require a newer stable); C toolchain for SQLite and, when enabled, vendored libusb; Linux pkg-config, DBus and GTK/WebKit desktop packages. `src-tauri` is a standalone Cargo package. No root Cargo workspace is needed. `desktop` is the default Cargo feature; direct USB is opt-in via `libusb` and is excluded from default builds.
 
 ```sh
 npm ci
 npm test
 npm run build
-npm run test:rust
-npm run tauri -- dev
+npm run test:rust            # Existing transports, direct USB omitted
+npm run test:rust:libusb     # Include/test direct USB feature
+npm run tauri -- dev         # Default: spooler/network only
+npm run tauri -- dev --features libusb  # Optional direct USB development build
 ```
 
 Disable autostart in development Settings to avoid registering a transient `target/debug` executable. Debug WS origins are only localhost/127.0.0.1:5173. The Agent's own Vite UI uses 1420 and native IPC, not this PWA origin whitelist. Do not add the hosted preview domain to the hardware bridge's production allowlist.
@@ -17,7 +19,7 @@ Disable autostart in development Settings to avoid registering a transient `targ
 ## Tests
 
 - `sdk/tests/client.test.ts`: isolated test-only socket, real WebCrypto and fake IndexedDB test backend. Auth, single persistent connection, reconnect refresh, duplicate coalescing, ID conflict, subscriptions, control-byte rejection, key persistence/non-extractability, origin binding, durable migration assignment and no fallback after uncertain sends.
-- Rust inline unit tests: strict protocol, origins/HMAC replay, network target validation, ESC/POS bytes/raster dimensions, receipt design planner (`print/layout.rs`: money grouping, writing direction, columns, emphasis, footer/order-number handling), config bounds, queue persistence, dedup, conflict, retry/backoff/cancel, crash recovery, test-only transport pipeline.
+- Rust inline unit tests: strict protocol, origins/HMAC replay, network target validation, ESC/POS bytes/raster dimensions, receipt design planner (`print/layout.rs`: money grouping, writing direction, columns, emphasis, footer/order-number handling), config bounds, queue persistence, dedup, conflict, retry/backoff/cancel, crash recovery, and the test-only transport pipeline. USB policy tests cover confirmed-zero-byte pre-open/post-open fallback with and without a configured target, forbidden partial-write/timeout/unknown stages, feature-disabled discovery, feature-enabled missing-device handling, and route pinning after a completed copy. Run both `npm run test:rust` (no libusb) and `npm run test:rust:libusb`.
 - `npm run preview:receipt`: renders the receipt design to PNG with HarfBuzz on the bundled font and asserts the planner invariants against `print/layout.rs`, font glyph coverage of every planned character and the 4096 row limit (requires `python3 -m pip install uharfbuzz freetype-py pillow`). The CI recipe in the inactive `docs/ci/checks.yml` template runs it and uploads the images as the `Receipt-Design-Preview` artifact once activated; until then the images are local only. See [tools/receipt-preview](../tools/receipt-preview/README.md).
 - `server::integration::sdk_to_real_agent`: real loopback WebSocket, actual Rust auth, SQLite, actual Persian renderer and a `#[cfg(test)]` counting transport. It launches `sdk/tests/live.test.ts` through npm; the **real SDK** submits and repeats a job; the test asserts one transport handoff. No keychain/hardware is required for this test. `npm ci` must precede Cargo tests.
 - `npm test` alone intentionally skips the live test unless the Rust harness supplies an ephemeral port/secret. Never interpret that skip as an integration pass. Test secrets are scoped to the test child environment; production does not support environment-based key overrides.
@@ -38,6 +40,16 @@ Disable autostart in development Settings to avoid registering a transient `targ
 | Rust compilation/unit/integration tests | Not run                                                                         |
 | Windows/Linux/macOS installers          | Not built locally; candidate CI provided, not executed                          |
 | Real printer / installed PWA / signing  | Not tested; required release gates                                              |
+
+## USB failover change verification (2026-10-07)
+
+| Check | Result |
+| --- | --- |
+| `npm ci` | Successful; 107 packages added, zero vulnerabilities reported by install |
+| `npm test` | 40 passed; 1 live Rust integration test skipped as designed |
+| `npm run build` | TypeScript and Vite production build passed |
+| `git diff --check` | Passed |
+| `npm run test:rust` / `npm run test:rust:libusb` | Not run: Cargo is not installed in this sandbox |
 
 The first successful Cargo resolution must produce a reviewed `src-tauri/Cargo.lock`. Commit that lock and use `--locked` for subsequent release builds. Do not fabricate one without resolving the real dependency graph. The inactive CI template at `docs/ci/checks.yml` includes native compilation/test steps rather than skipping them. An authorized maintainer must activate it under `.github/workflows/checks.yml`; the current GitHub connection lacks workflow-write permission.
 

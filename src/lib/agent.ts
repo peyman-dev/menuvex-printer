@@ -2,12 +2,23 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Printer, PrintJob, AgentStatus } from '../../sdk/src/types';
 export const desktop = isTauri();
 export type PrinterConfig = Omit<Printer, 'status'>;
+export interface RawPrinterSettings {
+  raw_target: string | null;
+  force_raw: boolean;
+  created_generic: boolean;
+}
 export interface Config {
   port: number;
   maxAttempts: number;
   autostart: boolean;
-  /** Per-printer `rawPassthrough` lives on each profile, not here: the Rust `Config` rejects
-   * unknown fields, so this shape must mirror `src-tauri/src/config/mod.rs` exactly. */
+  /** Local-only raw ESC/POS gate and operator selections, persisted under `raw_passthrough`. */
+  raw_passthrough: {
+    enabled: boolean;
+    /** Decoded-byte limit, 1 KiB–1 MiB and always bounded by the protocol hard cap. */
+    max_bytes: number;
+    /** Keyed by stable printer ID; websites cannot update this local map. */
+    printers: Record<string, RawPrinterSettings>;
+  };
   printers: PrinterConfig[];
   routes: { role: string; printerId: string; autoPrint: boolean }[];
 }
@@ -17,6 +28,20 @@ export interface UsbDevice {
   product: string | null;
   accessible: boolean;
   accessError?: { code: string; message: string } | null;
+}
+export interface RawPrinterInfo {
+  queueName: string;
+  platform: string;
+  driverName: string | null;
+  portName: string | null;
+  isGenericTextOnly: boolean;
+  availableUsbPorts: string[];
+}
+export interface RawTargetCreated {
+  queueName: string;
+  driverName: string;
+  portName: string;
+  created: boolean;
 }
 export function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!desktop)
@@ -46,10 +71,19 @@ export const api = {
     rpc<PrintJob>('printer.test', { printerId, jobId: `test:${crypto.randomUUID()}` }),
   cancel: (jobId: string) => rpc<PrintJob>('queue.cancel', { jobId }),
   probe: (printerId: string) => call<string>('test_connection', { printerId }),
+  rawPlatform: () => call<string>('raw_printer_platform'),
+  rawPrinterInfo: (queueName: string) => call<RawPrinterInfo>('raw_printer_info', { queueName }),
+  createGenericRawTarget: (printerId: string, sourceQueue: string) =>
+    call<RawTargetCreated>('create_generic_raw_target', { printerId, sourceQueue }),
+  rawTest: (printerId: string) => call<PrintJob>('test_raw_print', { printerId }),
 };
 export function errorText(e: unknown): string {
+  if (e && typeof e === 'object' && 'message' in e) {
+    const value = e as { code?: unknown; message: unknown; actionRequired?: unknown };
+    const code = value.code ? `${String(value.code)}: ` : '';
+    const action = value.actionRequired ? ` ${String(value.actionRequired)}` : '';
+    return `${code}${String(value.message)}${action}`;
+  }
   if (e instanceof Error) return e.message;
-  if (e && typeof e === 'object' && 'message' in e)
-    return `${'code' in e ? String(e.code) + ': ' : ''}${String(e.message)}`;
   return 'عملیات انجام نشد؛ گزارش برنامه را بررسی کنید.';
 }

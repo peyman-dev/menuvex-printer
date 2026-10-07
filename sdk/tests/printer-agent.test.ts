@@ -18,8 +18,10 @@ import {
   CONNECTION_TYPES,
   connectionSchema,
   documentSchema,
+  errorSchema,
   escposDocument,
   printerSchema,
+  usbFallbackTargetSchema,
   type Printer,
   type PrintRequest,
 } from '../src/types';
@@ -50,7 +52,7 @@ class TestSocket implements Socket {
   closed = false;
   printers: unknown[] = [];
   /** Answer `print` with this error instead of a job, to model a broken printer. */
-  printError: { code: string; message: string } | null = null;
+  printError: { code: string; message: string; printer?: string; actionRequired?: string } | null = null;
   /** Answer `printer.save` with this error instead of a profile. */
   saveError: { code: string; message: string } | null = null;
   constructor() {
@@ -236,9 +238,47 @@ describe('printer connection schema', () => {
     expect(spoolerQueueName(real.connection)).toBeUndefined();
   });
 
-  it('treats rawPassthrough as optional so older agent profiles still parse', () => {
+  it('treats the legacy per-printer raw flag and USB fallback as optional for old profiles', () => {
     expect(printerSchema.parse(basePrinter).rawPassthrough).toBeUndefined();
+    expect(printerSchema.parse(basePrinter).usbFallbackTarget).toBeUndefined();
     expect(printerSchema.parse({ ...basePrinter, rawPassthrough: true }).rawPassthrough).toBe(true);
+  });
+
+  it('preserves optional structured printer/action context on errors', () => {
+    const error = errorSchema.parse({
+      code: 'RAW_PASSTHROUGH_DISABLED',
+      message: 'Raw ESC/POS is disabled.',
+      retryable: false,
+      uncertain: false,
+      printer: 'POS-80C copy 2',
+      actionRequired: 'Enable both local switches in Settings.',
+    });
+    expect(error.printer).toBe('POS-80C copy 2');
+    expect(error.actionRequired).toContain('local switches');
+  });
+
+  it('allows only spooler/network USB fallback targets', () => {
+    expect(usbFallbackTargetSchema.parse({ type: 'spooler', queueName: 'POS-80' })).toEqual({
+      type: 'spooler',
+      queueName: 'POS-80',
+    });
+    expect(usbFallbackTargetSchema.parse({ type: 'network', host: '192.168.1.50', port: 9100 })).toMatchObject({
+      type: 'network',
+      host: '192.168.1.50',
+    });
+    expect(() =>
+      usbFallbackTargetSchema.parse({
+        type: 'usb',
+        vendorId: 1,
+        productId: 2,
+        serial: null,
+        bus: 1,
+        ports: [1],
+        interface: 0,
+        endpoint: 1,
+        alternate: 0,
+      }),
+    ).toThrow(/USB fallback must be a spooler queue or network printer/);
   });
 });
 
@@ -375,6 +415,8 @@ describe('frontend-owned print design', () => {
     sockets[0].printError = {
       code: 'RAW_PASSTHROUGH_DISABLED',
       message: 'Raw ESC/POS documents are disabled.',
+      printer: 'POS-80C copy 2',
+      actionRequired: 'Enable both local switches in Settings.',
     };
     const error = await c
       .print({
@@ -384,6 +426,8 @@ describe('frontend-owned print design', () => {
       })
       .catch((e: unknown) => e);
     expect((error as AgentError).code).toBe('RAW_PASSTHROUGH_DISABLED');
+    expect((error as AgentError).printer).toBe('POS-80C copy 2');
+    expect((error as AgentError).actionRequired).toContain('local switches');
     expect(c.isConnected()).toBe(true);
   });
 

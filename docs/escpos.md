@@ -1,6 +1,6 @@
 # ESC/POS and Persian rendering
 
-Backend owns all byte generation. PWA sends validated semantic `invoice` or `receipt`; raw byte injection/control characters are rejected. Rust encoder supports initialize, ASCII text, bold, alignment, font size, line/feed, cut, QR Model 2, Code128 subset B, fixed-width ASCII tables, monochrome raster and drawer pulse. These are internal Rust APIs; only rendered semantic documents are remotely available in v1.
+Backend owns byte generation for semantic `invoice`/`receipt` documents. The PWA may also send a validated raw ESC/POS document only after local operator opt-in; arbitrary binary payloads and unrecognized ESC/POS signatures are rejected. Rust encoder supports initialize, ASCII text, bold, alignment, font size, line/feed, cut, QR Model 2, Code128 subset B, fixed-width ASCII tables, monochrome raster and drawer pulse. These are internal Rust APIs.
 
 Persian pipeline:
 
@@ -27,7 +27,9 @@ There are exactly two answers, and they must not be confused:
 | `invoice`, `receipt` | **The agent.** The frontend sends order data only; the agent shapes, positions and rasterizes it.                              | `src-tauri/src/print/layout.rs` |
 | `escpos`             | **The frontend.** The agent forwards the finished bytes with no rendering, no font substitution and no added `ESC @`/feed/cut. | The website                     |
 
-So if a receipt's printed design must match a template the MenuVex app owns, the app has to send `escpos` (enabled per printer by the operator through `rawPassthrough`). Sending `invoice` and expecting the agent to reproduce an HTML/CSS template is not supported: the agent has no HTML or CSS engine and will apply its own invoice layout instead. That mismatch — not a rendering bug — is the usual reason "the design changed". See [`protocol.md`](protocol.md#frontend-owned-layout-escpos).
+So if a receipt's printed design must match a template the MenuVex app owns, the app can send `escpos` after the operator enables both the global raw gate and the printer's `rawPassthrough` switch in local Settings; both default off, and a website cannot enable them. Documents must begin with a recognized ESC/POS command signature and stay within the operator's configured 1 KiB–1 MiB limit. Sending `invoice` and expecting the agent to reproduce an HTML/CSS template is not supported: the agent has no HTML or CSS engine and will apply its own invoice layout instead. That mismatch — not a rendering bug — is the usual reason "the design changed". See [`protocol.md`](protocol.md#frontend-owned-layout-escpos).
+
+On Windows, raw jobs use the Win32 spooler with `DOC_INFO_1W.pDatatype = "RAW"`. This bypasses GDI, but a vendor driver/spooler extension may still reinterpret bytes; Settings warns when the selected queue is not Generic / Text Only and can create a parallel Generic / Text Only queue on a manually selected vendor queue's enumerated USB port. Existing drivers are never replaced. There is no fallback to rendered printing.
 
 ## Printed design
 
