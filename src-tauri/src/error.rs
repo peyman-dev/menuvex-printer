@@ -6,11 +6,23 @@ pub struct AgentError {
     pub message: String,
     pub retryable: bool,
     pub uncertain: bool,
+    /// Optional structured context for local actions that the web client can display or branch on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub printer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action_required: Option<String>,
 }
 pub type Result<T> = std::result::Result<T, AgentError>;
 impl AgentError {
     pub fn new(code: &str, message: &str) -> Self {
-        Self { code: code.into(), message: message.into(), retryable: false, uncertain: false }
+        Self {
+            code: code.into(),
+            message: message.into(),
+            retryable: false,
+            uncertain: false,
+            printer: None,
+            action_required: None,
+        }
     }
     pub fn retry(code: &str) -> Self {
         Self {
@@ -85,6 +97,25 @@ mod tests {
             assert_eq!(restored.retryable, original.retryable);
             assert_eq!(restored.uncertain, original.uncertain);
         }
+    }
+
+    #[test]
+    fn structured_print_error_context_round_trips_and_legacy_errors_default() {
+        let mut error = AgentError::new("RAW_PASSTHROUGH_DISABLED", "Local opt-in required");
+        error.printer = Some("POS-80C copy 2".into());
+        error.action_required = Some("Enable both local switches in Settings".into());
+        let encoded = serde_json::to_value(&error).unwrap();
+        assert_eq!(encoded["printer"], "POS-80C copy 2");
+        assert_eq!(encoded["actionRequired"], "Enable both local switches in Settings");
+        let restored: AgentError = serde_json::from_value(encoded).unwrap();
+        assert_eq!(restored.printer, error.printer);
+        assert_eq!(restored.action_required, error.action_required);
+
+        let legacy: AgentError = serde_json::from_value(serde_json::json!({
+            "code":"PRINTER_OFFLINE","message":"Offline","retryable":true,"uncertain":false
+        })).unwrap();
+        assert_eq!(legacy.printer, None);
+        assert_eq!(legacy.action_required, None);
     }
 
     #[test]

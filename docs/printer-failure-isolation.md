@@ -161,8 +161,9 @@ Application:
 | Website reconnect                   | Re-authenticates, refreshes printers + queue; no duplicate prints.                                          |
 | Multiple printers, mixed transports | Independent statuses and queues.                                                                            |
 | Failed print job recovery           | Cancel/clear from the queue tab; a new job ID is required to reprint an uncertain outcome.                  |
-| `escpos` with `rawPassthrough` off  | `RAW_PASSTHROUGH_DISABLED`; the socket stays open.                                                          |
-| `escpos` with `rawPassthrough` on   | Bytes reach the printer unchanged — compare with the frontend's own preview.                                |
+| `escpos` with either local raw gate off | `RAW_PASSTHROUGH_DISABLED` with `printer`/`actionRequired`; the socket stays open, and a website cannot enable the setting. |
+| Invalid ESC/POS prefix / configured size exceeded | `RAW_ESC_POS_INVALID` / `RAW_PAYLOAD_TOO_LARGE`; no print job is queued. |
+| Valid opt-in ESC/POS | No rendering is applied. Windows uses `DOC_INFO_1W` datatype `RAW`; verify the bytes at the printer because vendor drivers may still transform them. |
 
 ## What is still not verified here
 

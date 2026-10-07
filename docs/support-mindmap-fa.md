@@ -10,7 +10,7 @@
    ├─► Agent بومی  ◄── راه اصلی، همیشه اول
    │     ├─ نسخهٔ Modern (Rust): ویندوز/لینوکس/مک
    │     │     • network  → TCP/9100 (IP خصوصی)
-   │     │     • usb      → libusb مستقیم
+   │     │     • usb      → libusb مستقیم فقط در build دارای feature اختیاری `libusb`
    │     └─ نسخهٔ Legacy (Win32): ویندوز ۷ SP1 و جدیدتر
    │           • spooler  → صف RAW ویندوز (درایور خود پرینتر)
    │           • network  → TCP/9100 (IP خصوصی)
@@ -26,12 +26,11 @@
    - **ویندوز ۷** → Agent قدیمی (Legacy). spooler یا network.
    - **ویندوز ۱۰/۱۱** →
      - Legacy + spooler/network (بدون نیاز به WinUSB) — ساده‌ترین، یا
-     - Modern + network (پایدار)، یا Modern + usb (نیاز به درایور WinUSB).
-   - **لینوکس** → Modern + usb (libusb + مجوز udev) یا network.
-   - **مک** → Modern + usb (libusb + دسترسی USB/Keychain) یا network.
+     - Modern + network/spooler، یا Modern + USB فقط در build دارای feature `libusb` و با درایور سازگار.
+   - **لینوکس** → Modern + spooler/network به‌صورت پیش‌فرض؛ USB مستقیم فقط در build با `libusb` و مجوز udev.
+   - **مک** → Modern + spooler/network به‌صورت پیش‌فرض؛ USB مستقیم فقط در build با `libusb` و دسترسی USB/Keychain.
 2. **پرینتر چطور وصل است؟**
-   - **USB** → درایور خود پرینتر را نصب کن (باید ESC/POS را بدون تغییر رد کند) →
-     ویندوز: صف RAW · لینوکس/مک: libusb.
+   - **USB** → ابتدا از صف چاپ نصب‌شده استفاده کنید تا درایور خود پرینتر حفظ شود. USB مستقیم libusb فقط در build اختیاری با feature `libusb` فعال است.
    - **شبکه/IP** → Agent مدرن خودش subnet را اسکن می‌کند (`discover.network` → وب‌اپ `discoverNetwork()`)؛ IP را لازم نیست با cmd/PowerShell پیدا کنید. پرینتر پیدا‌شده را می‌توان مستقیم از وب‌اپ ذخیره کرد (`savePrinter`). IP خصوصی + پورت ۹۱۰۰.
 3. **Agent نصب/اجرا نیست؟** اگر مرورگر capable بود و سیاست allowLegacy روشن بود → WebUSB fallback؛ وگرنه خطای AGENT_UNAVAILABLE.
 
@@ -40,15 +39,16 @@
 | پلتفرم       | ابزار            | نوع اتصال              | گام‌های کلیدی                                                                                    |
 | ------------ | ---------------- | ---------------------- | ------------------------------------------------------------------------------------------------ |
 | ویندوز ۷     | Legacy           | spooler یا network     | نصب درایور پرینتر → تست چاپ ویندوز → در Agent «صف ویندوز (RAW)» یا IP/پورت → ذخیره → چاپ آزمایشی |
-| ویندوز ۱۰/۱۱ | Legacy یا Modern | spooler/network یا usb | همان الگوی ویندوز ۷؛ برای USB با Modern نیاز به WinUSB است                                       |
-| لینوکس       | Modern           | usb یا network         | یک‌بار مجوز udev → «جستجوی USB» یا IP → چاپ آزمایشی                                              |
-| مک           | Modern           | usb یا network         | DMG → Applications → دسترسی USB/Keychain → «جستجوی USB» یا IP → چاپ آزمایشی                      |
+| ویندوز ۱۰/۱۱ | Legacy یا Modern | spooler/network؛ USB اختیاری | همان الگوی ویندوز ۷؛ USB مستقیم فقط با feature `libusb` و درایور سازگار |
+| لینوکس       | Modern           | spooler/network؛ USB اختیاری | USB مستقیم فقط با `libusb`: مجوز udev → «جستجوی USB» → چاپ آزمایشی |
+| مک           | Modern           | spooler/network؛ USB اختیاری | USB مستقیم فقط با `libusb`: DMG → Applications → دسترسی USB/Keychain → جستجوی USB |
 
 جزئیات تکمیلی: [`usb-printing-fa.md`](usb-printing-fa.md)، [`linux.md`](linux.md)، [`macos.md`](macos.md).
 
 ## ۳) قواعد طلایی (همیشه بگو)
 
 - **«ارسال شد» ≠ «چاپ شد».** یعنی بایت‌ها به ترانسپورت رسید (به ویندوز، یا TCP پذیرفته شد)، نه تأیید روی کاغذ. کاغذ را چک کنید.
+- fallback USB فقط به مقصدی که اپراتور از قبل انتخاب کرده و فقط وقتی صفر بایت ارسال شده اجرا می‌شود؛ timeout، ارسال ناقص یا وضعیت نامشخص هرگز fallback نمی‌شود.
 - **درایور ویندوز باید ESC/POS را بدون تغییر رد کند.** درایور XPS/host-based مناسب نیست → به Generic/Text سوییچ کنید.
 - **شبکه فقط IPv4 خصوصی + پورت ۹۱۰۰.** بدون DNS، بدون IP عمومی/loopback/link-local. برای پایداری از DHCP reservation/آدرس ثابت استفاده کنید.
 - **WebUSB را عوض نکنید** و انتظار نداشتم روی ویندوز ۷ کار کند؛ Agent آن را پوشش می‌دهد.

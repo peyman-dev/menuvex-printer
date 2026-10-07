@@ -8,9 +8,13 @@ Install Xcode Command Line Tools, Node 22 and stable Rust on a native runner:
 npm ci
 npm test
 cargo test --manifest-path src-tauri/Cargo.toml --no-default-features
+cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --features libusb
+# Default package build omits direct USB.
 # Apple Silicon:
 rustup target add aarch64-apple-darwin
 npm run tauri -- build --target aarch64-apple-darwin --bundles dmg
+# Optional USB-enabled build:
+npm run tauri -- build --features libusb --target aarch64-apple-darwin --bundles dmg
 # On an Intel runner:
 rustup target add x86_64-apple-darwin
 npm run tauri -- build --target x86_64-apple-darwin --bundles dmg
@@ -22,7 +26,7 @@ Universal build can be evaluated later with both Rust targets and Tauri's `unive
 
 Move the signed app from DMG to Applications before enabling autostart. The Tauri autostart plugin uses a LaunchAgent; Settings controls it. Initial enabled default is registered when the app runs. macOS login-item approval can be affected by user/security policy. Keychain may require an OS confirmation to access/create the pairing secret; that is setup, not browser USB permission per print. Reject insecure plaintext fallback if Keychain is unavailable.
 
-libusb uses macOS USB APIs; exclusive access conflicts with another driver/process can prevent claim. This implementation does not silently detach macOS kernel drivers. Verify Printer Class endpoints and test the actual model. USB-C adapters/hubs, device reconnect topology and vendor drivers can affect identity/ownership. No assumption of universal USB compatibility.
+Direct USB is compiled only with Cargo feature `libusb`; default app builds keep spooler/network transports. In a USB-enabled build, libusb uses macOS USB APIs; exclusive access conflicts with another driver/process can prevent claim. This implementation does not silently detach macOS kernel drivers. Verify Printer Class endpoints and test the actual model. USB-C adapters/hubs, device reconnect topology and vendor drivers can affect identity/ownership. No assumption of universal USB compatibility.
 
 ## Signing/notarization
 

@@ -291,7 +291,7 @@ export class PrinterAgentClient {
     }
   }
   private async message(raw: unknown) {
-    if (typeof raw !== 'string' || raw.length > 512 * 1024)
+    if (typeof raw !== 'string' || raw.length > 2 * 1024 * 1024)
       throw new AgentError('INVALID_RESPONSE', 'Unexpected message encoding/size');
     const decoded: unknown = JSON.parse(raw);
     // Inspect the untouched response before *any* Zod validation. `serverMessageSchema` keeps
@@ -365,6 +365,8 @@ export class PrinterAgentClient {
         msg.error.message,
         msg.error.uncertain,
         msg.error.retryable,
+        msg.error.printer,
+        msg.error.actionRequired,
       );
     if (!this.authenticated) throw new AgentError('INVALID_RESPONSE', 'Unauthenticated response');
     if (msg.type === 'response' || msg.type === 'error') {
@@ -379,6 +381,8 @@ export class PrinterAgentClient {
             msg.error.message,
             msg.error.uncertain,
             msg.error.retryable,
+            msg.error.printer,
+            msg.error.actionRequired,
           ),
         );
       else p.resolve(msg.data);

@@ -1,7 +1,8 @@
 use serde::{ Deserialize, Serialize };
 use crate::error::{ AgentError, Result };
 pub const VERSION: u8 = 1;
-pub const MAX_MESSAGE: usize = 128 * 1024;
+/// The wire envelope must hold a base64-encoded raw ESC/POS document of up to 1 MiB.
+pub const MAX_MESSAGE: usize = 2 * 1024 * 1024;
 pub fn valid_id(s: &str) -> bool {
     !s.is_empty() &&
         s.len() <= 128 &&
@@ -52,24 +53,51 @@ pub enum Document {
     Receipt {
         lines: Vec<String>,
     },
-    /// Frontend-authored raw ESC/POS, forwarded to the transport **verbatim**.
-    ///
-    /// This is the channel that makes the frontend the source of truth for the printed design:
-    /// the agent performs no rendering, no shaping, no font substitution and adds no
-    /// initialize/feed/cut of its own. It exists because `invoice` documents are laid out by
-    /// [`crate::print::layout`] inside the agent. Gated behind the operator-owned
-    /// `rawPassthrough` switch, so a website cannot send raw bytes to a printer the operator has
-    /// not unlocked (see `State::enqueue`).
+    /// Frontend-authored raw ESC/POS. Once the local operator enables both gates, the agent
+    /// transports these bytes without rendering, shaping, font substitution, or added commands.
+    /// The Windows RAW spooler queue and driver are still part of the OS path; Generic / Text Only
+    /// is recommended when the vendor driver may reinterpret printer data. A website cannot change
+    /// the operator-owned global or per-printer switches (see `State::enqueue`).
     Escpos {
         /// Byte values, e.g. `[27, 64]`. Convenient for short command sequences.
         #[serde(default)] commands: Vec<u8>,
-        /// Base64 of the same bytes. Use this for full raster receipts; a JSON number array for
-        /// a raster image would exceed the 128 KiB message limit.
+        /// Base64 of the same bytes. Use this for raster receipts; a JSON number array is much
+        /// larger than the binary payload.
         #[serde(default)] data: String,
     },
 }
-/// Upper bound for one raw ESC/POS document. Below `MAX_MESSAGE` because base64 inflates by 4/3.
-pub const MAX_ESCPOS: usize = 96 * 1024;
+/// Upper bound for the decoded raw ESC/POS document (the base64 wire value inflates by 4/3).
+pub const MAX_ESCPOS: usize = 1024 * 1024;
+
+/// Known, common ESC/POS command headers. Requiring a recognized command prevents arbitrary
+/// binary documents from being silently treated as printer programs.
+const ESCPOS_SIGNATURES: &[&[u8]] = &[
+    &[0x1b, 0x40],       // ESC @ (initialize)
+    &[0x1b, 0x21],       // ESC ! (print mode)
+    &[0x1b, 0x61],       // ESC a (alignment)
+    &[0x1b, 0x45],       // ESC E (emphasis)
+    &[0x1b, 0x4d],       // ESC M (font)
+    &[0x1b, 0x2d],       // ESC - (underline)
+    &[0x1b, 0x64],       // ESC d (feed)
+    &[0x1b, 0x74],       // ESC t (code page)
+    &[0x1d, 0x21],       // GS ! (character size)
+    &[0x1d, 0x28],       // GS ( (extended command)
+    &[0x1d, 0x48],       // GS H (HRI position)
+    &[0x1d, 0x56],       // GS V (cut)
+    &[0x1d, 0x68],       // GS h (barcode height)
+    &[0x1d, 0x77],       // GS w (barcode width)
+    &[0x1d, 0x76, 0x30], // GS v 0 (raster image)
+    &[0x1c, 0x26],       // FS & (kanji mode)
+    &[0x1c, 0x43],       // FS C (kanji code)
+    &[0x10, 0x04],       // DLE EOT (status query)
+];
+
+fn raw_document_error(code: &str, message: &str, action: &str) -> AgentError {
+    let mut error = AgentError::new(code, message);
+    error.action_required = Some(action.to_owned());
+    error
+}
+
 impl Document {
     pub fn validate(&self) -> Result<()> {
         if let Self::Escpos { .. } = self {
@@ -125,22 +153,34 @@ impl Document {
             Vec::new()
         } else {
             use base64::{ engine::general_purpose::STANDARD, Engine };
-            STANDARD
-                .decode(encoded)
-                .map_err(|_| AgentError::new("INVALID_JOB", "Raw ESC/POS payload is not valid base64"))?
+            STANDARD.decode(encoded).map_err(|_| raw_document_error(
+                "RAW_ESC_POS_INVALID",
+                "Raw ESC/POS payload is not valid base64",
+                "Send the receipt as valid base64-encoded ESC/POS bytes.",
+            ))?
         };
         let mut bytes = commands.clone();
         bytes.extend(decoded);
         if bytes.is_empty() {
-            return Err(AgentError::new("INVALID_JOB", "Raw ESC/POS document carries no bytes"));
+            return Err(raw_document_error(
+                "RAW_ESC_POS_INVALID",
+                "Raw ESC/POS document carries no bytes",
+                "Send at least one valid ESC/POS command.",
+            ));
         }
         if bytes.len() > MAX_ESCPOS {
-            return Err(
-                AgentError::new(
-                    "INVALID_JOB",
-                    &format!("Raw ESC/POS document exceeds {MAX_ESCPOS} bytes"),
-                )
-            );
+            return Err(raw_document_error(
+                "RAW_PAYLOAD_TOO_LARGE",
+                &format!("Raw ESC/POS document exceeds the {MAX_ESCPOS}-byte limit"),
+                &format!("Reduce the ESC/POS payload to at most {MAX_ESCPOS} bytes."),
+            ));
+        }
+        if !ESCPOS_SIGNATURES.iter().any(|signature| bytes.starts_with(signature)) {
+            return Err(raw_document_error(
+                "RAW_ESC_POS_INVALID",
+                "Raw ESC/POS document does not start with a recognized ESC/POS command",
+                "Start the payload with a valid ESC/POS command such as ESC @ or GS v 0.",
+            ));
         }
         Ok(bytes)
     }
@@ -290,7 +330,10 @@ pub fn parse(text: &str) -> Result<Request> {
     match &command {
         Command::Print { job_id, printer_id, document } => {
             ids(&[job_id, printer_id])?;
-            document.validate()?;
+            document.validate().map_err(|mut error| {
+                error.printer = Some(printer_id.clone());
+                error
+            })?;
         }
         Command::PrinterTest { job_id, printer_id } => ids(&[job_id, printer_id])?,
         Command::PrinterGet { printer_id } => ids(&[printer_id])?,
@@ -472,20 +515,39 @@ mod tests {
         assert!(parse_document(serde_json::json!({"type":"html","body":"<b>x</b>"})).is_err());
     }
 
-    /// The decoded-size cap is asserted on the document itself: base64 of anything over the cap
-    /// already exceeds the 128 KiB message limit, so it can never reach `parse` in the first
-    /// place. Both layers have to hold.
+    /// The decoded-size cap is asserted on the full 1 MiB raw document. The wire envelope has
+    /// headroom for base64's 4/3 expansion plus the JSON request fields.
     #[test]
     fn raw_escpos_size_cap_applies_to_the_decoded_bytes() {
-        let over = Document::Escpos { commands: vec![0u8; MAX_ESCPOS + 1], data: String::new() };
-        assert!(over.escpos_bytes().is_err());
+        let mut over_bytes = vec![0u8; MAX_ESCPOS + 1];
+        over_bytes[..2].copy_from_slice(&[0x1b, 0x40]);
+        let over = Document::Escpos { commands: over_bytes, data: String::new() };
+        assert_eq!(over.escpos_bytes().unwrap_err().code, "RAW_PAYLOAD_TOO_LARGE");
         assert!(over.validate().is_err());
-        let at_limit = Document::Escpos { commands: vec![0u8; MAX_ESCPOS], data: String::new() };
+        let mut at_limit_bytes = vec![0u8; MAX_ESCPOS];
+        at_limit_bytes[..2].copy_from_slice(&[0x1b, 0x40]);
+        let at_limit = Document::Escpos { commands: at_limit_bytes, data: String::new() };
         assert_eq!(at_limit.escpos_bytes().unwrap().len(), MAX_ESCPOS);
         assert!(at_limit.validate().is_ok());
         // A base64 blob alone is enough; `commands` may stay empty.
         let encoded_only = Document::Escpos { commands: vec![], data: base64_of(&[27, 64]) };
         assert_eq!(encoded_only.escpos_bytes().unwrap(), vec![27, 64]);
+    }
+
+    #[test]
+    fn raw_escpos_rejects_arbitrary_binary_and_accepts_common_command_signatures() {
+        let invalid = Document::Escpos { commands: vec![0x00, 0x01, 0x02], data: String::new() };
+        let error = invalid.escpos_bytes().unwrap_err();
+        assert_eq!(error.code, "RAW_ESC_POS_INVALID");
+        assert!(error.action_required.is_some());
+        for signature in [
+            vec![0x1b, 0x40],
+            vec![0x1b, 0x21, 0],
+            vec![0x1d, 0x76, 0x30, 0],
+            vec![0x1d, 0x56, 0],
+        ] {
+            assert!(Document::Escpos { commands: signature, data: String::new() }.validate().is_ok());
+        }
     }
 
     fn base64_of(bytes: &[u8]) -> String {

@@ -98,6 +98,8 @@ fn save_config(
         target: "desktop",
         event = "CONFIG_SAVED",
         printers = config.printers.len(),
+        raw_passthrough_enabled = config.raw_passthrough.enabled,
+        raw_passthrough_max_bytes = config.raw_passthrough.max_bytes,
         raw_passthrough_printers = config
             .printers
             .iter()
@@ -127,6 +129,79 @@ async fn test_connection(
     tauri::async_runtime
         ::spawn_blocking(move || s.transport.status(&p)).await
         .map_err(|_| AgentError::new("AGENT_NOT_READY", "Probe failed"))
+}
+#[tauri::command]
+fn raw_printer_platform() -> &'static str {
+    printers::raw_printer::platform_name()
+}
+#[tauri::command]
+async fn raw_printer_info(queue_name: String) -> Result<printers::raw_printer::RawPrinterInfo> {
+    tauri::async_runtime
+        ::spawn_blocking(move || printers::raw_printer::inspect_printer(&queue_name)).await
+        .map_err(|_| AgentError::new("AGENT_NOT_READY", "Print queue inspection did not complete"))?
+}
+#[tauri::command]
+async fn create_generic_raw_target(
+    state: tauri::State<'_, Arc<State>>,
+    printer_id: String,
+    source_queue: String,
+) -> Result<printers::raw_printer::RawTargetCreated> {
+    let state = state.inner().clone();
+    tauri::async_runtime
+        ::spawn_blocking(move || {
+            let profile = state.printer(&printer_id)?;
+            let target = printers::raw_printer::create_generic_raw_target(&source_queue, &profile.name)?;
+            let mut config = state.config()?;
+            if !config.printers.iter().any(|p| p.id == printer_id) {
+                return Err(AgentError::new("PRINTER_NOT_FOUND", "Printer is not configured"));
+            }
+            let settings = config.raw_passthrough.printers.entry(printer_id.clone()).or_default();
+            settings.raw_target = Some(target.queue_name.clone());
+            settings.created_generic |= target.created;
+            config.validate()?;
+            lock(&state.store, "store").save_config(&config)?;
+            state.event(serde_json::json!({"type":"resync","version":1}));
+            tracing::info!(
+                target: "raw_print",
+                event = "RAW_TARGET_CONFIGURED",
+                printer = %profile.name,
+                source_queue = %source_queue,
+                raw_target = %target.queue_name,
+                driver = %target.driver_name,
+                port = %target.port_name,
+                created = target.created,
+                "local RAW target mapping saved"
+            );
+            Ok(target)
+        })
+        .await
+        .map_err(|_| AgentError::new("AGENT_NOT_READY", "Raw target creation did not complete"))?
+}
+#[tauri::command]
+async fn test_raw_print(
+    state: tauri::State<'_, Arc<State>>,
+    printer_id: String,
+) -> Result<serde_json::Value> {
+    let state = state.inner().clone();
+    tauri::async_runtime
+        ::spawn_blocking(move || {
+            let job_id = format!(
+                "raw-test:{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
+            let mut commands = vec![0x1b, 0x40];
+            commands.extend_from_slice(b"MenuVex RAW test\r\n");
+            state.dispatch(protocol::Command::Print {
+                printer_id,
+                job_id,
+                document: protocol::Document::Escpos { commands, data: String::new() },
+            })
+        })
+        .await
+        .map_err(|_| AgentError::new("AGENT_NOT_READY", "Raw test print did not complete"))?
 }
 /// Log when a long-lived background task stops. Stopping is normal on quit; anything else has to
 /// leave a line in the daily log so the failure is diagnosable from the field.
@@ -202,7 +277,11 @@ fn main() {
                 save_config,
                 pairing_secret,
                 rotate_secret,
-                test_connection
+                test_connection,
+                raw_printer_platform,
+                raw_printer_info,
+                create_generic_raw_target,
+                test_raw_print
             ]
         )
         .setup(|app| {

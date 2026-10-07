@@ -76,7 +76,7 @@ async fn session(
     let mut config = WebSocketConfig::default();
     config.max_message_size = Some(protocol::MAX_MESSAGE);
     config.max_frame_size = Some(protocol::MAX_MESSAGE);
-    config.max_write_buffer_size = 512 * 1024;
+    config.max_write_buffer_size = protocol::MAX_MESSAGE + 512 * 1024;
     let mut ws = timeout(
         Duration::from_secs(5),
         accept_hdr_async_with_config(
@@ -268,6 +268,8 @@ mod integration {
             font_family: "Noto Sans Arabic".into(),
             font_size: 24,
             raw_passthrough: false,
+            force_raw: false,
+            usb_fallback_target: None,
         });
         store.save_config(&config).unwrap();
         let count = Arc::new(AtomicUsize::new(0));

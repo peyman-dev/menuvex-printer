@@ -1,6 +1,6 @@
 # Protocol v1
 
-Endpoint: `ws://127.0.0.1:8765/` (configurable high port). UTF-8 JSON text only; max 128 KiB input. Exact production Origins: `https://menuvex.ir`, `https://www.menuvex.ir`. Debug builds additionally allow exactly `http://localhost:5173` and `http://127.0.0.1:5173`. Missing/null origins, alternate Host names, query strings and other paths are rejected at upgrade. No URL token.
+Endpoint: `ws://127.0.0.1:8765/` (configurable high port). UTF-8 JSON text only; max 2 MiB input (sized for a base64-encoded raw document of up to 1 MiB). Exact production Origins: `https://menuvex.ir`, `https://www.menuvex.ir`. Debug builds additionally allow exactly `http://localhost:5173` and `http://127.0.0.1:5173`. Missing/null origins, alternate Host names, query strings and other paths are rejected at upgrade. No URL token.
 
 ## Authentication
 
@@ -125,9 +125,13 @@ Invoices also accept **optional** app-template fields, printed only when present
 }
 ```
 
-`commands` (array of byte values, ≤16 KiB) and `data` (base64, for full raster receipts) may be combined; `commands` are sent first, then the decoded `data`. Total decoded size ≤98,304 bytes. The agent performs **no** rendering, no shaping, no font substitution and appends no `ESC @`, feed or cut of its own — the bytes are handed to the transport unchanged, so the frontend is the sole source of truth for that document.
+`commands` (array of byte values, ≤16 KiB) and `data` (base64, for full raster receipts) may be combined; `commands` are sent first, then the decoded `data`. The decoded hard limit is 1 MiB; the local operator can choose a smaller limit (1 KiB–1 MiB) in Settings. The agent validates a recognized ESC/POS command prefix (for example `ESC @`, `ESC !`, `GS v 0`) and rejects empty, invalid, or oversized input with structured error codes before queueing. The agent performs **no** rendering, no shaping, no font substitution and appends no `ESC @`, feed or cut of its own.
 
-Because raw bytes can also drive a cash drawer or reconfigure a printer, `escpos` is refused with `RAW_PASSTHROUGH_DISABLED` unless the operator turned on **raw passthrough** for that printer in the local agent window (`rawPassthrough` on the printer profile, default `false`). A remote `printer.save` cannot switch it on: the stored local value always wins. The Legacy Windows agent does not implement `escpos` at all.
+Because raw bytes can also drive a cash drawer or reconfigure a printer, `escpos` is refused with `RAW_PASSTHROUGH_DISABLED` unless the operator enables both the global `rawPassthroughEnabled` gate and that printer's local `rawPassthrough` switch in the desktop Settings window; both default off. A remote `printer.save` cannot change either local setting or the saved RAW target/`forceRaw` selection. `RAW_PASSTHROUGH_DISABLED`, `RAW_ESC_POS_INVALID`, `RAW_PAYLOAD_TOO_LARGE` and spooler errors carry optional `printer` and `actionRequired` fields for the SDK. There is no silent fallback to rendered printing.
+
+On Windows, the installed spooler path uses `OpenPrinterW`, `StartDocPrinterW` with case-sensitive `DOC_INFO_1W.pDatatype = "RAW"`, `StartPagePrinter`, one exact-byte `WritePrinter`, `EndPagePrinter`, `EndDocPrinter`, and `ClosePrinter`. This bypasses GDI rendering but cannot guarantee that every vendor driver or spooler extension preserves bytes. Settings shows the selected queue's driver and warns unless it is **Generic / Text Only**. The local operator can create a second Generic / Text Only queue on the explicitly selected vendor queue's enumerated USB port; the existing queue/driver is never modified, and ordinary printing does not require administrator rights. The `forceRaw` override affects only raw documents. Linux/macOS retain their existing CUPS RAW route. The Legacy Windows agent does not implement `escpos`.
+
+Direct-USB profiles may optionally have a local `usbFallbackTarget` selected in the Agent settings. It can name an installed spooler queue or network printer, defaults to empty, and a remote `printer.save` cannot add, alter or redirect it. The Agent uses it only for a confirmed-zero-byte `PreOpen`/`PostOpenPreWrite` USB failure; timeout, partial-write, unknown and later-copy failures never fall back. See [USB failover policy](usb-failover.md).
 
 `printer.test` uses the selected profile's configured `widthDots` for the raster and prints a `Paper profile | <mm> mm | <dots> dots` label plus sample columns and a pixel rule. Generic ESC/POS and OS spooler APIs cannot reliably detect the physical paper roll width; the label describes the saved profile and the operator should compare it with the printer manual.
 
