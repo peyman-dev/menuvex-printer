@@ -3,6 +3,13 @@ import { api, call, desktop, errorText, type Config, type PrinterConfig, type Ra
 
 type QueueInspection = { info: RawPrinterInfo } | { error: string };
 const RAW_HARD_LIMIT = 1024 * 1024;
+/** Station keys used by older configs — kept readable so existing operators see the familiar
+ * Persian label next to the technical key and can rename it in one click. */
+const LEGACY_STATION_LABELS: Record<string, string> = {
+  invoice: 'صندوق',
+  kitchen: 'آشپزخانه',
+  bar: 'بار',
+};
 const DEFAULT_RAW_PRINTER_SETTINGS: RawPrinterSettings = {
   raw_target: null,
   force_raw: false,
@@ -233,6 +240,12 @@ export function Settings({
                       })
                     }
                   />
+                  {LEGACY_STATION_LABELS[route.role] && (
+                    <small className="muted">
+                      پیش‌فرض قدیمی: {LEGACY_STATION_LABELS[route.role]} — برای نام دلخواه خودتان
+                      ویرایش کنید
+                    </small>
+                  )}
                 </label>
                 <label>
                   پرینتر

@@ -31,7 +31,7 @@
 - **Backend (Rust)**: دیگر هیچ محدودیتی روی تعداد پرینتر / route / raw-settings نیست (`Config::validate` در `src-tauri/src/config/mod.rs`).
 - **نام ایستگاه (route role) free-text شد** — نام‌های فارسی مثل «صندوق» قبول می‌شوند (قبلاً فقط ASCII بود). ID پرینترها هنوز strict است.
 - **نام پرینتر (Printer.name)** از قبل free-text بود (حداکثر ۱۲۸ بایت، بدون کاراکتر کنترلی) — نام فارسی برای پرینتر کاملاً کار می‌کند.
-- **SDK** (`sdk/src/types.ts`): `routeSchema.role` حالا free-text است (`text(128).min(1)`); `printerId` strict. `printerSchema` و `statusSchema` (که `routes` را هم دارد) بدون تغییر compatibilité.
+- **SDK** (`sdk/src/types.ts`): `routeSchema.role` حالا free-text است (`text(128).min(1)`); `printerId` strict. `printerSchema` و `statusSchema` (که `routes` را هم دارد) بدون هیچ تغییری (backward compatible).
 - **PWA دستیار** (`src/components/Settings.tsx`): بخش «مسیرهای چاپ» دیگر ۳ نقش ثابت (invoice/kitchen/bar) ندارد — ایستگاه‌ها داینامیک‌اند: افزودن/ویرایش نام/حذف، انتخاب پرینتر، تیک «چاپ خودکار»، و chips «صندوق/آشپزخانه/بار» برای افزودن سریع. محدودیت تعداد ندارد.
 - **تست‌ها**: `npm test` (42 passed)، `npm run build`، و `cargo test` در CI سبز است.
 
@@ -56,6 +56,7 @@
 - هر محدودیت یا فهرست ثابتی که کاربر را به ۳ پرینتر محدود می‌کند (۳ ایستگاه ثابت صندوق/آشپزخانه/بار، یا selector با ۳ خانه) را **remove** کن.
 - ایستگاه‌ها/roleها را داینامیک کن: هر نام سفارشی، هر تعداد.
 - **Backward compatibility**: configهای قدیمی agent که routeهای `invoice`/`kitchen`/`bar` دارند، باید همچنان کار کنند — فقط نباید limited به آن ۳ تا باشی.
+- **نمایش نام‌های قدیمی**: routeهایی که کلید legacy دارند (`invoice`/`kitchen`/`bar`) را در UI فرانت با همان برچسب‌های فارسیِ قبلی نمایش بده (`invoice`→صندوق، `kitchen`→آشپزخانه، `bar`→بار)، نه با کلید انگلیسی — کاربرانی که اپ را آپدیت کرده‌اند، باید ایستگاه‌های خودشان را با همان نام‌های آشنای قبلی ببینند.
 
 ### ۳.۳. QZ Tray — خط قرمز: خرابش نکن
 
