@@ -1,5 +1,9 @@
 pub mod storage;
-use crate::{ error::{ AgentError, Result }, printers::Printer, protocol::valid_id };
+use crate::{
+    error::{ AgentError, Result },
+    printers::Printer,
+    protocol::{ text_ok, valid_id },
+};
 use serde::{ Serialize, Deserialize };
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -73,15 +77,15 @@ impl Config {
         if
             self.port < 1024 ||
             !(1..=5).contains(&self.max_attempts) ||
-            self.printers.len() > 16 ||
-            self.routes.len() > 16 ||
-            self.raw_passthrough.printers.len() > 16 ||
             !(1024..=crate::protocol::MAX_ESCPOS).contains(&self.raw_passthrough.max_bytes)
         {
             return Err(
-                AgentError::new("INVALID_CONFIG", "Port, attempts or printer count out of range")
+                AgentError::new("INVALID_CONFIG", "Port, attempts or raw byte limit out of range")
             );
         }
+        // No cap on the number of printers, print routes (stations) or per-printer raw
+        // settings: a cafe defines as many printers and stations as it needs, each with its
+        // own operator-chosen name.
         let mut ids = std::collections::HashSet::new();
         for p in &self.printers {
             p.validate()?;
@@ -101,7 +105,14 @@ impl Config {
         }
         let mut roles = std::collections::HashSet::new();
         for r in &self.routes {
-            if !valid_id(&r.role) || !roles.insert(&r.role) || !ids.contains(&r.printer_id) {
+            // A route role is the operator-facing station label (e.g. "صندوق", "آشپزخانه"),
+            // so it accepts free text like a printer name — unique and non-empty only.
+            if
+                r.role.trim().is_empty() ||
+                !text_ok(&r.role, 128) ||
+                !roles.insert(&r.role) ||
+                !ids.contains(&r.printer_id)
+            {
                 return Err(AgentError::new("INVALID_CONFIG", "Invalid printer route"));
             }
         }
@@ -122,6 +133,78 @@ mod tests {
         assert!(c.validate().is_err());
         c.raw_passthrough.max_bytes = crate::protocol::MAX_ESCPOS + 1;
         assert!(c.validate().is_err());
+    }
+
+    fn network_printer(id: &str, name: &str) -> Printer {
+        Printer {
+            id: id.into(),
+            name: name.into(),
+            connection: crate::printers::Connection::Network {
+                host: "192.168.1.50".into(),
+                port: 9100,
+            },
+            paper_mm: 80,
+            width_dots: 576,
+            copies: 1,
+            cut: true,
+            font_family: "Noto Sans Arabic".into(),
+            font_size: 24,
+            raw_passthrough: false,
+            force_raw: false,
+            usb_fallback_target: None,
+        }
+    }
+
+    /// A cafe defines as many printers and stations as it needs; there is no count cap, and
+    /// station labels are free text (Persian names such as "صندوق" included).
+    #[test]
+    fn unlimited_printers_and_custom_station_routes_validate() {
+        let mut c = Config::default();
+        for index in 0..64 {
+            c.printers.push(network_printer(
+                &format!("printer:{index}"),
+                &format!("پرینتر {index}"),
+            ));
+        }
+        for (index, station) in
+            ["صندوق", "آشپزخانه", "بار", "takeaway", "kiosk", "VIP"].iter().enumerate()
+        {
+            c.routes.push(Route {
+                role: station.to_string(),
+                printer_id: c.printers[index].id.clone(),
+                auto_print: true,
+            });
+        }
+        for printer in &c.printers {
+            c.raw_passthrough.printers.insert(printer.id.clone(), RawPrinterSettings::default());
+        }
+        assert!(c.validate().is_ok(), "no printer/route/raw-settings count cap");
+
+        // Duplicate station labels stay ambiguous and are rejected.
+        c.routes.push(Route {
+            role: "صندوق".into(),
+            printer_id: c.printers[63].id.clone(),
+            auto_print: false,
+        });
+        assert!(c.validate().is_err(), "duplicate station labels must be rejected");
+        c.routes.pop();
+
+        // A station pointing at an unknown printer is still rejected.
+        c.routes.push(Route {
+            role: "انبار".into(),
+            printer_id: "printer:missing".into(),
+            auto_print: false,
+        });
+        assert!(c.validate().is_err(), "routes must reference a configured printer");
+        c.routes.pop();
+
+        // Blank station labels are still rejected.
+        c.routes.push(Route {
+            role: "   ".into(),
+            printer_id: c.printers[0].id.clone(),
+            auto_print: false,
+        });
+        assert!(c.validate().is_err(), "blank station labels must be rejected");
     }
 
     #[test]

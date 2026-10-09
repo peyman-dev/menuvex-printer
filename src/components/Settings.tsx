@@ -28,6 +28,9 @@ export function Settings({
   const [inspections, setInspections] = useState<Record<string, QueueInspection>>({});
   const [loadingQueues, setLoadingQueues] = useState(false);
   const [queueError, setQueueError] = useState('');
+  /** Draft of a new custom print station (free-text label + target printer). */
+  const [station, setStation] = useState('');
+  const [stationPrinter, setStationPrinter] = useState('');
 
   useEffect(() => setDraft(config), [config]);
   useEffect(() => {
@@ -111,6 +114,12 @@ export function Settings({
         },
       };
     });
+
+  /** Station labels must be unique and non-blank; the agent rejects anything else. */
+  const stationLabels = draft.routes.map((route) => route.role.trim());
+  const stationError =
+    stationLabels.some((label) => !label) ||
+    stationLabels.length !== new Set(stationLabels).size;
 
   const loadInstalledQueues = async () => {
     setLoadingQueues(true);
@@ -199,27 +208,92 @@ export function Settings({
           پس از تغییر پورت از منوی tray، Restart Agent را انتخاب و پورت SDK را هم تغییر دهید.
         </p>
         <h3>مسیرهای چاپ</h3>
-        {['invoice', 'kitchen', 'bar'].map((role) => {
-          const route = draft.routes.find((r) => r.role === role);
-          return (
-            <div className="route" key={role}>
-              <label>
-                {{ invoice: 'صندوق', kitchen: 'آشپزخانه', bar: 'بار' }[role]}
-                <select
-                  value={route?.printerId ?? ''}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      routes: [
-                        ...draft.routes.filter((r) => r.role !== role),
-                        ...(e.target.value
-                          ? [{ role, printerId: e.target.value, autoPrint: route?.autoPrint ?? false }]
-                          : []),
-                      ],
-                    })
+        <p className="muted">
+          هر چند پرینتر و ایستگاه که دارید تعریف کنید؛ نام ایستگاه را خودتان می‌نویسید (مثلاً صندوق،
+          آشپزخانه، بار یا هر نام دیگری). هیچ محدودیتی در تعداد پرینتر یا ایستگاه وجود ندارد.
+        </p>
+        {draft.printers.length === 0 ? (
+          <p className="muted">ابتدا حداقل یک پرینتر در صفحهٔ پرینترها اضافه کنید.</p>
+        ) : (
+          <>
+            {draft.routes.map((route, index) => (
+              <div className="route" key={index}>
+                <label>
+                  نام ایستگاه
+                  <input
+                    required
+                    maxLength={128}
+                    value={route.role}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        routes: draft.routes.map((item, i) =>
+                          i === index ? { ...item, role: e.target.value } : item,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  پرینتر
+                  <select
+                    value={route.printerId}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        routes: draft.routes.map((item, i) =>
+                          i === index ? { ...item, printerId: e.target.value } : item,
+                        ),
+                      })
+                    }
+                  >
+                    {draft.printers.map((printer) => (
+                      <option value={printer.id} key={printer.id}>
+                        {printer.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={route.autoPrint}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        routes: draft.routes.map((item, i) =>
+                          i === index ? { ...item, autoPrint: e.target.checked } : item,
+                        ),
+                      })
+                    }
+                  />
+                  چاپ خودکار در PWA
+                </label>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() =>
+                    setDraft({ ...draft, routes: draft.routes.filter((_, i) => i !== index) })
                   }
                 >
-                  <option value="">انتخاب نشده</option>
+                  حذف ایستگاه
+                </button>
+              </div>
+            ))}
+            <div className="route">
+              <label>
+                ایستگاه جدید
+                <input
+                  maxLength={128}
+                  placeholder="مثلاً: صندوق"
+                  value={station}
+                  onChange={(e) => setStation(e.target.value)}
+                />
+              </label>
+              <label>
+                پرینتر
+                <select value={stationPrinter} onChange={(e) => setStationPrinter(e.target.value)}>
+                  <option value="">انتخاب پرینتر</option>
                   {draft.printers.map((printer) => (
                     <option value={printer.id} key={printer.id}>
                       {printer.name}
@@ -227,25 +301,48 @@ export function Settings({
                   ))}
                 </select>
               </label>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  disabled={!route}
-                  checked={route?.autoPrint ?? false}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      routes: draft.routes.map((item) =>
-                        item.role === role ? { ...item, autoPrint: e.target.checked } : item,
-                      ),
-                    })
-                  }
-                />
-                چاپ خودکار در PWA
-              </label>
+              <button
+                type="button"
+                disabled={
+                  !station.trim() ||
+                  !stationPrinter ||
+                  draft.routes.some((item) => item.role.trim() === station.trim())
+                }
+                onClick={() => {
+                  setDraft({
+                    ...draft,
+                    routes: [
+                      ...draft.routes,
+                      { role: station.trim(), printerId: stationPrinter, autoPrint: false },
+                    ],
+                  });
+                  setStation('');
+                  setStationPrinter('');
+                }}
+              >
+                افزودن ایستگاه
+              </button>
             </div>
-          );
-        })}
+            <div className="actions">
+              {['صندوق', 'آشپزخانه', 'بار'].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  className="secondary"
+                  disabled={draft.routes.some((item) => item.role.trim() === suggestion)}
+                  onClick={() => setStation(suggestion)}
+                >
+                  + {suggestion}
+                </button>
+              ))}
+            </div>
+            {stationError && (
+              <p className="error-text" role="alert">
+                نام ایستگاه‌ها باید یکتا و غیرخالی باشد.
+              </p>
+            )}
+          </>
+        )}
 
         <div className="raw-settings">
           <div className="section-heading">
@@ -461,7 +558,7 @@ export function Settings({
           </p>
         </div>
 
-        <button disabled={disabled}>ذخیره تنظیمات</button>
+        <button disabled={disabled || stationError}>ذخیره تنظیمات</button>
       </form>
       <div className="panel">
         <h3>اتصال امن به MenuVex</h3>

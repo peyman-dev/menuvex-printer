@@ -21,6 +21,7 @@ import {
   errorSchema,
   escposDocument,
   printerSchema,
+  routeSchema,
   usbFallbackTargetSchema,
   type Printer,
   type PrintRequest,
@@ -279,6 +280,22 @@ describe('printer connection schema', () => {
         alternate: 0,
       }),
     ).toThrow(/USB fallback must be a spooler queue or network printer/);
+  });
+
+  it('accepts free-text station labels as route roles, including Persian', () => {
+    // Station labels are operator-facing names ("صندوق", "آشپزخانه", …), not technical IDs.
+    expect(routeSchema.parse({ role: 'صندوق', printerId: 'printer:1', autoPrint: true })).toEqual({
+      role: 'صندوق',
+      printerId: 'printer:1',
+      autoPrint: true,
+    });
+    expect(routeSchema.parse({ role: 'kitchen-2', printerId: 'printer:2', autoPrint: false }))
+      .toMatchObject({ role: 'kitchen-2' });
+    expect(() => routeSchema.parse({ role: '', printerId: 'printer:1', autoPrint: false })).toThrow();
+    // Printer IDs stay strict technical IDs.
+    expect(() =>
+      routeSchema.parse({ role: 'صندوق', printerId: 'پرینتر ۱', autoPrint: false }),
+    ).toThrow();
   });
 });
 
