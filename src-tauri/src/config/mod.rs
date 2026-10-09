@@ -207,6 +207,28 @@ mod tests {
         assert!(c.validate().is_err(), "blank station labels must be rejected");
     }
 
+    /// Configs saved by older app versions (ASCII station keys such as invoice/kitchen/bar,
+    /// Persian printer names) must keep validating after an update: the stored format did not
+    /// change — only the count caps were removed and the role charset widened. Users who have
+    /// not updated the desktop app yet are unaffected, and updaters keep every profile.
+    #[test]
+    fn legacy_config_with_ascii_station_keys_and_persian_names_validates() {
+        let mut c = Config::default();
+        c.printers.push(network_printer("printer:1", "صندوق"));
+        c.printers.push(network_printer("printer:2", "آشپزخانه"));
+        c.printers.push(network_printer("printer:3", "بار"));
+        for (role, printer_id) in
+            [("invoice", "printer:1"), ("kitchen", "printer:2"), ("bar", "printer:3")]
+        {
+            c.routes.push(Route {
+                role: role.into(),
+                printer_id: printer_id.into(),
+                auto_print: true,
+            });
+        }
+        assert!(c.validate().is_ok(), "legacy configs must keep validating");
+    }
+
     #[test]
     fn older_config_deserializes_with_safe_raw_defaults() {
         let old = serde_json::json!({
