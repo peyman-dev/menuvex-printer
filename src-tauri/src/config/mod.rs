@@ -39,8 +39,11 @@ pub struct RawPassthroughConfig {
 }
 impl Default for RawPassthroughConfig {
     fn default() -> Self {
+        // Zero-touch default chosen by the operator: raw ESC/POS documents (the website's
+        // own receipt design) print automatically. Websites still cannot change any of
+        // these settings; the local operator can turn the gate off globally or per printer.
         Self {
-            enabled: false,
+            enabled: true,
             max_bytes: default_raw_passthrough_max_bytes(),
             printers: std::collections::HashMap::new(),
         }
@@ -230,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    fn older_config_deserializes_with_safe_raw_defaults() {
+    fn older_config_deserializes_with_raw_defaults() {
         let old = serde_json::json!({
             "port": 8765,
             "maxAttempts": 3,
@@ -239,10 +242,13 @@ mod tests {
             "routes": []
         });
         let config: Config = serde_json::from_value(old).unwrap();
-        assert!(!config.raw_passthrough.enabled);
+        // Zero-touch default: the global raw gate is ON for fresh/missing configs. The
+        // per-printer gates keep their stored values (Printer.raw_passthrough defaults to
+        // false), so nothing is enabled silently for existing printers.
+        assert!(config.raw_passthrough.enabled);
         assert_eq!(config.raw_passthrough.max_bytes, crate::protocol::MAX_ESCPOS);
         let encoded = serde_json::to_value(&config).unwrap();
-        assert_eq!(encoded["raw_passthrough"]["enabled"], false);
+        assert_eq!(encoded["raw_passthrough"]["enabled"], true);
         assert!(encoded.get("rawPassthroughEnabled").is_none());
         config.validate().unwrap();
     }

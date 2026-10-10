@@ -9,7 +9,7 @@ const emptyConfig: Config = {
   port: 8765,
   maxAttempts: 3,
   autostart: true,
-  raw_passthrough: { enabled: false, max_bytes: 1_048_576, printers: {} },
+  raw_passthrough: { enabled: true, max_bytes: 1_048_576, printers: {} },
   printers: [],
   routes: [],
 };

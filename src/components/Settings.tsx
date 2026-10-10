@@ -12,7 +12,9 @@ const LEGACY_STATION_LABELS: Record<string, string> = {
 };
 const DEFAULT_RAW_PRINTER_SETTINGS: RawPrinterSettings = {
   raw_target: null,
-  force_raw: false,
+  // Zero-touch default (matches the agent): raw ESC/POS jobs use the RAW spooler datatype
+  // unless the operator explicitly turns force_raw off for a printer.
+  force_raw: true,
   created_generic: false,
 };
 
@@ -127,6 +129,37 @@ export function Settings({
   const stationError =
     stationLabels.some((label) => !label) ||
     stationLabels.length !== new Set(stationLabels).size;
+
+  /** One-click zero-touch setup: RAW passthrough + auto-print for every printer.
+   * Turns the global RAW gate on, enables raw ESC/POS per printer (with force_raw), and
+   * makes sure every printer has a station (named after it) with auto-print ON. */
+  const enableAutomaticPrinting = () =>
+    setDraft((current) => {
+      const usedRoles = new Set(current.routes.map((route) => route.role.trim()));
+      const routes = current.routes.map((route) => ({ ...route, autoPrint: true }));
+      for (const printer of current.printers) {
+        if (routes.some((route) => route.printerId === printer.id)) continue;
+        const base = printer.name.trim() || printer.id;
+        let role = base;
+        let suffix = 2;
+        while (usedRoles.has(role)) role = `${base} ${suffix++}`;
+        usedRoles.add(role);
+        routes.push({ role, printerId: printer.id, autoPrint: true });
+      }
+      const rawPrinters = { ...current.raw_passthrough.printers };
+      for (const printer of current.printers) {
+        rawPrinters[printer.id] = {
+          ...(rawPrinters[printer.id] ?? DEFAULT_RAW_PRINTER_SETTINGS),
+          force_raw: true,
+        };
+      }
+      return {
+        ...current,
+        raw_passthrough: { ...current.raw_passthrough, enabled: true, printers: rawPrinters },
+        printers: current.printers.map((printer) => ({ ...printer, rawPassthrough: true })),
+        routes,
+      };
+    });
 
   const loadInstalledQueues = async () => {
     setLoadingQueues(true);
@@ -326,7 +359,8 @@ export function Settings({
                     ...draft,
                     routes: [
                       ...draft.routes,
-                      { role: station.trim(), printerId: stationPrinter, autoPrint: false },
+                      // Zero-touch default: new stations auto-print invoices.
+                      { role: station.trim(), printerId: stationPrinter, autoPrint: true },
                     ],
                   });
                   setStation('');
@@ -354,6 +388,17 @@ export function Settings({
                 نام ایستگاه‌ها باید یکتا و غیرخالی باشد.
               </p>
             )}
+            <div className="actions">
+              <button type="button" className="secondary" onClick={enableAutomaticPrinting}>
+                فعال‌سازی خودکارِ کامل — RAW + چاپ خودکار برای همهٔ پرینترها
+              </button>
+            </div>
+            <p className="muted">
+              با یک کلیک: گیتِ کلیِ RAW روشن می‌شود، RAW برای همهٔ پرینترها فعال می‌شود
+              (force_raw)، و برای هر پرینتر یک مسیر (ایستگاه) با نام خودش و «چاپ خودکار» ساخته
+              می‌شود. فاکتورهایی که با دیزاینِ خودشان (ESC/POSِ خام) می‌آیند، خودکار و RAW چاپ
+              می‌شوند. تغییرات با «ذخیرهٔ تنظیمات» اعمال می‌شوند.
+            </p>
           </>
         )}
 
