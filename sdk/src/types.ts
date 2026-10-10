@@ -159,7 +159,14 @@ export const printRequestSchema = z.strictObject({
   printerId: id,
   document: documentSchema,
 });
-export const routeSchema = z.object({ role: id, printerId: id, autoPrint: z.boolean() });
+/** A print route maps an operator-defined station label (free text, e.g. "صندوق" or "آشپزخانه")
+ * to a configured printer. Station labels are not technical IDs, so they accept any readable
+ * text; printer IDs stay strict. */
+export const routeSchema = z.object({
+  role: text(128).min(1),
+  printerId: id,
+  autoPrint: z.boolean(),
+});
 export const statusSchema = z.object({
   ready: z.boolean(),
   agentVersion: z.string(),

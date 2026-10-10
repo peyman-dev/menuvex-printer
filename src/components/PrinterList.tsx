@@ -29,7 +29,8 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
     cut: true,
     fontFamily: 'Noto Sans Arabic',
     fontSize: 24,
-    rawPassthrough: false,
+    // Zero-touch default: a new printer accepts the website's raw ESC/POS receipts.
+    rawPassthrough: true,
     usbFallbackTarget: null,
   });
   const update = <K extends keyof PrinterConfig>(key: K, value: PrinterConfig[K]) =>
@@ -280,10 +281,11 @@ export function PrinterList({ printers, config, disabled, run, save }: Props) {
               </button>
             </div>
             <label>
-              نام پرینتر
+              نام پرینتر (نام ایستگاه — مثلاً صندوق، آشپزخانه، بار)
               <input
                 required
                 maxLength={128}
+                placeholder="مثلاً: صندوق"
                 value={edit.name}
                 onChange={(e) => update('name', e.target.value)}
               />
