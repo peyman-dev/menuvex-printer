@@ -132,6 +132,16 @@ std::wstring fa(long long value) {
     return s;
 }
 std::wstring fa2(int value) { return value < 10 ? fa(0) + fa(value) : fa(value); }
+// A Persian keyboard types ۰–۹ (and Arabic layouts ٠–٩) on the number row: accept them in
+// numeric/IP fields instead of rejecting the key press.
+std::wstring ascii_digits(std::wstring s) {
+    for (auto &c : s)
+        if (c >= 0x06F0 && c <= 0x06F9)
+            c = static_cast<wchar_t>(L'0' + (c - 0x06F0));
+        else if (c >= 0x0660 && c <= 0x0669)
+            c = static_cast<wchar_t>(L'0' + (c - 0x0660));
+    return s;
+}
 bool same_text(const std::string &a, const std::string &b) {
     return a.size() == b.size() &&
            std::equal(a.begin(), a.end(), b.begin(), [](unsigned char x, unsigned char y) {
@@ -191,8 +201,10 @@ std::wstring explain(const std::string &code, const std::string &message = {}) {
         return L"دو پرینتر USB یکسان وصل است و از هم تشخیص داده نمی‌شوند. پرینتر را در «ویرایش» "
                L"دوباره انتخاب کنید.";
     if (code == "USB_BUSY")
-        return L"پرینتر USB در اختیار برنامهٔ دیگری است. برنامهٔ چاپ دیگر را ببندید و دوباره "
-               L"امتحان کنید.";
+        return L"پرینتر USB باز نشد: برنامهٔ دیگری (مثلاً ابزار سازنده یا نرم‌افزار صندوق دیگر) از "
+               L"آن استفاده می‌کند یا ویندوز اجازهٔ دسترسی نداد. آن برنامه را ببندید و دوباره "
+               L"امتحان کنید؛ اگر درست نشد، درایور پرینتر را نصب و نوع اتصال «صف چاپ ویندوز» را "
+               L"انتخاب کنید.";
     if (code == "USB_DISCOVERY_FAILED" || code == "USB_DEVICE_ERROR")
         return L"ویندوز نتوانست پرینترهای USB را بخواند. کابل را جدا و دوباره وصل کنید.";
     if (code == "QUEUE_FULL")
@@ -428,7 +440,7 @@ struct App {
     void choose(int id, int index) { SendMessageW(ctl(id), CB_SETCURSEL, index, 0); }
     int cursel(int id) const { return static_cast<int>(SendMessageW(ctl(id), LB_GETCURSEL, 0, 0)); }
     int integer(int id) const {
-        auto s = text(id);
+        auto s = ascii_digits(text(id));
         if (s.empty() || s.find_first_not_of(L"0123456789") != std::wstring::npos || s.size() > 5)
             throw Error("INVALID_CONFIG", "Enter a valid integer");
         return std::stoi(s);
@@ -1184,7 +1196,7 @@ struct App {
             return usb_options[static_cast<std::size_t>(i)];
         }
         case 1: {
-            auto host = utf8(text(Host));
+            auto host = utf8(ascii_digits(text(Host)));
             host.erase(std::remove(host.begin(), host.end(), ' '), host.end());
             if (host.empty())
                 throw Error("INVALID_CONFIG", "Enter the printer IP");
@@ -2199,7 +2211,7 @@ void create_ui(HWND w) {
     button(w, Edit, Kind::Secondary, L"جستجوی دوباره", RefreshPick, ControlRight - 540, 151, 130,
            30, ink::card);
     edit(w, Edit, Host, ControlRight - 170, 152, 170);
-    edit(w, Edit, NetPort, ControlRight - 320, 152, 80, false, ES_NUMBER);
+    edit(w, Edit, NetPort, ControlRight - 320, 152, 80);
     button(w, Edit, Kind::Secondary, L"بررسی اتصال", CheckEdit, ControlRight - 462, 151, 130, 30,
            ink::card);
     edit(w, Edit, Name, ControlRight - 240, 262, 240, true);
@@ -2221,8 +2233,8 @@ void create_ui(HWND w) {
     combo(w, Edit, Copies, ControlRight - 424, 340, 70, {L"۱", L"۲", L"۳"});
     SetWindowLongW(GetDlgItem(w, Copies), GWL_STYLE,
                    GetWindowLongW(GetDlgItem(w, Copies), GWL_STYLE) | WS_GROUP);
-    edit(w, Edit, Dots, ControlRight - 80, 380, 80, false, ES_NUMBER);
-    edit(w, Edit, Font, ControlRight - 254, 380, 60, false, ES_NUMBER);
+    edit(w, Edit, Dots, ControlRight - 80, 380, 80);
+    edit(w, Edit, Font, ControlRight - 254, 380, 60);
     button(w, Edit, Kind::Primary, L"ذخیره", SaveEdit, Right - 130, 462, 130);
     button(w, Edit, Kind::Secondary, L"ذخیره و چاپ آزمایشی", SaveTest, Right - 340, 462, 200);
     button(w, Edit, Kind::Subtle, L"انصراف", CancelEdit, Right - 450, 462, 100);
@@ -2242,8 +2254,8 @@ void create_ui(HWND w) {
            Right - 180, 544, 180);
     button(w, Queue, Kind::Danger, L"پاک کردن سابقه", ClearHistory, Right - 350, 544, 160);
     // Settings.
-    edit(w, Settings, Port, Right - 272, 116, 90, false, ES_NUMBER);
-    edit(w, Settings, Attempts, Right - 272, 156, 60, false, ES_NUMBER);
+    edit(w, Settings, Port, Right - 272, 116, 90);
+    edit(w, Settings, Attempts, Right - 272, 156, 60);
     checkbox(w, Settings, L"اجرای خودکار هنگام ورود به ویندوز (پیشنهادی)", AutoStart,
              LabelRight - 380, 198, 380);
     button(w, Settings, Kind::Primary, L"ذخیرهٔ تنظیمات", SaveSettings, Left + 20, 214, 160, 34,
@@ -2475,21 +2487,22 @@ LRESULT CALLBACK window_proc(HWND w, UINT message, WPARAM wp, LPARAM lp) {
             auto item = reinterpret_cast<DRAWITEMSTRUCT *>(lp);
             if (!app)
                 break;
-            if (item->CtlType == ODT_BUTTON) {
+            if (item->CtlType == ODT_LISTBOX && item->itemID == static_cast<UINT>(-1))
+                return TRUE;
+            if (item->CtlType != ODT_BUTTON && item->CtlType != ODT_LISTBOX)
+                break;
+            // The system owns this DC: leave its font/brush/pen exactly as we found them.
+            int saved = SaveDC(item->hDC);
+            if (item->CtlType == ODT_BUTTON)
                 app->draw_button(item);
-                return TRUE;
-            }
-            if (item->CtlType == ODT_LISTBOX) {
-                if (item->itemID == static_cast<UINT>(-1))
-                    return TRUE;
-                if (item->CtlID == PrinterList)
-                    app->draw_printer(item);
-                else if (item->CtlID == FoundList)
-                    app->draw_found(item);
-                else
-                    app->draw_job(item);
-                return TRUE;
-            }
+            else if (item->CtlID == PrinterList)
+                app->draw_printer(item);
+            else if (item->CtlID == FoundList)
+                app->draw_found(item);
+            else
+                app->draw_job(item);
+            RestoreDC(item->hDC, saved);
+            return TRUE;
             break;
         }
         case WM_CREATE:

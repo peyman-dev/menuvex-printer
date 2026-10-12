@@ -974,7 +974,9 @@ void probe_usb(const Json &profile) {
     if (device.h == INVALID_HANDLE_VALUE) {
         const DWORD error = GetLastError();
         if (error == ERROR_ACCESS_DENIED || error == ERROR_SHARING_VIOLATION || error == ERROR_BUSY)
-            throw Error("USB_BUSY", "The USB printer is in use by another program", true);
+            throw Error("USB_BUSY",
+                        "The USB printer is in use by another program or Windows denied access",
+                        true);
         throw Error("PRINTER_OFFLINE", "The USB printer is connected but not ready", true);
     }
 }
