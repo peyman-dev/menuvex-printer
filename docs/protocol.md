@@ -76,7 +76,7 @@ Error response:
 
 Malformed envelopes may not have a usable requestId; server sends an uncorrelated error and closes. SDK validates envelopes **and** method-specific response data, uses request deadlines and rejects pending promises on disconnect.
 
-`discover.network` performs a passive scan of the local subnet for hosts accepting a RAW TCP connection on port 9100 and returns candidates `[{host, port}]`; it never sends print data. A candidate is only confirmed by `printer.test`. This lets the web app list printers without the operator finding IPs through OS tools.
+`discover.network` performs a passive scan of the local subnet for hosts accepting a RAW TCP connection on port 9100 and returns candidates `[{host, port}]`; it never sends print data. The Legacy Windows agent scans the private subnet of every network adapter (no Internet access or default gateway is needed), bounded to the /24 around the PC. A candidate is only confirmed by `printer.test`. This lets the web app list printers without the operator finding IPs through OS tools.
 
 `printers.installed` lists the print queues already installed on the operating system (`EnumPrinters` on Windows, `lpstat -e` on CUPS platforms) as `[{queueName}]`, for configuring a `spooler` connection. Both agents answer it.
 
@@ -153,7 +153,7 @@ On reconnect SDK authenticates and refreshes both lists; existing subscriptions 
 
 The stored printer profile and transport remain truthful: spooler profiles use `connection: { "type": "spooler", "queueName": "installed OS queue name" }` internally. For `printers.list` and `printer.get`, both agents also publish the reserved USB-compatible wire descriptor `{ "type": "usb", "vendorId": 0, "productId": 0, "serial": "queue:<queue name>", "bus": 0, "ports": [], "interface": 0, "endpoint": 0, "alternate": 0 }`. This compatibility form is not a physical USB device; check the SDK's `spoolerQueueName(connection)` before treating a `usb` descriptor as USB. Never request WebUSB for a descriptor with that queue marker.
 
-`printer.save` accepts either the explicit `spooler` form or that exact reserved USB-shaped form and normalizes it back to a spooler profile before validation/persistence. VID/PID zero is reserved for this purpose; normal USB profiles continue to require nonzero IDs. `printers.installed` remains the authoritative queue picker. `completed` means the OS spooler accepted the document, not that paper came out. See `legacy-windows/README.md` for Legacy-specific limits.
+`printer.save` accepts either the explicit `spooler` form or that exact reserved USB-shaped form and normalizes it back to a spooler profile before validation/persistence. VID/PID zero is reserved for this purpose; normal USB profiles continue to require nonzero IDs. The Legacy Windows agent also accepts normal `usb` profiles and prints them directly through the in-box Windows "USB Printing Support" driver (no WinUSB, no vendor queue), locating the device by `vendorId`/`productId`, `serial` and the `ports` chain. `printers.installed` remains the authoritative queue picker. `completed` means the OS spooler accepted the document, not that paper came out. See `legacy-windows/README.md` for Legacy-specific limits.
 
 ## Connection types
 

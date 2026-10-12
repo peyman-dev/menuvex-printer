@@ -15,6 +15,8 @@ struct Server::Impl {
     std::atomic<bool> ready{false}, worker_ok{true};
     // Cached at start(): the UI thread must not query the acceptor while the network thread runs.
     std::atomic<unsigned short> bound_port{0};
+    std::atomic<int> authenticated{0};
+    std::atomic<std::int64_t> last_authenticated{0};
     bool stopping = false;
     struct Session {
         std::string origin, nonce;
@@ -23,6 +25,19 @@ struct Server::Impl {
         unsigned commands = 0;
     };
     std::map<Hdl, Session, std::owner_less<Hdl>> clients;
+    // Network thread only: publish the number of paired browsers and wake the window on change.
+    void recount() {
+        int count = 0;
+        for (const auto &entry : clients)
+            if (entry.second.auth)
+                ++count;
+        if (authenticated.exchange(count) != count && changed) {
+            try {
+                changed();
+            } catch (...) {
+            }
+        }
+    }
     // Request values come from an untrusted peer: keep them short, printable ASCII.
     static std::string printable(const std::string &value) {
         std::string out;
@@ -114,8 +129,14 @@ struct Server::Impl {
                 close(h);
             }
         });
-        ws.set_close_handler([this](Hdl h) { clients.erase(h); });
-        ws.set_fail_handler([this](Hdl h) { clients.erase(h); });
+        ws.set_close_handler([this](Hdl h) {
+            clients.erase(h);
+            recount();
+        });
+        ws.set_fail_handler([this](Hdl h) {
+            clients.erase(h);
+            recount();
+        });
         ws.set_pong_handler([this](Hdl h, const std::string &) {
             auto it = clients.find(h);
             if (it != clients.end())
@@ -270,6 +291,8 @@ struct Server::Impl {
                     throw Error("AUTH_FAILED", "Pair this browser using the local Agent settings");
                 s.auth = true;
                 s.nonce.clear();
+                last_authenticated = now();
+                recount();
                 send(h, {{"type", "authenticated"},
                          {"version", 1},
                          {"requestId", request["requestId"]},
@@ -376,9 +399,12 @@ void Server::revoke() {
             entry.second.auth = false;
             i->close(entry.first);
         }
+        i->recount();
     });
 }
 unsigned short Server::port() const { return impl_->bound_port; }
+int Server::authenticated() const { return impl_->authenticated; }
+std::int64_t Server::last_authenticated() const { return impl_->last_authenticated; }
 bool Server::ready() const { return impl_->ready; }
 void Server::worker_failed() {
     impl_->worker_ok = false;

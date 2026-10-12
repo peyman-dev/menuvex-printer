@@ -25,6 +25,11 @@ class Server {
     void revoke();
     bool ready() const;
     unsigned short port() const;
+    // Browser connections that completed the HMAC pairing handshake right now, and the time of
+    // the last successful pairing (0 = never since start). Lets the window say plainly whether
+    // the MenuVex website is connected.
+    int authenticated() const;
+    std::int64_t last_authenticated() const;
     void worker_failed();
 };
 } // namespace mv

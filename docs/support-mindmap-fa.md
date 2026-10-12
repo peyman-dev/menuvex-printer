@@ -23,22 +23,22 @@
 ## ۱) درخت تصمیم وقتی مشتری زنگ زد
 
 1. **سیستم‌عاملش چیست؟**
-   - **ویندوز ۷** → Agent قدیمی (Legacy). spooler یا network.
+   - **ویندوز ۷** → Agent قدیمی (Legacy). USB مستقیم (بدون درایور)، network یا spooler — صفحهٔ «افزودن پرینتر» هر سه را خودکار پیدا می‌کند.
    - **ویندوز ۱۰/۱۱** →
      - Legacy + spooler/network (بدون نیاز به WinUSB) — ساده‌ترین، یا
      - Modern + network/spooler، یا Modern + USB فقط در build دارای feature `libusb` و با درایور سازگار.
    - **لینوکس** → Modern + spooler/network به‌صورت پیش‌فرض؛ USB مستقیم فقط در build با `libusb` و مجوز udev.
    - **مک** → Modern + spooler/network به‌صورت پیش‌فرض؛ USB مستقیم فقط در build با `libusb` و دسترسی USB/Keychain.
 2. **پرینتر چطور وصل است؟**
-   - **USB** → ابتدا از صف چاپ نصب‌شده استفاده کنید تا درایور خود پرینتر حفظ شود. USB مستقیم libusb فقط در build اختیاری با feature `libusb` فعال است.
-   - **شبکه/IP** → Agent مدرن خودش subnet را اسکن می‌کند (`discover.network` → وب‌اپ `discoverNetwork()`)؛ IP را لازم نیست با cmd/PowerShell پیدا کنید. پرینتر پیدا‌شده را می‌توان مستقیم از وب‌اپ ذخیره کرد (`savePrinter`). IP خصوصی + پورت ۹۱۰۰.
+   - **USB** → روی Legacy: «USB مستقیم» با درایور داخلی ویندوز (خودکار پیدا می‌شود، نصب درایور لازم نیست). در غیر این صورت از صف چاپ نصب‌شده استفاده کنید تا درایور خود پرینتر حفظ شود. USB مستقیم libusb در Agent مدرن فقط در build اختیاری با feature `libusb` فعال است.
+   - **شبکه/IP** → هر دو Agent خودشان subnet را اسکن می‌کنند (در Legacy: صفحهٔ «افزودن پرینتر»؛ در وب‌اپ: `discover.network` → `discoverNetwork()`)؛ IP را لازم نیست با cmd/PowerShell پیدا کنید. پرینتر پیدا‌شده را می‌توان مستقیم از وب‌اپ ذخیره کرد (`savePrinter`). IP خصوصی + پورت ۹۱۰۰.
 3. **Agent نصب/اجرا نیست؟** اگر مرورگر capable بود و سیاست allowLegacy روشن بود → WebUSB fallback؛ وگرنه خطای AGENT_UNAVAILABLE.
 
 ## ۲) کارت سریع راه‌اندازی هر پلتفرم
 
 | پلتفرم       | ابزار            | نوع اتصال              | گام‌های کلیدی                                                                                    |
 | ------------ | ---------------- | ---------------------- | ------------------------------------------------------------------------------------------------ |
-| ویندوز ۷     | Legacy           | spooler یا network     | نصب درایور پرینتر → تست چاپ ویندوز → در Agent «صف ویندوز (RAW)» یا IP/پورت → ذخیره → چاپ آزمایشی |
+| ویندوز ۷     | Legacy           | USB مستقیم، network یا spooler | کابل USB/شبکه را وصل کنید → «افزودن پرینتر» (جستجوی خودکار) → انتخاب → نام/کاغذ/کاربرد → ذخیره و چاپ آزمایشی |
 | ویندوز ۱۰/۱۱ | Legacy یا Modern | spooler/network؛ USB اختیاری | همان الگوی ویندوز ۷؛ USB مستقیم فقط با feature `libusb` و درایور سازگار |
 | لینوکس       | Modern           | spooler/network؛ USB اختیاری | USB مستقیم فقط با `libusb`: مجوز udev → «جستجوی USB» → چاپ آزمایشی |
 | مک           | Modern           | spooler/network؛ USB اختیاری | USB مستقیم فقط با `libusb`: DMG → Applications → دسترسی USB/Keychain → جستجوی USB |

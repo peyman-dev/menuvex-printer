@@ -15,6 +15,10 @@
 #include <wincrypt.h>
 #include <winspool.h>
 #include <ws2tcpip.h>
+// After winspool/ws2tcpip: SetupAPI (USB printer discovery) and IP Helper (adapter list).
+#include <devpropdef.h>
+#include <iphlpapi.h>
+#include <setupapi.h>
 namespace mv {
 struct Handle {
     HANDLE h = nullptr;
@@ -669,9 +673,8 @@ void probe_network(const Json &profile) {
     SOCKET s = lan_connect(addr, port);
     closesocket(s);
 }
-// Passive LAN scan for RAW printers, mirroring the modern Agent's discover.network. Only ws2_32
-// APIs are used, so no newer OS import is introduced. A hit is a candidate until a test print
-// confirms it.
+// Passive LAN scan for RAW printers, mirroring the modern Agent's discover.network. Only a TCP
+// connect is attempted (nothing is sent) and a hit is a candidate until a test print confirms it.
 static bool probe_host(const IN_ADDR &addr, u_short port, long timeout_ms) {
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET)
@@ -688,13 +691,17 @@ static bool probe_host(const IN_ADDR &addr, u_short port, long timeout_ms) {
     } else {
         int err = WSAGetLastError();
         if (err == WSAEWOULDBLOCK || err == WSAEINPROGRESS) {
-            fd_set writable;
+            // Windows reports a refused/failed non-blocking connect in the except set; watching
+            // it lets a closed port answer immediately instead of waiting for the timeout.
+            fd_set writable, failed;
             FD_ZERO(&writable);
+            FD_ZERO(&failed);
             FD_SET(s, &writable);
+            FD_SET(s, &failed);
             timeval timeout;
             timeout.tv_sec = timeout_ms / 1000;
             timeout.tv_usec = (timeout_ms % 1000) * 1000;
-            if (select(0, nullptr, &writable, nullptr, &timeout) > 0) {
+            if (select(0, nullptr, &writable, &failed, &timeout) > 0 && FD_ISSET(s, &writable)) {
                 int so_error = 0;
                 int len = sizeof(so_error);
                 getsockopt(s, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&so_error), &len);
@@ -705,69 +712,271 @@ static bool probe_host(const IN_ADDR &addr, u_short port, long timeout_ms) {
     closesocket(s);
     return ok;
 }
-static IN_ADDR local_lan_ipv4() {
-    // A "connected" UDP socket sends no packets but makes the kernel pick the LAN source address.
-    SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (s != INVALID_SOCKET) {
-        sockaddr_in remote{};
-        remote.sin_family = AF_INET;
-        remote.sin_port = htons(80);
-        InetPtonA(AF_INET, "8.8.8.8", &remote.sin_addr);
-        if (connect(s, reinterpret_cast<sockaddr *>(&remote), sizeof(remote)) == 0) {
-            sockaddr_in local{};
-            int len = sizeof(local);
-            if (getsockname(s, reinterpret_cast<sockaddr *>(&local), &len) == 0) {
-                closesocket(s);
-                return local.sin_addr;
-            }
+std::vector<Ipv4Interface> local_interfaces() {
+    // GetAdaptersInfo (Windows 2000+) lists every adapter, so an offline cafe LAN without a
+    // default gateway or Internet access is still found (the old UDP-to-8.8.8.8 trick was not).
+    ULONG size = 0;
+    if (GetAdaptersInfo(nullptr, &size) != ERROR_BUFFER_OVERFLOW || size == 0 || size > (1u << 20))
+        return {};
+    std::vector<unsigned char> buffer(size);
+    auto *adapters = reinterpret_cast<IP_ADAPTER_INFO *>(buffer.data());
+    if (GetAdaptersInfo(adapters, &size) != NO_ERROR)
+        return {};
+    std::vector<Ipv4Interface> out;
+    for (auto *adapter = adapters; adapter && out.size() < 16; adapter = adapter->Next)
+        for (auto *ip = &adapter->IpAddressList; ip && out.size() < 16; ip = ip->Next) {
+            std::uint32_t address = 0, mask = 0;
+            if (parse_ipv4(ip->IpAddress.String, address) && parse_ipv4(ip->IpMask.String, mask) &&
+                private_lan_host(address))
+                out.push_back({address, mask});
         }
-        closesocket(s);
-    }
-    IN_ADDR fallback{};
-    InetPtonA(AF_INET, "192.168.1.0", &fallback);
-    return fallback;
+    return out;
 }
-Json discover_network() {
+std::vector<std::uint32_t> probe_raw_printers(const std::vector<std::uint32_t> &targets,
+                                              std::uint16_t port, const std::atomic<bool> *cancel) {
     ensure_winsock();
-    const u_short port = 9100;
-    const IN_ADDR base = local_lan_ipv4();
-    std::vector<IN_ADDR> hosts;
-    for (int last = 1; last <= 254; ++last) {
-        IN_ADDR candidate = base;
-        auto *o = reinterpret_cast<unsigned char *>(&candidate);
-        o[3] = static_cast<unsigned char>(last);
-        bool private_range = o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) ||
-                             (o[0] == 192 && o[1] == 168);
-        if (private_range && o[3] != 0 && o[3] != 255)
-            hosts.push_back(candidate);
-    }
-    std::atomic<int> next(0);
+    std::atomic<std::size_t> next(0);
     std::mutex guard;
-    Json found = Json::array();
+    std::vector<std::uint32_t> found;
     auto worker = [&]() {
         for (;;) {
-            int index = next.fetch_add(1);
-            if (index >= static_cast<int>(hosts.size()))
+            if (cancel && cancel->load())
                 break;
-            const IN_ADDR hit = hosts[static_cast<std::size_t>(index)];
-            if (probe_host(hit, port, 400)) {
-                char text[INET_ADDRSTRLEN] = {0};
-                InetNtopA(AF_INET, &hit, text, sizeof(text));
-                Json entry;
-                entry["host"] = std::string(text);
-                entry["port"] = static_cast<int>(port);
+            const std::size_t index = next.fetch_add(1);
+            if (index >= targets.size())
+                break;
+            // Defence in depth: never contact anything the print transport would refuse.
+            if (!private_lan_host(targets[index]))
+                continue;
+            IN_ADDR hit{};
+            hit.s_addr = htonl(targets[index]);
+            if (probe_host(hit, port, 450)) {
                 std::lock_guard<std::mutex> lock(guard);
-                found.push_back(entry);
+                found.push_back(targets[index]);
             }
         }
     };
-    unsigned workers = std::min<unsigned>(32, static_cast<unsigned>(hosts.size()));
+    const std::size_t workers = std::min<std::size_t>(48, targets.size());
     std::vector<std::thread> pool;
-    for (unsigned i = 0; i < workers; ++i)
-        pool.emplace_back(worker);
+    for (std::size_t i = 0; i < workers; ++i) {
+        try {
+            pool.emplace_back(worker);
+        } catch (...) {
+            break; // fewer threads only make the scan slower
+        }
+    }
+    if (pool.empty())
+        worker();
     for (auto &t : pool)
         t.join();
+    std::sort(found.begin(), found.end());
     return found;
+}
+Json discover_network() {
+    auto interfaces = local_interfaces();
+    std::vector<std::uint32_t> targets;
+    if (!interfaces.empty()) {
+        targets = scan_targets(interfaces, {});
+    } else {
+        // No private adapter found: fall back to the most common home/cafe router subnets.
+        for (std::uint32_t base : {0xC0A80100u, 0xC0A80000u})
+            for (std::uint32_t host = 1; host < 255; ++host)
+                targets.push_back(base | host);
+    }
+    Json found = Json::array();
+    for (auto address : probe_raw_printers(targets, 9100))
+        found.push_back({{"host", format_ipv4(address)}, {"port", 9100}});
+    return found;
+}
+// ---- Installed Windows queues and USB printers ----
+std::vector<QueueInfo> installed_queues() {
+    std::vector<QueueInfo> out;
+    DWORD needed = 0, count = 0;
+    EnumPrintersW(PRINTER_ENUM_LOCAL, nullptr, 2, nullptr, 0, &needed, &count);
+    if (needed == 0) {
+        if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+            throw Error("SPOOLER_UNAVAILABLE", "Windows printer enumeration failed", true);
+    } else {
+        if (needed > 8 * 1024 * 1024)
+            throw Error("SPOOLER_UNAVAILABLE", "Printer list is too large");
+        std::vector<BYTE> b(needed);
+        if (!EnumPrintersW(PRINTER_ENUM_LOCAL, nullptr, 2, b.data(), needed, &needed, &count))
+            throw Error("SPOOLER_UNAVAILABLE", "Cannot list Windows printers", true);
+        auto *p = reinterpret_cast<PRINTER_INFO_2W *>(b.data());
+        for (DWORD i = 0; i < count && out.size() < 128; ++i) {
+            if (!p[i].pPrinterName)
+                continue;
+            QueueInfo q;
+            q.name = utf8(p[i].pPrinterName);
+            q.port = p[i].pPortName ? utf8(p[i].pPortName) : std::string();
+            q.driver = p[i].pDriverName ? utf8(p[i].pDriverName) : std::string();
+            q.offline = (p[i].Attributes & PRINTER_ATTRIBUTE_WORK_OFFLINE) != 0 ||
+                        (p[i].Status & PRINTER_STATUS_OFFLINE) != 0;
+            q.kind = queue_kind(q.name, q.port, q.driver);
+            q.ipv4 = port_ipv4(q.port);
+            out.push_back(q);
+        }
+    }
+    // Connections to shared printers: level 4 reads the local registry only.
+    needed = count = 0;
+    EnumPrintersW(PRINTER_ENUM_CONNECTIONS, nullptr, 4, nullptr, 0, &needed, &count);
+    if (needed > 0 && needed <= 4 * 1024 * 1024) {
+        std::vector<BYTE> b(needed);
+        if (EnumPrintersW(PRINTER_ENUM_CONNECTIONS, nullptr, 4, b.data(), needed, &needed,
+                          &count)) {
+            auto *p = reinterpret_cast<PRINTER_INFO_4W *>(b.data());
+            for (DWORD i = 0; i < count && out.size() < 128; ++i)
+                if (p[i].pPrinterName) {
+                    QueueInfo q;
+                    q.name = utf8(p[i].pPrinterName);
+                    q.kind = "shared";
+                    out.push_back(q);
+                }
+        }
+    }
+    return out;
+}
+// GUID_DEVINTERFACE_USBPRINT (usbprint.h, WDK): registered by the in-box usbprint.sys for every
+// USB Printer Class (0x07) device — no vendor driver or Windows print queue is required.
+static const GUID usbprint_interface = {
+    0x28d78fad, 0x5a12, 0x11d1, {0xae, 0x5b, 0x00, 0x00, 0xf8, 0x03, 0xa8, 0xc2}};
+const GUID &usb_printer_interface() { return usbprint_interface; }
+#ifndef SPDRP_LOCATION_PATHS
+#define SPDRP_LOCATION_PATHS 0x00000023
+#endif
+static std::string clean_text(const wchar_t *text) {
+    std::string out;
+    try {
+        out = utf8(text);
+    } catch (...) {
+        return {};
+    }
+    std::string printable;
+    for (unsigned char c : out)
+        if (c >= 0x20 && c != 0x7f)
+            printable.push_back(static_cast<char>(c));
+    while (!printable.empty() && printable.back() == ' ')
+        printable.pop_back();
+    return printable.size() > 120 ? printable.substr(0, 120) : printable;
+}
+static std::string device_name(HDEVINFO info, SP_DEVINFO_DATA &device) {
+    wchar_t buffer[256] = {};
+    // DEVPKEY_Device_BusReportedDeviceDesc (Windows 7+): the product string the printer itself
+    // reports, e.g. "Printer POS-80"; the class description is only "USB Printing Support".
+    static const DEVPROPKEY bus_reported = {
+        {0x540b947e, 0x8b40, 0x45bc, {0xa8, 0xa2, 0x6a, 0x0b, 0x89, 0x4c, 0xbd, 0xa2}}, 4};
+    DEVPROPTYPE type = 0;
+    if (SetupDiGetDevicePropertyW(info, &device, &bus_reported, &type,
+                                  reinterpret_cast<PBYTE>(buffer),
+                                  sizeof(buffer) - sizeof(wchar_t), nullptr, 0) &&
+        type == DEVPROP_TYPE_STRING && buffer[0]) {
+        auto name = clean_text(buffer);
+        if (!name.empty())
+            return name;
+    }
+    DWORD reg_type = 0;
+    std::fill(std::begin(buffer), std::end(buffer), L'\0');
+    if (SetupDiGetDeviceRegistryPropertyW(info, &device, SPDRP_FRIENDLYNAME, &reg_type,
+                                          reinterpret_cast<PBYTE>(buffer),
+                                          sizeof(buffer) - sizeof(wchar_t), nullptr) &&
+        reg_type == REG_SZ && buffer[0])
+        return clean_text(buffer);
+    return {};
+}
+static std::string location_path(HDEVINFO info, SP_DEVINFO_DATA &device) {
+    wchar_t buffer[512] = {};
+    DWORD type = 0;
+    if (SetupDiGetDeviceRegistryPropertyW(info, &device, SPDRP_LOCATION_PATHS, &type,
+                                          reinterpret_cast<PBYTE>(buffer),
+                                          sizeof(buffer) - 2 * sizeof(wchar_t), nullptr) &&
+        type == REG_MULTI_SZ)
+        return clean_text(buffer); // the first (PCIROOT-based) path
+    return {};
+}
+static std::string monitor_port(HDEVINFO info, SP_DEVICE_INTERFACE_DATA &iface) {
+    // usbprint.sys stores the Windows USB monitor port number (USB001, ...) under the interface.
+    HKEY key = SetupDiOpenDeviceInterfaceRegKey(info, &iface, 0, KEY_READ);
+    if (key == INVALID_HANDLE_VALUE)
+        return {};
+    std::string out;
+    DWORD number = 0, size = sizeof(number), type = 0;
+    if (RegQueryValueExW(key, L"Port Number", nullptr, &type, reinterpret_cast<LPBYTE>(&number),
+                         &size) == ERROR_SUCCESS &&
+        type == REG_DWORD && number > 0 && number < 1000) {
+        wchar_t base[32] = {};
+        DWORD base_size = sizeof(base) - sizeof(wchar_t), base_type = 0;
+        std::wstring name = L"USB";
+        if (RegQueryValueExW(key, L"Base Name", nullptr, &base_type, reinterpret_cast<LPBYTE>(base),
+                             &base_size) == ERROR_SUCCESS &&
+            base_type == REG_SZ && base[0])
+            name = base;
+        std::wstring digits = std::to_wstring(number);
+        while (digits.size() < 3)
+            digits = L"0" + digits;
+        out = clean_text((name + digits).c_str());
+    }
+    RegCloseKey(key);
+    return out;
+}
+std::vector<UsbPrinter> usb_printers() {
+    HDEVINFO info = SetupDiGetClassDevsW(&usbprint_interface, nullptr, nullptr,
+                                         DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+    if (info == INVALID_HANDLE_VALUE)
+        throw Error("USB_DISCOVERY_FAILED", "Windows could not list USB printers", true);
+    struct Guard {
+        HDEVINFO info;
+        ~Guard() { SetupDiDestroyDeviceInfoList(info); }
+    } guard{info};
+    std::vector<UsbPrinter> out;
+    for (DWORD index = 0; index < 64; ++index) {
+        SP_DEVICE_INTERFACE_DATA iface{};
+        iface.cbSize = sizeof(iface);
+        if (!SetupDiEnumDeviceInterfaces(info, nullptr, &usbprint_interface, index, &iface))
+            break; // ERROR_NO_MORE_ITEMS
+        DWORD required = 0;
+        SetupDiGetDeviceInterfaceDetailW(info, &iface, nullptr, 0, &required, nullptr);
+        if (required < sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W) || required > 64 * 1024)
+            continue;
+        std::vector<unsigned char> buffer(required + sizeof(wchar_t));
+        auto *detail = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W *>(buffer.data());
+        detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
+        SP_DEVINFO_DATA device{};
+        device.cbSize = sizeof(device);
+        if (!SetupDiGetDeviceInterfaceDetailW(info, &iface, detail, required, nullptr, &device))
+            continue;
+        UsbPrinter printer;
+        printer.path = detail->DevicePath;
+        wchar_t instance[512] = {};
+        if (SetupDiGetDeviceInstanceIdW(info, &device, instance, 511, nullptr))
+            printer.instance = clean_text(instance);
+        printer.device.id = parse_usb_instance(printer.instance);
+        if (!printer.device.id.ok)
+            continue;
+        printer.device.ports = usb_port_chain(location_path(info, device));
+        printer.name = device_name(info, device);
+        printer.port = monitor_port(info, iface);
+        out.push_back(std::move(printer));
+    }
+    return out;
+}
+static const UsbPrinter &locate_usb(const std::vector<UsbPrinter> &printers, const Json &profile) {
+    std::vector<UsbCandidate> present;
+    for (const auto &printer : printers)
+        present.push_back(printer.device);
+    return printers[select_usb_device(profile.at("connection"), present)];
+}
+void probe_usb(const Json &profile) {
+    const auto printers = usb_printers();
+    const auto &printer = locate_usb(printers, profile);
+    Handle device;
+    device.h = CreateFileW(printer.path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (device.h == INVALID_HANDLE_VALUE) {
+        const DWORD error = GetLastError();
+        if (error == ERROR_ACCESS_DENIED || error == ERROR_SHARING_VIOLATION || error == ERROR_BUSY)
+            throw Error("USB_BUSY", "The USB printer is in use by another program", true);
+        throw Error("PRINTER_OFFLINE", "The USB printer is connected but not ready", true);
+    }
 }
 // Blocking driver calls are isolated in a disposable process. Killing it never permits automatic
 // replay.
@@ -845,6 +1054,76 @@ void send_spooler(const std::wstring &dir, const Json &p, const std::vector<unsi
         throw unknown();
     if (code == 10)
         throw Error("PRINTER_OFFLINE", "Cannot open Windows printer before submission", true);
+    if (code != 0)
+        throw unknown();
+}
+// Direct USB: the parent resolves the device (VID/PID, serial, port chain) and a disposable child
+// opens it and writes, so a printer that stops accepting data (paper out, cover open) can never
+// block the queue worker. Same outcome rules as the spooler child: failure to open is certain
+// (nothing sent, retryable); a timeout, partial write or crash after opening is uncertain.
+int usb_child(const std::wstring &file) {
+    std::wstring path;
+    std::vector<unsigned char> bytes;
+    try {
+        auto j = Json::parse(read_file(file));
+        path = wide(j.at("devicePath").get<std::string>());
+        bytes = unbase64(j.at("data"));
+    } catch (...) {
+        return 10;
+    }
+    // Only a USB device interface may ever be opened here, never an arbitrary file.
+    if (path.size() < 8 || _wcsnicmp(path.c_str(), L"\\\\?\\usb#", 8) != 0 || bytes.empty())
+        return 10;
+    Handle device;
+    device.h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (device.h == INVALID_HANDLE_VALUE)
+        return 10;
+    for (std::size_t offset = 0; offset < bytes.size();) {
+        DWORD n = static_cast<DWORD>(std::min<std::size_t>(16384, bytes.size() - offset)),
+              written = 0;
+        if (!WriteFile(device, bytes.data() + offset, n, &written, nullptr) || written == 0)
+            return 20;
+        offset += written;
+    }
+    return 0;
+}
+void send_usb(const std::wstring &dir, const Json &p, const std::vector<unsigned char> &bytes) {
+    const auto printers = usb_printers();
+    const auto &printer = locate_usb(printers, p);
+    auto random = random_base64();
+    random.erase(std::remove_if(random.begin(), random.end(),
+                                [](char c) { return c == '/' || c == '+' || c == '='; }),
+                 random.end());
+    auto file = dir + L"\\usb-payload-" + wide(random) + L".json";
+    struct Cleanup {
+        std::wstring path;
+        ~Cleanup() { DeleteFileW(path.c_str()); }
+    } cleanup{file};
+    write_file(file, Json({{"devicePath", utf8(printer.path)}, {"data", base64(bytes)}}).dump());
+    auto command = L"\"" + executable() + L"\" --usb-child \"" + file + L"\"";
+    std::vector<wchar_t> mutable_command(command.begin(), command.end());
+    mutable_command.push_back(0);
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION pi{};
+    if (!CreateProcessW(executable().c_str(), mutable_command.data(), nullptr, nullptr, FALSE,
+                        CREATE_NO_WINDOW, nullptr, dir.c_str(), &startup, &pi))
+        throw Error("USB_DEVICE_ERROR", "Cannot start isolated USB print worker", true);
+    Handle process{pi.hProcess}, thread{pi.hThread};
+    DWORD waited = WaitForSingleObject(process, 30000);
+    if (waited != WAIT_OBJECT_0) {
+        TerminateProcess(process, 20);
+        WaitForSingleObject(process, 5000);
+        throw unknown();
+    }
+    DWORD code = 20;
+    if (!GetExitCodeProcess(process, &code))
+        throw unknown();
+    if (code == 10)
+        throw Error("PRINTER_OFFLINE",
+                    "Cannot open the USB printer before submission (unplugged, off or in use)",
+                    true);
     if (code != 0)
         throw unknown();
 }
