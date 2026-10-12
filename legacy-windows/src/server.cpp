@@ -55,7 +55,10 @@ struct Server::Impl {
         ws.set_validate_handler([this](Hdl h) {
             auto c = ws.get_con_from_hdl(h);
             auto origin = c->get_request_header("Origin");
-            bool allowed = origin == "https://menuvex.ir" || origin == "https://www.menuvex.ir";
+            // The dashboard that shows the Pair button lives on https://app.menuvex.ir, so the
+            // policy is "the MenuVex domain and its https subdomains" (implemented and unit
+            // tested in core.cpp).
+            bool allowed = origin_allowed(origin);
 #ifdef _DEBUG
             allowed =
                 allowed || origin == "http://localhost:5173" || origin == "http://127.0.0.1:5173";

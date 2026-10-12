@@ -154,8 +154,9 @@ struct App {
         std::wstring text;
         if (code == "ORIGIN_NOT_ALLOWED")
             text = L"اتصال مرورگر رد شد: آدرس سایت «" + d +
-                   L"» مجاز نیست. فقط https://menuvex.ir و https://www.menuvex.ir می‌توانند وصل "
-                   L"شوند.";
+                   L"» مجاز نیست. فقط نشانی‌های رسمی منووکس روی HTTPS می‌توانند وصل شوند: " +
+                   L"menuvex.ir و زیردامنه‌هایش مثل https://app.menuvex.ir و " +
+                   L"https://www.menuvex.ir.";
         else if (code == "HOST_MISMATCH")
             text = L"اتصال مرورگر رد شد: آدرس اتصال باید دقیقاً 127.0.0.1:" +
                    std::to_wstring(server ? server->port() : 0) + L" باشد، نه «" + d + L"».";

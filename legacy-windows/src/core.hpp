@@ -19,6 +19,12 @@ struct Error : std::runtime_error {
 };
 Error unknown();
 bool valid_id(const std::string &s);
+// Page origins allowed to open the loopback WebSocket. The MenuVex dashboard that shows the Pair
+// button runs on a subdomain (`https://app.menuvex.ir`); refusing it made pairing fail with the
+// site's generic "cannot reach the local agent" while the listener was healthy. The apex
+// (`https://menuvex.ir`) and any HTTPS subdomain of it are accepted; everything else — other
+// schemes, ports, paths, userinfo and look-alike hosts — is refused.
+bool origin_allowed(const std::string &origin);
 void fields(const Json &j, std::initializer_list<const char *> required,
             std::initializer_list<const char *> optional = {});
 void document(const Json &j);

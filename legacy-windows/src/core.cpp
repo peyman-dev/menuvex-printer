@@ -1,5 +1,6 @@
 #include "core.hpp"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <set>
 namespace mv {
@@ -22,6 +23,36 @@ bool valid_id(const std::string &s) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
                c == '-' || c == '_' || c == ':' || c == '.';
     });
+}
+// Kept in the portable core (not in server.cpp) so the policy is covered by tests that run on
+// every build machine, not only where WebSocket++/Windows is available.
+bool origin_allowed(const std::string &origin) {
+    static const std::string scheme = "https://";
+    static const std::string domain = "menuvex.ir";
+    if (origin.rfind(scheme, 0) != 0)
+        return false;
+    std::string rest = origin.substr(scheme.size());
+    // A browser serializes an origin as exactly `scheme://host[:port]`: reject a path, query,
+    // fragment, userinfo or whitespace before looking at the host.
+    if (rest.empty() || !std::all_of(rest.begin(), rest.end(), [](unsigned char c) {
+            return std::isalnum(c) || c == '.' || c == '-' || c == ':';
+        }))
+        return false;
+    auto colon = rest.rfind(':');
+    if (colon != std::string::npos) {
+        if (rest.substr(colon + 1) != "443")
+            return false;
+        rest.resize(colon);
+    }
+    std::transform(rest.begin(), rest.end(), rest.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (rest == domain)
+        return true;
+    // Only a real label before an exact `.menuvex.ir` suffix counts, so `notmenuvex.ir` and
+    // `menuvex.ir.evil.test` can never be mistaken for the product domain.
+    return rest.size() > domain.size() + 1 &&
+           rest.compare(rest.size() - domain.size(), domain.size(), domain) == 0 &&
+           rest[rest.size() - domain.size() - 1] == '.';
 }
 // Literal RFC1918 unicast IPv4 only (no DNS, loopback, link-local, multicast or public), matching
 // the modern Agent's network rules. Rejects leading zeros so the value round-trips through

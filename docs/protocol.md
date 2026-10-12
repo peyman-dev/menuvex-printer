@@ -1,6 +1,6 @@
 # Protocol v1
 
-Endpoint: `ws://127.0.0.1:8765/` (configurable high port). UTF-8 JSON text only; max 2 MiB input (sized for a base64-encoded raw document of up to 1 MiB). Exact production Origins: `https://menuvex.ir`, `https://www.menuvex.ir`. Debug builds additionally allow exactly `http://localhost:5173` and `http://127.0.0.1:5173`. Missing/null origins, alternate Host names, query strings and other paths are rejected at upgrade. No URL token.
+Endpoint: `ws://127.0.0.1:8765/` (configurable high port). UTF-8 JSON text only; max 2 MiB input (sized for a base64-encoded raw document of up to 1 MiB). Production Origins: `https://menuvex.ir` and any HTTPS subdomain of it — the dashboard that hosts the **Pair** button runs on `https://app.menuvex.ir` and older links use `https://www.menuvex.ir`. Only `https` and the default port are accepted; look-alike hosts (`https://menuvex.ir.evil.test`), other schemes/ports, paths and userinfo are refused. Debug builds additionally allow exactly `http://localhost:5173` and `http://127.0.0.1:5173`. Missing/null origins, alternate Host names, query strings and other paths are rejected at upgrade. No URL token.
 
 ## Authentication
 

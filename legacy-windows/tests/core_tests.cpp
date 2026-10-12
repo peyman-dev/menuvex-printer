@@ -74,6 +74,18 @@ int main() {
         check(lines(invoice).size() >= 6, "semantic invoice rendering");
         invoice["data"]["items"][0]["quantity"] = 1.5;
         rejects([&] { document(invoice); });
+        // The dashboard that shows the Pair button is served from https://app.menuvex.ir; the
+        // agent must accept the product domain and its HTTPS subdomains and nothing else.
+        for (const char *good :
+             {"https://menuvex.ir", "https://www.menuvex.ir", "https://app.menuvex.ir",
+              "https://APP.Menuvex.IR", "https://app.menuvex.ir:443"})
+            check(origin_allowed(good), "allowed product origin");
+        for (const char *bad :
+             {"http://app.menuvex.ir", "https://app.menuvex.ir:8443",
+              "https://menuvex.ir.evil.test", "https://notmenuvex.ir", "https://.menuvex.ir",
+              "https://evil.test/app.menuvex.ir", "https://user@menuvex.ir", "https://menuvex.ir/",
+              "null", "", "https://menuvex.ir#"})
+            check(!origin_allowed(bad), "foreign origin must be refused");
         auto c = default_config();
         c["printers"].push_back(profile());
         c["routes"].push_back({{"role", "invoice"}, {"printerId", "p1"}, {"autoPrint", true}});
