@@ -290,16 +290,19 @@ void rtl(HDC dc, const std::wstring &s, RECT r, HFONT font, COLORREF color) {
 void para(HDC dc, const std::wstring &s, RECT r, HFONT font, COLORREF color) {
     draw(dc, s, r, font, color, DT_RIGHT | DT_RTLREADING | DT_WORDBREAK);
 }
+// Measure through DrawTextW (Uniscribe shaping), exactly as the text is drawn: for Persian,
+// GetTextExtentPoint32W adds up unjoined glyph widths and can come out too narrow.
 int width_of(HDC dc, const std::wstring &s, HFONT font) {
     SelectObject(dc, font);
-    SIZE size{};
-    GetTextExtentPoint32W(dc, s.c_str(), static_cast<int>(s.size()), &size);
-    return size.cx;
+    RECT r{0, 0, 0, 0};
+    DrawTextW(dc, s.c_str(), static_cast<int>(s.size()), &r,
+              DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX | DT_RTLREADING);
+    return r.right - r.left;
 }
 // Rounded status pill with a dot. Anchored at its left edge, or at its right edge if `from_right`.
 RECT pill(HDC dc, int x, int y, int h, const std::wstring &s, HFONT font, COLORREF fg, COLORREF bg,
           bool from_right = false, bool with_dot = true) {
-    int width = width_of(dc, s, font) + (with_dot ? 34 : 22);
+    int width = width_of(dc, s, font) + (with_dot ? 34 : 22) + 2;
     RECT r{from_right ? x - width : x, y, from_right ? x : x + width, y + h};
     box(dc, r, bg, bg, h);
     if (with_dot)
@@ -311,7 +314,7 @@ RECT pill(HDC dc, int x, int y, int h, const std::wstring &s, HFONT font, COLORR
 struct App {
     HWND window = nullptr;
     struct {
-        HFONT body = nullptr, bold = nullptr, small = nullptr, tiny = nullptr, title = nullptr,
+        HFONT body = nullptr, bold = nullptr, note = nullptr, tiny = nullptr, title = nullptr,
               heading = nullptr, big = nullptr, brand = nullptr, mono = nullptr;
     } font;
     HBRUSH page_brush = nullptr, card_brush = nullptr;
@@ -388,7 +391,7 @@ struct App {
             prober.join();
         if (server)
             server->stop();
-        for (HFONT f : {font.body, font.bold, font.small, font.tiny, font.title, font.heading,
+        for (HFONT f : {font.body, font.bold, font.note, font.tiny, font.title, font.heading,
                         font.big, font.brand, font.mono})
             if (f)
                 DeleteObject(f);
@@ -742,8 +745,8 @@ struct App {
             if (with_lan) {
                 interfaces = local_interfaces();
                 for (const auto &i : interfaces) {
-                    auto subnet = format_ipv4(i.address);
-                    subnet = subnet.substr(0, subnet.rfind('.')) + ".x";
+                    // "192.168.1.0/24" stays one LTR unit in RTL text ("192.168.1.x" does not).
+                    auto subnet = format_ipv4(i.address & 0xFFFFFF00u) + "/24";
                     if (!result.scope.empty())
                         result.scope += L"، ";
                     result.scope += w(subnet);
@@ -844,12 +847,13 @@ struct App {
         }
     }
     static std::wstring queue_port_label(const QueueInfo &q) {
+        // No brackets around Latin text: Windows 7 bidi has no paired-bracket rule.
         if (q.kind == "usb")
-            return L"پورت USB (" + w(q.port) + L")";
+            return L"پورت " + w(q.port);
         if (q.kind == "network")
             return L"شبکه " + w(q.ipv4.empty() ? q.port : q.ipv4);
         if (q.kind == "wsd")
-            return L"شبکه (WSD)";
+            return L"شبکهٔ WSD";
         if (q.kind == "lpt")
             return L"پورت موازی " + w(q.port);
         if (q.kind == "com")
@@ -873,8 +877,9 @@ struct App {
             f.title = f.name.empty() ? L"پرینتر USB" : w(f.name);
             if (f.name.empty())
                 f.name = utf8(L"پرینتر USB");
+            // A Persian word before every number: after Latin text a number joins the Latin run.
             f.detail = L"USB مستقیم — بدون نیاز به درایور" +
-                       (u.port.empty() ? std::wstring() : L" · " + w(u.port)) + L" · " +
+                       (u.port.empty() ? std::wstring() : L"، پورت " + w(u.port)) + L"، شناسه " +
                        usb_id(f.connection);
             for (const auto &q : queues)
                 if (!u.port.empty() && q.kind == "usb" && same_text(q.port, u.port))
@@ -889,7 +894,7 @@ struct App {
             f.connection = {{"type", "network"}, {"host", ip}, {"port", 9100}};
             f.name = utf8(L"پرینتر شبکه ") + ip;
             f.title = L"پرینتر شبکه " + w(ip);
-            f.detail = L"شبکهٔ داخلی (LAN) · " + w(ip) + L":9100 · به درخواست اتصال پاسخ داد";
+            f.detail = L"شبکهٔ داخلی، پورت 9100 به درخواست اتصال پاسخ داد";
             for (const auto &q : queues)
                 if (q.ipv4 == ip)
                     f.note = L"صف ویندوز «" + w(q.name) +
@@ -904,8 +909,8 @@ struct App {
             f.connection = {{"type", "spooler"}, {"queueName", q.name}};
             f.name = q.name;
             f.title = w(q.name);
-            f.detail = L"صف چاپ ویندوز · " + queue_port_label(q) +
-                       (q.driver.empty() ? std::wstring() : L" · درایور: " + w(q.driver));
+            f.detail = L"صف چاپ ویندوز، " + queue_port_label(q) +
+                       (q.driver.empty() ? std::wstring() : L"، درایور: " + w(q.driver));
             if (q.offline)
                 f.note = L"ویندوز این صف را «آفلاین» نشان می‌دهد.";
             f.paper = guess_paper_mm(q.name + " " + q.driver);
@@ -955,13 +960,13 @@ struct App {
     std::wstring connection_text(const Json &c) const {
         const std::string type = c.value("type", std::string());
         if (type == "network")
-            return L"شبکه · " + w(c["host"].get<std::string>()) + L":" +
+            return L"شبکه " + w(c["host"].get<std::string>()) + L":" +
                    std::to_wstring(c["port"].get<int>());
         if (type == "usb") {
             auto name = usb_name(c);
-            return L"USB مستقیم · " + (name.empty() ? usb_id(c) : name + L" (" + usb_id(c) + L")");
+            return L"USB مستقیم: " + (name.empty() ? usb_id(c) : name);
         }
-        return L"صف ویندوز · " + w(c.value("queueName", std::string()));
+        return L"صف ویندوز: " + w(c.value("queueName", std::string()));
     }
     Badge printer_badge(const Json &p) const {
         const std::string id = p["id"];
@@ -1590,7 +1595,7 @@ struct App {
         SetTextCharacterExtra(dc, 0);
         pill(dc, ClientW - 22, 80, 22, L"نسخهٔ ویندوز ۷", font.tiny, ink::violet, ink::violet_soft,
              true, false);
-        rtl(dc, L"فضای چاپ شما", {SideLeft + 14, 118, ClientW - 26, 138}, font.small, ink::faint);
+        rtl(dc, L"فضای چاپ شما", {SideLeft + 14, 118, ClientW - 26, 138}, font.note, ink::faint);
         fill(dc, {SideLeft + 18, 470, ClientW - 18, 471}, ink::line);
         rtl(dc, L"محلی. امن. همیشه آماده.", {SideLeft + 14, 482, ClientW - 22, 502}, font.bold,
             RGB(81, 97, 138));
@@ -1598,33 +1603,33 @@ struct App {
             dc,
             L"چاپ مستقیم سفارش‌های MenuVex روی پرینترهای همین کامپیوتر؛ بدون نصب درایور و دستور خط "
             L"فرمان.",
-            {SideLeft + 14, 506, ClientW - 22, 570}, font.small, ink::muted);
+            {SideLeft + 14, 506, ClientW - 22, 570}, font.note, ink::muted);
         draw(dc, L"v1.0.0 · Legacy", {SideLeft + 14, 600, ClientW - 22, 620}, font.mono, ink::faint,
              DT_RIGHT | DT_SINGLELINE | DT_VCENTER);
     }
     void paint_header(HDC dc) {
         fill(dc, {0, 0, SideLeft, HeaderH}, ink::card);
         fill(dc, {0, HeaderH - 1, SideLeft, HeaderH}, ink::line);
-        rtl(dc, L"MenuVex  /  مدیریت چاپ", {Left + 360, 8, Right, 26}, font.small, ink::muted);
+        rtl(dc, L"MenuVex  /  مدیریت چاپ", {Left + 360, 8, Right, 26}, font.note, ink::muted);
         rtl(dc, page_title(), {Left + 360, 25, Right, 53}, font.title, ink::text);
         int x = Left;
         RECT agent;
         if (worker_failed)
-            agent = pill(dc, x, 17, 26, L"چاپ متوقف شده", font.small, ink::red, ink::red_soft);
+            agent = pill(dc, x, 17, 26, L"چاپ متوقف شده", font.note, ink::red, ink::red_soft);
         else if (server && server->ready())
             agent = pill(dc, x, 17, 26,
                          L"Agent آماده است · 127.0.0.1:" + std::to_wstring(server->port()),
-                         font.small, ink::green, ink::green_soft);
+                         font.note, ink::green, ink::green_soft);
         else
-            agent = pill(dc, x, 17, 26, L"اتصال محلی غیرفعال", font.small, ink::red, ink::red_soft);
+            agent = pill(dc, x, 17, 26, L"اتصال محلی غیرفعال", font.note, ink::red, ink::red_soft);
         x = agent.right + 8;
         int sites = site_count();
         if (sites > 0)
-            pill(dc, x, 17, 26, L"سایت منووکس وصل است", font.small, ink::green, ink::green_soft);
+            pill(dc, x, 17, 26, L"سایت منووکس وصل است", font.note, ink::green, ink::green_soft);
         else if (recent_reject())
-            pill(dc, x, 17, 26, L"اتصال سایت رد شد", font.small, ink::red, ink::red_soft);
+            pill(dc, x, 17, 26, L"اتصال سایت رد شد", font.note, ink::red, ink::red_soft);
         else
-            pill(dc, x, 17, 26, L"سایت هنوز وصل نشده", font.small, ink::muted, ink::gray_soft);
+            pill(dc, x, 17, 26, L"سایت هنوز وصل نشده", font.note, ink::muted, ink::gray_soft);
     }
     void paint_empty(HDC dc, RECT r, const std::wstring &title, const std::wstring &body) {
         fill(dc, r, ink::page);
@@ -1648,16 +1653,16 @@ struct App {
         fill(dc, {c1, 90, c1 + 1, 136}, ink::line);
         fill(dc, {c2, 90, c2 + 1, 136}, ink::line);
         rtl(dc, L"پرینترهای تنظیم‌شده", {c1 + 12, 86, Right - 18, 104},
-            font.small, ink::muted);
+            font.note, ink::muted);
         rtl(dc, fa(static_cast<long long>(printers.size())), {c1 + 12, 104, Right - 18, 142},
             font.big, ink::text);
-        rtl(dc, L"در انتظار چاپ", {c2 + 12, 86, c1 - 18, 104}, font.small, ink::muted);
+        rtl(dc, L"در انتظار چاپ", {c2 + 12, 86, c1 - 18, 104}, font.note, ink::muted);
         rtl(dc, fa(pending()), {c2 + 12, 104, c1 - 18, 142}, font.big,
             pending() ? ink::blue : ink::text);
-        rtl(dc, L"اتصال سایت منووکس", {Left + 12, 86, c2 - 18, 104}, font.small, ink::muted);
+        rtl(dc, L"اتصال سایت منووکس", {Left + 12, 86, c2 - 18, 104}, font.note, ink::muted);
         int sites = site_count();
         if (sites > 0)
-            rtl(dc, L"وصل است · " + fa(sites) + L" مرورگر", {Left + 12, 106, c2 - 18, 138},
+            rtl(dc, L"وصل است (" + fa(sites) + L" مرورگر)", {Left + 12, 106, c2 - 18, 138},
                 font.heading, ink::green);
         else
             rtl(dc, recent_reject() ? L"تلاش اتصال رد شد" : L"هنوز وصل نشده",
@@ -1667,7 +1672,7 @@ struct App {
         int title_width = width_of(dc, L"پرینترهای شما", font.heading);
         RECT chip{Right - title_width - 44, 169, Right - title_width - 10, 191};
         box(dc, chip, ink::card, RGB(217, 226, 243), 10);
-        draw(dc, fa(static_cast<long long>(printers.size())), chip, font.small, RGB(138, 160, 200),
+        draw(dc, fa(static_cast<long long>(printers.size())), chip, font.note, RGB(138, 160, 200),
              DT_CENTER | DT_SINGLELINE | DT_VCENTER);
         if (printers.empty())
             paint_empty(
@@ -1678,7 +1683,7 @@ struct App {
         draw(
             dc,
             L"ESC/POS · USB · TCP/9100 — همهٔ ارتباط با پرینتر روی همین کامپیوتر انجام می‌شود.",
-            {Left, 600, Right, 624}, font.small, ink::faint,
+            {Left, 600, Right, 624}, font.note, ink::faint,
             DT_CENTER | DT_RTLREADING | DT_SINGLELINE | DT_VCENTER);
     }
     void paint_find(HDC dc) {
@@ -1703,15 +1708,16 @@ struct App {
             for (const auto &f : found)
                 (f.kind == "usb" ? n_usb : f.kind == "network" ? n_lan : n_queue)++;
             color = ink::green;
-            s = L"جستجو کامل شد (" + when(scanned_at) + L"): " + fa(n_usb) + L" پرینتر USB · " +
-                (lan_scanned ? fa(n_lan) + L" پرینتر شبکه" : std::wstring(L"شبکه جستجو نشد")) +
-                L" · " + fa(n_queue) + L" صف ویندوز";
+            s = L"جستجو کامل شد (ساعت " + when(scanned_at) + L"): ";
+            if (lan_scanned)
+                s += fa(n_lan) + L" پرینتر شبکه، ";
+            s += fa(n_queue) + L" صف ویندوز و " + fa(n_usb) + L" پرینتر USB";
             if (!scan_error.empty())
                 s += L" — بخشی از جستجو انجام نشد";
         }
         if (!s.empty()) {
             dot(dc, Right - 9, status.top + 7, 8, color);
-            rtl(dc, s, {Left, status.top, Right - 18, status.bottom}, font.small,
+            rtl(dc, s, {Left, status.top, Right - 18, status.bottom}, font.note,
                 scanning ? ink::blue_dark : ink::muted);
         }
         if (found.empty())
@@ -1734,7 +1740,7 @@ struct App {
                 L"این فهرست خودکار به‌روز می‌شود.\n• پرینتر شبکه: پرینتر و این کامپیوتر باید به یک "
                 L"مودم یا سوییچ وصل باشند. IP پرینتر را با نگه‌داشتن دکمهٔ FEED هنگام روشن کردن "
                 L"آن، روی کاغذ می‌بینید.",
-                {Left, 550, Right, 630}, font.small, ink::muted);
+                {Left, 550, Right, 630}, font.note, ink::muted);
     }
     void paint_label(HDC dc, const std::wstring &s, int y, int right = LabelRight,
                      int width = 120) {
@@ -1752,7 +1758,7 @@ struct App {
                     ? L"هیچ پرینتر USB پیدا نشد؛ کابل و روشن بودن پرینتر را بررسی و «جستجوی "
                       L"دوباره» را بزنید."
                     : L"چاپ مستقیم از پورت USB با درایور داخلی ویندوز؛ نصب درایور پرینتر لازم نیست.",
-                {Left + 20, 186, LabelRight, 206}, font.small,
+                {Left + 20, 186, LabelRight, 206}, font.note,
                 usb_options.empty() ? ink::amber : ink::muted);
         } else if (type == 1) {
             paint_label(dc, L"IP پرینتر", 152);
@@ -1761,13 +1767,13 @@ struct App {
             rtl(dc,
                 L"IP شبکهٔ داخلی مثل 192.168.1.50 و پورت 9100. IP را با «جستجوی خودکار» یا برگهٔ "
                 L"تنظیمات چاپ‌شدهٔ خود پرینتر پیدا کنید.",
-                {Left + 20, 186, LabelRight, 206}, font.small, ink::muted);
+                {Left + 20, 186, LabelRight, 206}, font.note, ink::muted);
         } else {
             paint_label(dc, L"صف ویندوز", 152);
             rtl(dc,
                 L"برای پرینتری که درایور آن در ویندوز نصب است. درایور باید داده را بدون تغییر "
                 L"(RAW) بفرستد؛ درایور XPS مناسب نیست.",
-                {Left + 20, 186, LabelRight, 206}, font.small, ink::muted);
+                {Left + 20, 186, LabelRight, 206}, font.note, ink::muted);
         }
         box(dc, {Left, 224, Right, 448}, ink::card, ink::line);
         rtl(dc, L"۲. مشخصات چاپ", {Left + 20, 232, LabelRight, 254}, font.bold, ink::text);
@@ -1783,7 +1789,7 @@ struct App {
         rtl(dc,
             L"کاغذ ۸۰ میلی‌متر معمولاً ۵۷۶ نقطه و کاغذ ۵۸ میلی‌متر ۳۸۴ نقطه است (با انتخاب عرض "
             L"کاغذ خودکار تنظیم می‌شود).",
-            {Left + 20, 416, LabelRight, 436}, font.small, ink::muted);
+            {Left + 20, 416, LabelRight, 436}, font.note, ink::muted);
         paint_message(dc, Edit, {Left, 508, Right, 572});
     }
     void step(HDC dc, int number, int y, const std::wstring &s, int height) {
@@ -1824,8 +1830,8 @@ struct App {
         para(dc, detail, {Left + 20, 114, Right - 40, 160}, font.body, ink::muted);
         box(dc, {Left, 174, Right, 452}, ink::card, ink::line);
         step(dc, 1, 188,
-             L"در مرورگر همین کامپیوتر، داشبورد منووکس را باز کنید: https://app.menuvex.ir ← "
-             L"تنظیمات ← پرینترها ← دکمهٔ Pair",
+             L"در مرورگر همین کامپیوتر، داشبورد منووکس (https://app.menuvex.ir) را باز کنید، به "
+             L"«تنظیمات» و بخش «پرینترها» بروید و دکمهٔ Pair را بزنید.",
              46);
         step(dc, 2, 240, L"کلید اتصال را کپی (یا نمایش) کنید و در پنجرهٔ Pair سایت وارد کنید:", 26);
         step(
@@ -1839,7 +1845,7 @@ struct App {
                 L" — سایت باید به همین نشانی وصل شود. اگر در سایت عدد دیگری تنظیم شده، همان را در "
                 L"«تنظیمات» وارد کنید.\nAgent جدید و این نسخه را هم‌زمان باز نکنید؛ هر دو از پورت "
                 L"8765 استفاده می‌کنند.",
-            {Left + 20, 370, Right - 20, 448}, font.small, ink::muted);
+            {Left + 20, 370, Right - 20, 448}, font.note, ink::muted);
         box(dc, {Left, 464, Right, 588}, ink::card, ink::line);
         para(
             dc,
@@ -1867,11 +1873,11 @@ struct App {
         paint_label(dc, L"پورت محلی", 116, LabelRight, 150);
         rtl(dc,
             L"پیش‌فرض 8765؛ باید با سایت یکی باشد و پس از اجرای دوبارهٔ برنامه اعمال می‌شود.",
-            {Left + 20, 116, Right - 284, 144}, font.small, ink::muted);
+            {Left + 20, 116, Right - 284, 144}, font.note, ink::muted);
         paint_label(dc, L"تعداد تلاش برای چاپ", 156, LabelRight, 150);
         rtl(dc,
             L"۱ تا ۵ — فقط وقتی چیزی به پرینتر نرسیده باشد دوباره تلاش می‌شود.",
-            {Left + 20, 156, Right - 284, 184}, font.small, ink::muted);
+            {Left + 20, 156, Right - 284, 184}, font.note, ink::muted);
         box(dc, {Left, 274, Right, 430}, ink::card, ink::line);
         rtl(dc, L"درباره و عیب‌یابی", {Left + 20, 284, LabelRight, 306}, font.bold,
             ink::text);
@@ -1882,7 +1888,7 @@ struct App {
              DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_PATH_ELLIPSIS);
         rtl(dc,
             L"گزارش فقط کد رویدادها را دارد؛ متن فاکتور و کلید اتصال در آن ذخیره نمی‌شود.",
-            {Left + 20, 360, LabelRight, 380}, font.small, ink::muted);
+            {Left + 20, 360, LabelRight, 380}, font.note, ink::muted);
         box(dc, {Left, 442, Right, 540}, ink::card, ink::line);
         rtl(dc, L"خروج از برنامه", {Left + 220, 452, LabelRight, 474}, font.bold, ink::text);
         para(
@@ -1957,7 +1963,7 @@ struct App {
             if (badge > 0) {
                 RECT b{r.left + 10, r.top + 10, r.left + 36, r.bottom - 10};
                 box(dc, b, RGB(219, 231, 255), RGB(219, 231, 255), 8);
-                draw(dc, fa(badge), b, font.small, ink::blue,
+                draw(dc, fa(badge), b, font.note, ink::blue,
                      DT_CENTER | DT_SINGLELINE | DT_VCENTER);
             }
         } else {
@@ -2030,19 +2036,19 @@ struct App {
         for (const auto &r : config["routes"])
             if (r["printerId"] == p["id"]) {
                 std::wstring tag =
-                    role_label(r["role"]) + (r["autoPrint"] == true ? L" · خودکار" : L"");
+                    role_label(r["role"]) + (r["autoPrint"] == true ? L"، خودکار" : L"");
                 RECT t = pill(dc, x, card.top + 10, 20, tag, font.tiny, ink::blue, ink::blue_soft,
                               true, false);
                 x = t.left - 6;
             }
-        std::wstring detail = connection_text(p["connection"]) + L" · " +
-                              fa(p["paperMm"].get<int>()) + L" میلی‌متر · " +
-                              fa(p["copies"].get<int>()) + L" نسخه";
-        rtl(dc, detail, {card.left + 170, card.top + 32, text_right, card.bottom - 6}, font.small,
+        std::wstring detail = fa(p["paperMm"].get<int>()) + L" میلی‌متر، " +
+                              fa(p["copies"].get<int>()) + L" نسخه، " +
+                              connection_text(p["connection"]);
+        rtl(dc, detail, {card.left + 170, card.top + 32, text_right, card.bottom - 6}, font.note,
             ink::muted);
         Badge badge = printer_badge(p);
         pill(dc, card.left + 14, card.top + (card.bottom - card.top) / 2 - 12, 24, badge.text,
-             font.small, badge.fg, badge.bg);
+             font.note, badge.fg, badge.bg);
     }
     void draw_found(const DRAWITEMSTRUCT *item) {
         std::size_t i = static_cast<std::size_t>(item->itemData);
@@ -2067,17 +2073,17 @@ struct App {
         int text_left = card.left + 180;
         rtl(dc, f.title, {text_left, card.top + 6, text_right, card.top + 27}, font.heading,
             ink::text);
-        rtl(dc, f.detail, {text_left, card.top + 28, text_right, card.top + 46}, font.small,
+        rtl(dc, f.detail, {text_left, card.top + 28, text_right, card.top + 46}, font.note,
             ink::muted);
         if (!f.note.empty())
-            rtl(dc, f.note, {text_left, card.top + 46, text_right, card.bottom - 4}, font.small,
+            rtl(dc, f.note, {text_left, card.top + 46, text_right, card.bottom - 4}, font.note,
                 ink::amber);
         RECT side{card.left + 14, card.top + (card.bottom - card.top) / 2 - 12, 0, 0};
         if (!f.configured.empty())
-            pill(dc, side.left, side.top, 24, L"اضافه شده: " + w(f.configured), font.small,
+            pill(dc, side.left, side.top, 24, L"اضافه شده: " + w(f.configured), font.note,
                  ink::green, ink::green_soft);
         else if (selected)
-            pill(dc, side.left, side.top, 24, L"دوبار کلیک = افزودن", font.small, ink::blue,
+            pill(dc, side.left, side.top, 24, L"دوبار کلیک = افزودن", font.note, ink::blue,
                  ink::card, false, false);
     }
     void draw_job(const DRAWITEMSTRUCT *item) {
@@ -2098,18 +2104,20 @@ struct App {
                       : status == "cancelled" ? ink::gray_soft
                                               : ink::blue_soft;
         std::wstring label = uncertain && status == "failed" ? L"نامشخص" : status_label(status);
-        RECT tag = pill(dc, card.right - 14, card.top + 9, 22, label, font.small, fg, bg, true);
+        RECT tag = pill(dc, card.right - 14, card.top + 9, 22, label, font.note, fg, bg, true);
         const Json *p = printer(j["printerId"]);
         std::wstring who = p ? w((*p)["name"].get<std::string>()) : w(j["printerId"]);
         std::string id = j["jobId"];
         bool test = id.rfind("test:", 0) == 0;
-        rtl(dc, (test ? L"چاپ آزمایشی · " : L"سفارش · ") + who + L" · " + when(j["createdAt"]),
+        rtl(dc,
+            (test ? L"چاپ آزمایشی برای «" : L"سفارش برای «") + who + L"»، زمان " +
+                when(j["createdAt"]),
             {card.left + 14, card.top + 6, tag.left - 10, card.top + 28}, font.bold, ink::text);
-        std::wstring detail = L"شناسه: " + w(id) + L" · تلاش " + fa(j["attempts"].get<int>());
+        std::wstring detail = L"شناسه: " + w(id) + L"، تلاش " + fa(j["attempts"].get<int>());
         if (!j["error"].is_null())
             detail = explain(j["error"]["code"], j["error"]["message"]) + L"  (" + detail + L")";
         rtl(dc, detail, {card.left + 14, card.top + 27, card.right - 14, card.bottom - 4},
-            font.small, j["error"].is_null() ? ink::muted : fg);
+            font.note, j["error"].is_null() ? ink::muted : fg);
     }
 };
 App *app = nullptr;
@@ -2619,7 +2627,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int) {
         // Tahoma is the Persian UI font of Windows 7; Segoe UI/Consolas ship with Windows 7 too.
         state.font.body = make_font(-14, FW_NORMAL, L"Tahoma");
         state.font.bold = make_font(-14, FW_BOLD, L"Tahoma");
-        state.font.small = make_font(-12, FW_NORMAL, L"Tahoma");
+        state.font.note = make_font(-12, FW_NORMAL, L"Tahoma");
         state.font.tiny = make_font(-11, FW_NORMAL, L"Tahoma");
         state.font.heading = make_font(-16, FW_BOLD, L"Tahoma");
         state.font.title = make_font(-19, FW_BOLD, L"Tahoma");
