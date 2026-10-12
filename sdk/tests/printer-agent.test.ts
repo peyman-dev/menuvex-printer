@@ -21,6 +21,8 @@ import {
   errorSchema,
   escposDocument,
   printerSchema,
+  routeSchema,
+  statusSchema,
   usbFallbackTargetSchema,
   type Printer,
   type PrintRequest,
@@ -279,6 +281,59 @@ describe('printer connection schema', () => {
         alternate: 0,
       }),
     ).toThrow(/USB fallback must be a spooler queue or network printer/);
+  });
+
+  it('accepts free-text station labels as route roles, including Persian', () => {
+    // Station labels are operator-facing names ("صندوق", "آشپزخانه", …), not technical IDs.
+    expect(routeSchema.parse({ role: 'صندوق', printerId: 'printer:1', autoPrint: true })).toEqual({
+      role: 'صندوق',
+      printerId: 'printer:1',
+      autoPrint: true,
+    });
+    expect(routeSchema.parse({ role: 'kitchen-2', printerId: 'printer:2', autoPrint: false }))
+      .toMatchObject({ role: 'kitchen-2' });
+    expect(() => routeSchema.parse({ role: '', printerId: 'printer:1', autoPrint: false })).toThrow();
+    // Printer IDs stay strict technical IDs.
+    expect(() =>
+      routeSchema.parse({ role: 'صندوق', printerId: 'پرینتر ۱', autoPrint: false }),
+    ).toThrow();
+  });
+});
+
+describe('compatibility with older agent versions', () => {
+  it('parses status and printer payloads exactly as an older agent emits them', () => {
+    // Older agents (before station labels became free text) emit ASCII route roles
+    // (invoice/kitchen/bar) and omit the optional per-printer raw/USB fields. The
+    // current schemas must still accept those payloads so existing installs —
+    // users who have not updated the desktop app yet — keep working unchanged.
+    const status = statusSchema.parse({
+      ready: true,
+      agentVersion: '1.0.0',
+      port: 8765,
+      routes: [
+        { role: 'invoice', printerId: 'printer:1', autoPrint: true },
+        { role: 'kitchen', printerId: 'printer:2', autoPrint: false },
+        { role: 'bar', printerId: 'printer:3', autoPrint: false },
+      ],
+      serverError: null,
+    });
+    expect(status.routes).toHaveLength(3);
+    expect(status.routes[0].role).toBe('invoice');
+
+    const printer = printerSchema.parse({
+      id: 'printer:1',
+      name: 'صندوق',
+      connection: { type: 'network', host: '192.168.1.50', port: 9100 },
+      paperMm: 80,
+      widthDots: 576,
+      copies: 1,
+      cut: true,
+      fontFamily: 'Noto Sans Arabic',
+      fontSize: 24,
+      rawPassthrough: false,
+      status: 'online',
+    });
+    expect(printer.name).toBe('صندوق');
   });
 });
 

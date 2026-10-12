@@ -334,7 +334,10 @@ impl State {
             // The configured raw target is local-only. It changes only this raw job's route,
             // never rendered invoices or later copies, and is not an automatic failure fallback.
             let raw_settings = config.raw_passthrough.printers.get(&p.id);
-            p.force_raw = raw_settings.is_some_and(|settings| settings.force_raw);
+            // Zero-touch default: a printer with no saved raw entry prints raw ESC/POS with
+            // the RAW spooler datatype so vendor drivers cannot reinterpret the receipt.
+            // Rendered documents are unaffected (force_raw stays false for them below).
+            p.force_raw = raw_settings.map(|settings| settings.force_raw).unwrap_or(true);
             if let Some(queue_name) = raw_settings.and_then(|settings| settings.raw_target.clone()) {
                 p.connection = crate::printers::Connection::Spooler { queue_name };
                 p.usb_fallback_target = None;
@@ -720,6 +723,10 @@ mod test_print_tests {
         };
         state.dispatch(Command::PrinterSave { printer }).unwrap();
         assert!(!state.config().unwrap().printers[0].raw_passthrough);
+        // Pin the global gate off so this scenario is independent of the zero-touch default.
+        let mut config = state.config().unwrap();
+        config.raw_passthrough.enabled = false;
+        lock(&state.store, "store").save_config(&config).unwrap();
         let escpos = Document::Escpos { commands: vec![27, 64], data: String::new() };
         let error = state
             .dispatch(Command::Print {
@@ -779,6 +786,43 @@ mod test_print_tests {
             Connection::Spooler { ref queue_name } if queue_name == "Test Receipt RAW"));
         assert!(work.printer.force_raw);
         assert!(config.raw_passthrough.printers["printer:lan"].created_generic);
+    }
+
+    /// Zero-touch default: a raw ESC/POS document for a printer with no saved raw entry
+    /// prints with the RAW spooler datatype (force_raw defaults to true), so vendor
+    /// drivers cannot reinterpret the receipt. The fresh global gate is ON by default,
+    /// and rendered documents are unaffected (force_raw stays false for them).
+    #[test]
+    fn raw_document_without_saved_entry_uses_force_raw_by_default() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Storage::open(&directory.path().join("agent.sqlite3")).unwrap();
+        let state = State::new(store, crate::security::test_secret(), Arc::new(TestTransport));
+        let printer = Printer {
+            id: "printer:lan".into(),
+            name: "POS".into(),
+            connection: Connection::Network { host: "192.168.1.50".into(), port: 9100 },
+            paper_mm: 80,
+            width_dots: 576,
+            copies: 1,
+            cut: true,
+            font_family: "Noto Sans Arabic".into(),
+            font_size: 24,
+            raw_passthrough: true,
+            force_raw: false,
+            usb_fallback_target: None,
+        };
+        let mut config = state.config().unwrap();
+        config.printers.push(printer);
+        lock(&state.store, "store").save_config(&config).unwrap();
+        state
+            .dispatch(Command::Print {
+                printer_id: "printer:lan".into(),
+                job_id: "order:1:raw".into(),
+                document: Document::Escpos { commands: vec![27, 64], data: String::new() },
+            })
+            .expect("enabled passthrough must be accepted with the default gates");
+        let work = lock(&state.store, "store").claim(crate::print::queue::now() + 1).unwrap().unwrap();
+        assert!(work.printer.force_raw, "force_raw defaults to true without a saved entry");
     }
 
     #[test]

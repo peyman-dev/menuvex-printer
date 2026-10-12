@@ -1,6 +1,8 @@
 #include "core.hpp"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <cstring>
 #include <set>
 namespace mv {
 Json Error::json() const {
@@ -23,11 +25,39 @@ bool valid_id(const std::string &s) {
                c == '-' || c == '_' || c == ':' || c == '.';
     });
 }
-// Literal RFC1918 unicast IPv4 only (no DNS, loopback, link-local, multicast or public), matching
-// the modern Agent's network rules. Rejects leading zeros so the value round-trips through
-// InetPtonA on the transport side.
-static bool private_ipv4(const std::string &s) {
-    int octets[4];
+// Kept in the portable core (not in server.cpp) so the policy is covered by tests that run on
+// every build machine, not only where WebSocket++/Windows is available.
+bool origin_allowed(const std::string &origin) {
+    static const std::string scheme = "https://";
+    static const std::string domain = "menuvex.ir";
+    if (origin.rfind(scheme, 0) != 0)
+        return false;
+    std::string rest = origin.substr(scheme.size());
+    // A browser serializes an origin as exactly `scheme://host[:port]`: reject a path, query,
+    // fragment, userinfo or whitespace before looking at the host.
+    if (rest.empty() || !std::all_of(rest.begin(), rest.end(), [](unsigned char c) {
+            return std::isalnum(c) || c == '.' || c == '-' || c == ':';
+        }))
+        return false;
+    auto colon = rest.rfind(':');
+    if (colon != std::string::npos) {
+        if (rest.substr(colon + 1) != "443")
+            return false;
+        rest.resize(colon);
+    }
+    std::transform(rest.begin(), rest.end(), rest.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (rest == domain)
+        return true;
+    // Only a real label before an exact `.menuvex.ir` suffix counts, so `notmenuvex.ir` and
+    // `menuvex.ir.evil.test` can never be mistaken for the product domain.
+    return rest.size() > domain.size() + 1 &&
+           rest.compare(rest.size() - domain.size(), domain.size(), domain) == 0 &&
+           rest[rest.size() - domain.size() - 1] == '.';
+}
+// Strict dotted quad: exactly four decimal octets, no leading zeros, so a value round-trips
+// through InetPtonA on the transport side.
+static bool dotted_quad(const std::string &s, int (&octets)[4]) {
     int count = 0;
     std::size_t i = 0;
     while (i < s.size()) {
@@ -49,14 +79,329 @@ static bool private_ipv4(const std::string &s) {
             if (s[i] != '.')
                 return false;
             ++i;
+            if (i == s.size())
+                return false;
         }
     }
-    if (count != 4)
+    return count == 4;
+}
+static bool private_octets(const int (&o)[4]) {
+    bool private_range =
+        o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) || (o[0] == 192 && o[1] == 168);
+    return private_range && o[3] != 0 && o[3] != 255;
+}
+// Literal RFC1918 unicast IPv4 only (no DNS, loopback, link-local, multicast or public), matching
+// the modern Agent's network rules.
+static bool private_ipv4(const std::string &s) {
+    int octets[4];
+    return dotted_quad(s, octets) && private_octets(octets);
+}
+bool parse_ipv4(const std::string &text, std::uint32_t &address) {
+    int o[4];
+    if (!dotted_quad(text, o))
         return false;
-    bool private_range = octets[0] == 10 ||
-                         (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) ||
-                         (octets[0] == 192 && octets[1] == 168);
-    return private_range && octets[3] != 0 && octets[3] != 255;
+    address = (static_cast<std::uint32_t>(o[0]) << 24) | (static_cast<std::uint32_t>(o[1]) << 16) |
+              (static_cast<std::uint32_t>(o[2]) << 8) | static_cast<std::uint32_t>(o[3]);
+    return true;
+}
+std::string format_ipv4(std::uint32_t a) {
+    return std::to_string(a >> 24) + "." + std::to_string((a >> 16) & 255) + "." +
+           std::to_string((a >> 8) & 255) + "." + std::to_string(a & 255);
+}
+bool private_lan_host(std::uint32_t a) {
+    const int o[4] = {static_cast<int>(a >> 24), static_cast<int>((a >> 16) & 255),
+                      static_cast<int>((a >> 8) & 255), static_cast<int>(a & 255)};
+    return private_octets(o);
+}
+// ---- Automatic printer discovery helpers (pure functions; covered by core_tests) ----
+static std::string upper(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return s;
+}
+static bool iequals(const std::string &a, const std::string &b) {
+    return a.size() == b.size() &&
+           std::equal(a.begin(), a.end(), b.begin(), [](unsigned char x, unsigned char y) {
+               return std::toupper(x) == std::toupper(y);
+           });
+}
+static std::string trim(const std::string &s) {
+    auto first = s.find_first_not_of(" \t");
+    if (first == std::string::npos)
+        return {};
+    return s.substr(first, s.find_last_not_of(" \t") - first + 1);
+}
+static bool hex4(const std::string &s, std::size_t at, int &value) {
+    if (at + 4 > s.size())
+        return false;
+    value = 0;
+    for (std::size_t i = at; i < at + 4; ++i) {
+        const char c = s[i];
+        int digit;
+        if (c >= '0' && c <= '9')
+            digit = c - '0';
+        else if (c >= 'A' && c <= 'F')
+            digit = c - 'A' + 10;
+        else
+            return false;
+        value = value * 16 + digit;
+    }
+    return true;
+}
+UsbIdentity parse_usb_instance(const std::string &instance) {
+    UsbIdentity out;
+    const std::string id = upper(instance);
+    // `USB\VID_xxxx&PID_yyyy[&MI_zz]\<instance>`
+    int vendor = 0, product = 0;
+    if (id.rfind("USB\\VID_", 0) != 0 || !hex4(id, 8, vendor) || id.compare(12, 5, "&PID_") != 0 ||
+        !hex4(id, 17, product))
+        return out;
+    const auto slash = id.find('\\', 21);
+    if (slash == std::string::npos || (slash != 21 && id.compare(21, 4, "&MI_") != 0))
+        return out;
+    const std::string tail = instance.substr(slash + 1);
+    if (tail.empty() || tail.size() > 200 || tail.find('\\') != std::string::npos)
+        return out;
+    out.ok = true;
+    out.vendor = vendor;
+    out.product = product;
+    // Windows keeps a device-reported serial number as the instance segment; a generated
+    // location ID always contains '&'. An interface node (`&MI_xx`) never carries the serial.
+    if (slash == 21 && tail.find('&') == std::string::npos && tail.size() <= 128)
+        out.serial = tail;
+    return out;
+}
+std::vector<int> usb_port_chain(const std::string &location_path) {
+    const std::string path = upper(location_path);
+    const auto root = path.find("USBROOT(");
+    if (root == std::string::npos)
+        return {};
+    std::vector<int> ports;
+    auto at = path.find(')', root);
+    while (at != std::string::npos && at + 1 < path.size() && path[at + 1] == '#' &&
+           path.compare(at + 2, 4, "USB(") == 0) {
+        const auto open = at + 6;
+        const auto close = path.find(')', open);
+        if (close == std::string::npos || close == open || close - open > 3 || ports.size() >= 7)
+            return {};
+        int value = 0;
+        for (auto i = open; i < close; ++i) {
+            if (path[i] < '0' || path[i] > '9')
+                return {};
+            value = value * 10 + (path[i] - '0');
+        }
+        if (value < 1 || value > 255)
+            return {};
+        ports.push_back(value);
+        at = close;
+    }
+    return ports;
+}
+Json usb_connection(int vendor, int product, const std::string &serial,
+                    const std::vector<int> &ports) {
+    Json chain = Json::array();
+    for (int port : ports)
+        chain.push_back(port);
+    return {{"type", "usb"},
+            {"vendorId", vendor},
+            {"productId", product},
+            {"serial", serial.empty() ? Json(nullptr) : Json(serial)},
+            {"bus", 0},
+            {"ports", chain},
+            {"interface", 0},
+            {"endpoint", 0},
+            {"alternate", 0}};
+}
+static std::string usb_serial(const Json &connection) {
+    if (!connection.contains("serial") || !connection["serial"].is_string())
+        return {};
+    return connection["serial"].get<std::string>();
+}
+static std::vector<int> usb_ports(const Json &connection) {
+    std::vector<int> out;
+    if (connection.contains("ports") && connection["ports"].is_array())
+        for (const auto &port : connection["ports"])
+            if (port.is_number_integer())
+                out.push_back(port.get<int>());
+    return out;
+}
+std::size_t select_usb_device(const Json &connection, const std::vector<UsbCandidate> &present) {
+    const int vendor = connection.at("vendorId").get<int>();
+    const int product = connection.at("productId").get<int>();
+    const std::string serial = usb_serial(connection);
+    std::vector<std::size_t> same;
+    for (std::size_t i = 0; i < present.size(); ++i) {
+        const auto &id = present[i].id;
+        if (id.ok && id.vendor == vendor && id.product == product &&
+            (serial.empty() || iequals(id.serial, serial)))
+            same.push_back(i);
+    }
+    if (same.empty())
+        throw Error("PRINTER_OFFLINE",
+                    "The USB printer is not connected. Check its cable and power, then retry.",
+                    true);
+    if (same.size() == 1)
+        return same.front();
+    // Identical printers without a usable serial number: only the USB port tells them apart.
+    const auto ports = usb_ports(connection);
+    std::vector<std::size_t> located;
+    if (!ports.empty())
+        for (auto i : same)
+            if (present[i].ports == ports)
+                located.push_back(i);
+    if (located.size() != 1)
+        throw Error("USB_AMBIGUOUS", "Several identical USB printers are connected. Select this "
+                                     "printer again in the Agent window.");
+    return located.front();
+}
+std::string port_ipv4(const std::string &port) {
+    std::string p = trim(port.substr(0, port.find(',')));
+    if (upper(p).rfind("IP_", 0) == 0)
+        p = p.substr(3);
+    // LPR ports look like `host:queue`; Windows appends `_N` to duplicate TCP/IP port names.
+    p = p.substr(0, p.find(':'));
+    const auto underscore = p.find('_');
+    if (underscore != std::string::npos) {
+        const std::string suffix = p.substr(underscore + 1);
+        if (suffix.empty() || suffix.size() > 3 ||
+            suffix.find_first_not_of("0123456789") != std::string::npos)
+            return {};
+        p.resize(underscore);
+    }
+    std::uint32_t address = 0;
+    return parse_ipv4(p, address) && private_lan_host(address) ? p : std::string();
+}
+std::string queue_kind(const std::string &name, const std::string &port,
+                       const std::string &driver) {
+    if (name.rfind("\\\\", 0) == 0)
+        return "shared";
+    const std::string first = upper(trim(port.substr(0, port.find(','))));
+    const std::string d = upper(driver);
+    for (const char *v : {"FILE:", "XPSPORT:", "PORTPROMPT:", "NUL:", "NUL",
+                          "SHRFAX:", "MICROSOFT DOCUMENT IMAGING WRITER PORT:"})
+        if (first == v)
+            return "virtual";
+    for (const char *v : {"XPS DOCUMENT WRITER", "FAX", "ONENOTE", "PDF", "DOCUMENT IMAGE WRITER"})
+        if (d.find(v) != std::string::npos)
+            return "virtual";
+    auto numbered = [&](const char *prefix) {
+        const std::size_t n = std::strlen(prefix);
+        if (first.rfind(prefix, 0) != 0 || first.size() == n)
+            return false;
+        std::string rest = first.substr(n);
+        if (!rest.empty() && rest.back() == ':')
+            rest.pop_back();
+        return !rest.empty() && rest.size() <= 3 &&
+               rest.find_first_not_of("0123456789") == std::string::npos;
+    };
+    if (numbered("USB"))
+        return "usb";
+    if (numbered("LPT"))
+        return "lpt";
+    if (numbered("COM"))
+        return "com";
+    if (first.rfind("WSD-", 0) == 0)
+        return "wsd";
+    if (!port_ipv4(port).empty() || first.rfind("IP_", 0) == 0)
+        return "network";
+    return "other";
+}
+int guess_paper_mm(const std::string &name) {
+    for (std::size_t i = 0; i + 1 < name.size(); ++i)
+        if (name[i] == '5' && name[i + 1] == '8' &&
+            (i == 0 || !std::isdigit(static_cast<unsigned char>(name[i - 1]))))
+            return 58;
+    return 80;
+}
+static int mask_prefix(std::uint32_t mask) {
+    int prefix = 0;
+    while (prefix < 32 && (mask & (0x80000000u >> prefix)))
+        ++prefix;
+    const std::uint32_t expected = prefix == 0 ? 0u : (0xFFFFFFFFu << (32 - prefix));
+    return mask == expected ? prefix : -1;
+}
+std::vector<std::uint32_t> scan_targets(const std::vector<Ipv4Interface> &interfaces,
+                                        const std::vector<std::uint32_t> &extra,
+                                        std::size_t limit) {
+    std::vector<std::uint32_t> out;
+    std::set<std::uint32_t> seen, own;
+    for (const auto &i : interfaces)
+        own.insert(i.address);
+    auto add = [&](std::uint32_t a) {
+        if (out.size() < limit && private_lan_host(a) && !own.count(a) && seen.insert(a).second)
+            out.push_back(a);
+    };
+    for (auto a : extra)
+        add(a);
+    for (const auto &i : interfaces) {
+        if (!private_lan_host(i.address))
+            continue;
+        const int prefix = mask_prefix(i.mask);
+        if (prefix > 30)
+            continue; // a point-to-point/VPN host route is not a printer LAN
+        std::uint32_t network = i.address & 0xFFFFFF00u, broadcast = network | 0xFFu;
+        if (prefix >= 24) {
+            network = i.address & i.mask;
+            broadcast = network | ~i.mask;
+        }
+        for (std::uint32_t a = network + 1; a < broadcast; ++a)
+            add(a);
+    }
+    return out;
+}
+std::string configured_name(const Json &printers, const Json &connection) {
+    if (!printers.is_array() || !connection.is_object())
+        return {};
+    const std::string type = connection.value("type", std::string());
+    for (const auto &p : printers) {
+        if (!p.is_object() || !p.contains("connection") || !p["connection"].is_object())
+            continue;
+        const auto &c = p["connection"];
+        if (c.value("type", std::string()) != type)
+            continue;
+        bool same = false;
+        if (type == "network")
+            same = c.value("host", std::string()) == connection.value("host", std::string()) &&
+                   c.value("port", 0) == connection.value("port", 0);
+        else if (type == "spooler")
+            same = iequals(c.value("queueName", std::string()),
+                           connection.value("queueName", std::string()));
+        else if (type == "usb") {
+            same = c.value("vendorId", -1) == connection.value("vendorId", -2) &&
+                   c.value("productId", -1) == connection.value("productId", -2);
+            const auto a = usb_serial(c), b = usb_serial(connection);
+            const auto pa = usb_ports(c), pb = usb_ports(connection);
+            if (same && (!a.empty() || !b.empty()))
+                same = iequals(a, b);
+            else if (same && !pa.empty() && !pb.empty())
+                same = pa == pb;
+        }
+        if (same)
+            return p.value("name", std::string());
+    }
+    return {};
+}
+void jalali(int gy, int gm, int gd, int &jy, int &jm, int &jd) {
+    static const int before_month[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+    const long gy2 = gm > 2 ? gy + 1 : gy;
+    long days = 355666 + 365L * gy + (gy2 + 3) / 4 - (gy2 + 99) / 100 + (gy2 + 399) / 400 + gd +
+                before_month[std::min(std::max(gm, 1), 12) - 1];
+    long year = -1595 + 33 * (days / 12053);
+    days %= 12053;
+    year += 4 * (days / 1461);
+    days %= 1461;
+    if (days > 365) {
+        year += (days - 1) / 365;
+        days = (days - 1) % 365;
+    }
+    jy = static_cast<int>(year);
+    if (days < 186) {
+        jm = static_cast<int>(1 + days / 31);
+        jd = static_cast<int>(1 + days % 31);
+    } else {
+        jm = static_cast<int>(7 + (days - 186) / 30);
+        jd = static_cast<int>(1 + (days - 186) % 30);
+    }
 }
 void fields(const Json &j, std::initializer_list<const char *> required,
             std::initializer_list<const char *> optional) {
@@ -206,8 +551,8 @@ void validate_config(const Json &c) {
                 "Invalid/duplicate printer ID");
         require(text(p["name"], 128) && !p["name"].get_ref<const std::string &>().empty(),
                 "Invalid name");
-        // Legacy supports installed Windows spooler queues and direct LAN TCP/9100, but not
-        // invented USB VID/PID records.
+        // Legacy supports installed Windows spooler queues, direct LAN TCP/9100 and direct USB
+        // through the in-box Windows "USB Printing Support" driver.
         const auto &conn = p["connection"];
         require(conn.is_object() && conn.contains("type") && conn["type"].is_string(),
                 "Invalid connection");
@@ -222,13 +567,33 @@ void validate_config(const Json &c) {
             require(conn["host"].is_string() && private_ipv4(conn["host"].get<std::string>()),
                     "Use a literal private IPv4 address (e.g. 192.168.1.50)");
             require(number(conn["port"], 1, 65535), "Invalid LAN port (1-65535)");
+        } else if (ctype == "usb") {
+            // Same wire shape as the modern Agent. Legacy locates the device by VID/PID, serial
+            // number and USB port chain; bus/interface/endpoint are kept as received. VID 0 is
+            // reserved for the spooler compatibility descriptor and never a real device.
+            fields(conn,
+                   {"type", "vendorId", "productId", "bus", "ports", "interface", "endpoint",
+                    "alternate"},
+                   {"serial"});
+            require(number(conn["vendorId"], 1, 65535) && number(conn["productId"], 0, 65535),
+                    "Invalid USB vendor/product ID");
+            require(!conn.contains("serial") || conn["serial"].is_null() ||
+                        (text(conn["serial"], 128) &&
+                         !conn["serial"].get_ref<const std::string &>().empty()),
+                    "Invalid USB serial number");
+            require(number(conn["bus"], 0, 255) && number(conn["interface"], 0, 255) &&
+                        number(conn["endpoint"], 0, 255) && number(conn["alternate"], 0, 255) &&
+                        conn["ports"].is_array() && conn["ports"].size() <= 7,
+                    "Invalid USB device location");
+            for (const auto &port : conn["ports"])
+                require(number(port, 0, 255), "Invalid USB device location");
         } else {
             // Name the rejected value: an operator adding a printer must see which type their
             // client sent, not a generic message (same rule as the modern agent).
             throw Error("UNSUPPORTED_CONNECTION_TYPE",
                         "Unsupported printer connection type: \"" +
                             (ctype.size() > 64 ? ctype.substr(0, 64) : ctype) +
-                            "\". The Legacy agent supports \"spooler\" and \"network\".");
+                            "\". The Legacy agent supports \"spooler\", \"network\" and \"usb\".");
         }
         require(number(p["paperMm"], 58, 80) && (p["paperMm"] == 58 || p["paperMm"] == 80) &&
                     number(p["widthDots"], 128, 832) && p["widthDots"].get<int>() % 8 == 0,
@@ -262,6 +627,10 @@ Json compatible_printers(Json printers) {
                           {"interface", 0},
                           {"endpoint", 0},
                           {"alternate", 0}};
+        } else if (connection.is_object() && connection.contains("type") &&
+                   connection["type"] == "usb" && !connection.contains("serial")) {
+            // The shared SDK schema requires the key; a device without a serial reports null.
+            connection["serial"] = nullptr;
         }
     }
     return printers;
@@ -290,6 +659,10 @@ static Json normalize_printer_wire(const Json &printer) {
         require(!queue.empty() && text(queue, 512), "Invalid spooler queue");
         normalized["connection"] = {{"type", "spooler"}, {"queueName", queue}};
     }
+    auto &stored = normalized.at("connection");
+    if (stored.is_object() && stored.contains("type") && stored["type"] == "usb" &&
+        !stored.contains("serial"))
+        stored["serial"] = nullptr;
     return normalized;
 }
 

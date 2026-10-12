@@ -399,7 +399,9 @@ impl HardwareTransport {
     fn send_connection(connection: &Connection, bytes: &[u8], force_raw: bool) -> Result<()> {
         match connection {
             Connection::Network { host, port } => network::send(host, *port, bytes),
-            Connection::Spooler { queue_name } => spooler::send_with_options(queue_name, bytes, force_raw),
+            Connection::Spooler { queue_name } => {
+                spooler::send_with_options(queue_name, bytes, force_raw).map(|_| ())
+            },
             Connection::Usb { .. } => Err(AgentError::new(
                 "INVALID_CONFIG",
                 "A USB connection cannot be used as a USB fallback target",
@@ -548,7 +550,7 @@ impl HardwareTransport {
         match route {
             Connection::Network { host, port } => network::send(host, *port, bytes),
             Connection::Spooler { queue_name } => {
-                spooler::send_with_options(queue_name, bytes, printer.force_raw)
+                spooler::send_with_options(queue_name, bytes, printer.force_raw).map(|_| ())
             },
             Connection::Usb { .. } => {
                 #[cfg(feature = "libusb")]
@@ -712,6 +714,7 @@ impl Transport for HardwareTransport {
 #[cfg(test)]
 mod usb_transport_tests {
     use super::*;
+    use crate::printers::usb_policy::UsbFailureStage;
 
     fn usb_connection() -> Connection {
         Connection::Usb {

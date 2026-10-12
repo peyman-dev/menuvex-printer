@@ -4,10 +4,48 @@ use sha2::Sha256;
 use rand::RngCore;
 use zeroize::Zeroize;
 use crate::error::{ AgentError, Result };
+/// The registrable domain the product is served from. The dashboard/cashier app that pairs with
+/// this agent runs on a subdomain (`https://app.menuvex.ir`), older links use
+/// `https://www.menuvex.ir`, and the marketing site uses the apex.
+const PRODUCT_DOMAIN: &str = "menuvex.ir";
+/// Page origins allowed to open the loopback WebSocket.
+///
+/// Field report: pairing from the real dashboard (`https://app.menuvex.ir`) ended with the
+/// site's generic "cannot reach the local agent", because the upgrade was refused as a foreign
+/// Origin while the listener itself was healthy. The dashboard lives on a subdomain, so the
+/// apex and every HTTPS subdomain of the product domain are accepted — and nothing else.
+/// Debug builds keep the narrow Vite origins they always had.
 pub fn origin_allowed(origin: &str) -> bool {
-    matches!(origin, "https://menuvex.ir" | "https://www.menuvex.ir") ||
+    product_origin(origin) ||
         (cfg!(debug_assertions) &&
             matches!(origin, "http://localhost:5173" | "http://127.0.0.1:5173"))
+}
+/// `https://menuvex.ir` plus any `https://<sub>.menuvex.ir`. A look-alike such as
+/// `https://menuvex.ir.evil.test` or `https://notmenuvex.ir` must never pass, so the host is
+/// compared only after an exact `.menuvex.ir` suffix and the label before it is required.
+fn product_origin(origin: &str) -> bool {
+    let Some(rest) = origin.strip_prefix("https://") else {
+        return false;
+    };
+    // A browser serializes an origin as exactly `scheme://host[:port]`: no path, query,
+    // fragment, userinfo, whitespace or uppercase scheme reaches here.
+    if rest.is_empty() ||
+        !rest.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | ':'))
+    {
+        return false;
+    }
+    let (host, port) = match rest.rsplit_once(':') {
+        Some((host, port)) => (host, Some(port)),
+        None => (rest, None),
+    };
+    if port.is_some_and(|p| p != "443") {
+        return false;
+    }
+    let host = host.to_ascii_lowercase();
+    host == PRODUCT_DOMAIN ||
+        host
+            .strip_suffix(PRODUCT_DOMAIN)
+            .is_some_and(|prefix| prefix.ends_with('.') && prefix.len() > 1)
 }
 pub fn random_secret() -> String {
     let mut bytes = [0u8; 32];
@@ -90,8 +128,21 @@ mod tests {
     #[test]
     fn origins() {
         assert!(origin_allowed("https://menuvex.ir"));
+        assert!(origin_allowed("https://www.menuvex.ir"));
+        // The dashboard that hosts the Pair button is served from a subdomain. Refusing it is
+        // what made the site report "cannot reach the local agent" with a healthy listener.
+        assert!(origin_allowed("https://app.menuvex.ir"));
+        assert!(origin_allowed("https://APP.Menuvex.IR"));
+        assert!(origin_allowed("https://app.menuvex.ir:443"));
+        assert!(!origin_allowed("http://app.menuvex.ir"));
+        assert!(!origin_allowed("https://app.menuvex.ir:8443"));
         assert!(!origin_allowed("https://menuvex.ir.evil.test"));
+        assert!(!origin_allowed("https://notmenuvex.ir"));
+        assert!(!origin_allowed("https://.menuvex.ir"));
+        assert!(!origin_allowed("https://evil.test/app.menuvex.ir"));
+        assert!(!origin_allowed("https://user@menuvex.ir"));
         assert!(!origin_allowed("null"));
+        assert!(!origin_allowed(""));
     }
     #[test]
     fn proofs_are_nonce_bound() {

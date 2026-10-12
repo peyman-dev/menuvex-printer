@@ -279,6 +279,7 @@ mod windows_impl {
                     PRINTER_HANDLE, PRINTER_INFO_2W, PRINTER_ATTRIBUTE_LOCAL,
                 },
             },
+            Security::PSECURITY_DESCRIPTOR,
         },
     };
 
@@ -608,7 +609,7 @@ mod windows_impl {
             pPrintProcessor: PWSTR(print_processor_wide.as_mut_ptr()),
             pDatatype: PWSTR(datatype_wide.as_mut_ptr()),
             pParameters: PWSTR::null(),
-            pSecurityDescriptor: ptr::null_mut(),
+            pSecurityDescriptor: PSECURITY_DESCRIPTOR(ptr::null_mut()),
             Attributes: PRINTER_ATTRIBUTE_LOCAL,
             Priority: 1,
             DefaultPriority: 1,
