@@ -3917,6 +3917,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		if scanID := strings.TrimSpace(r.URL.Query().Get("scan")); scanID != "" {
 			if snap, ok := a.scanner().Status(scanID); ok {
 				v.PrinterScan = &snap
+				v.PrinterDiscoveryMode = "lan"
 			}
 		}
 		switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("discovery"))) {
@@ -3962,6 +3963,17 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			v.PrinterQueues = queues
 		case "lan":
 			v.PrinterDiscoveryMode = "lan"
+			if v.PrinterScan == nil {
+				if snap, ok := a.scanner().LatestStatus(); ok {
+					v.PrinterScan = &snap
+				}
+			}
+		default:
+			a.usbCacheMu.Lock()
+			if time.Since(a.usbCacheAt) < 2*time.Minute {
+				v.PrinterUSBDevices = append([]printer.USBDevice(nil), a.usbCache...)
+			}
+			a.usbCacheMu.Unlock()
 			if v.PrinterScan == nil {
 				if snap, ok := a.scanner().LatestStatus(); ok {
 					v.PrinterScan = &snap

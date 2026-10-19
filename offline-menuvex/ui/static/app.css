@@ -2338,16 +2338,25 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .printer-empty-state h4{margin:0;font-size:15px;font-weight:800;color:#101828}
 .printer-empty-state p{margin:0 0 8px;font-size:12.5px;color:#667085;max-width:520px;line-height:1.8}
 
-/* ─── دیالوگ «تنظیم پرینتر» (مشابه طراحی استاندارد انتخاب ایستگاه و کاغذ) ─ */
-.dlg-printer-modal{max-width:560px;width:95vw;border-radius:18px;overflow:hidden}
-.dlg-title-group{display:flex;align-items:center;gap:12px}
+/* ─── دیالوگ‌های «جستجوی پرینتر» و «تنظیم پرینتر» (با اسکرول استاندارد) ─ */
+.dlg-printer-modal{max-width:600px;width:min(600px,95vw);max-height:min(90dvh,840px);border-radius:18px;padding:0;gap:0;display:flex;flex-direction:column;overflow:hidden}
+.dlg-printer-discover-modal{max-width:920px;width:min(920px,96vw);max-height:min(88dvh,820px)}
+.dlg-printer-modal .dlg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #EAECF0;background:#fff;flex-shrink:0}
+#dlg-printer-form{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden;margin:0}
+.dlg-printer-modal .dlg-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.dlg-discover-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px 20px;background:#F8FAFC;border-bottom:1px solid #EAECF0;flex-shrink:0}
+.dlg-discover-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.dlg-discover-count{font-size:12px;font-weight:800;color:#175CD3;background:#EFF8FF;border:1px solid #B2DDFF;border-radius:999px;padding:4px 12px}
+.dlg-discover-body{background:#F9FAFB}
+.dlg-title-group{display:flex;align-items:center;gap:12px;min-width:0}
+.dlg-title-group h3{margin:0;font-size:16px;font-weight:800;color:#101828}
 .dlg-title-icon{width:40px;height:40px;border-radius:11px;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;flex:none}
 .dlg-title-icon svg{width:20px;height:20px}
 .dlg-subtitle{margin:2px 0 0;font-size:12px;color:#667085;font-weight:500}
-.dlg-close-pill{border:1px solid #D0D5DD;background:#fff;color:#344054;border-radius:10px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
-.dlg-close-pill:hover{background:#F9FAFB}
+.dlg-close-pill{flex:none;border:1px solid #D0D5DD;background:#fff;color:#344054;border-radius:10px;padding:7px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.dlg-close-pill:hover{background:#F9FAFB;border-color:#98A2B3}
 
-.dlg-printer-hw-banner{display:flex;align-items:center;gap:12px;background:#F8FAFC;border:1px solid #E4E7EC;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.dlg-printer-hw-banner{display:flex;align-items:center;gap:12px;background:#F8FAFC;border:1px solid #E4E7EC;border-radius:12px;padding:12px 14px;margin:0}
 .dlg-printer-hw-icon{width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #D0D5DD;color:#1D4ED8;display:flex;align-items:center;justify-content:center;flex:none}
 .dlg-printer-hw-icon svg{width:19px;height:19px}
 .dlg-printer-hw-meta{flex:1;min-width:0}
@@ -2368,12 +2377,14 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .paper-choice-card.active{border-color:#2468CC;background:#EFF8FF;box-shadow:0 0 0 2px rgba(36,104,204,.12)}
 .paper-choice-card.active svg{color:#1D4ED8}
 
-.dlg-checks-stack{display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:10px 12px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:10px}
+.dlg-checks-stack{display:flex;flex-direction:column;gap:8px;margin-top:2px;padding:10px 12px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:10px}
 .dlg-check-row{display:flex!important;flex-direction:row!important;align-items:center!important;gap:9px!important;font-size:13px!important;font-weight:700!important;color:#1D2939!important;cursor:pointer;margin:0!important}
 .dlg-check-row input[type="checkbox"]{width:17px;height:17px;margin:0;flex:none}
-.dlg-printer-foot{padding-top:12px}
-.btn-block-lg{width:100%;height:44px;font-size:14px;font-weight:800;justify-content:center;border-radius:11px}
-.dlg-printer-delete-bar{padding:0 20px 16px;display:flex;justify-content:flex-end}
+.dlg-printer-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 20px;border-top:1px solid #EAECF0;background:#fff;flex-shrink:0}
+.btn-block-lg{flex:1;height:44px;font-size:14px;font-weight:800;justify-content:center;border-radius:11px}
+.dlg-printer-delete-bar{padding-top:4px;display:flex;justify-content:flex-end}
+.settings-inner-tabs{margin-bottom:14px;background:#F8FAFC}
+.settings-inner-tabs button.printer-subnav-item{border:0;font-family:inherit;cursor:pointer}
 
 @media (max-width:1100px){.printer-kpi-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.printer-kpi-strip,.printer-spec-grid,.discovered-specs-grid,.paper-choice-grid{grid-template-columns:minmax(0,1fr)}}

@@ -861,10 +861,29 @@ document.addEventListener('htmx:afterSwap', function (e) {
       }
     }
 
+    var discDlg = document.getElementById('dlg-printer-discover');
+    if (discDlg) discDlg.classList.remove('open');
     openDlg('dlg-printer-setup');
     var nameInput = form.querySelector('[name="name"]');
     if (nameInput) setTimeout(function(){ nameInput.focus(); nameInput.select(); }, 60);
     return true;
+  };
+
+  window.openPrinterDiscoverDialog = function(){
+    openDlg('dlg-printer-discover');
+    return false;
+  };
+
+  window.switchSettingsTab = function(tabKey, btn){
+    var panels = document.querySelectorAll('[data-settings-panel]');
+    for (var i = 0; i < panels.length; i++) {
+      panels[i].hidden = (panels[i].getAttribute('data-settings-panel') !== tabKey);
+    }
+    var tabs = document.querySelectorAll('[data-settings-tab]');
+    for (var j = 0; j < tabs.length; j++) {
+      tabs[j].classList.toggle('active', tabs[j].getAttribute('data-settings-tab') === tabKey);
+    }
+    return false;
   };
 
   // ── لغو سفارش ──

@@ -58,6 +58,7 @@
       <input type="hidden" name="usb_product" value="{{$d.USB.Product}}">
       <input type="hidden" name="usb_manufacturer" value="{{$d.USB.Manufacturer}}">
       <input type="hidden" name="paper_mm" value="{{if eq $d.PaperMM 58}}58{{else}}80{{end}}">
+      <input type="hidden" name="paper" value="{{if eq $d.PaperMM 58}}58mm{{else}}80mm{{end}}">
 
       <div class="dlg-body">
         <div class="dlg-printer-hw-banner">
@@ -122,28 +123,19 @@
         </div>
 
         <div class="form-row-2">
-          <label>عرض کاغذ
-            <select name="paper" onchange="setPrinterPaperMM(this.value === '58mm' || this.value === '58' ? 58 : 80, this.form)">
-              <option value="80mm" {{if ne $d.PaperMM 58}}selected{{end}}>80 mm</option>
-              <option value="58mm" {{if eq $d.PaperMM 58}}selected{{end}}>58 mm</option>
-            </select>
-          </label>
           <label>عرض واقعی — dots
             <input type="number" name="width_dots" value="{{if gt $d.WidthDots 0}}{{$d.WidthDots}}{{else}}576{{end}}" min="128" max="832" step="8" dir="ltr" data-no-group="1">
+          </label>
+          <label>تعداد نسخه چاپ در هر سفارش
+            <input type="number" name="copies" value="{{if gt $d.Copies 0}}{{$d.Copies}}{{else}}1{{end}}" min="1" max="3" dir="ltr" data-no-group="1">
           </label>
         </div>
 
         <div class="form-row-2">
-          <label>تعداد نسخه
-            <input type="number" name="copies" value="{{if gt $d.Copies 0}}{{$d.Copies}}{{else}}1{{end}}" min="1" max="3" dir="ltr" data-no-group="1">
-          </label>
-          <label>اندازه فونت
+          <label>اندازه فونت چاپی
             <input type="number" name="font_size" value="{{if gt $d.FontSize 0}}{{$d.FontSize}}{{else}}24{{end}}" min="12" max="48" dir="ltr" data-no-group="1">
           </label>
-        </div>
-
-        <div class="dlg-field">
-          <label>فونت
+          <label>فونت رندر فارسی
             <input name="font_family" value="{{if $d.FontFamily}}{{$d.FontFamily}}{{else}}Noto Sans Arabic{{end}}" dir="ltr" placeholder="Noto Sans Arabic">
           </label>
         </div>
@@ -158,6 +150,10 @@
             <span>فعال بودن چاپگر در چاپ خودکار سفارش‌ها</span>
           </label>
         </div>
+
+        <div id="dlg-printer-delete-wrap" class="dlg-printer-delete-bar" hidden>
+          <button type="button" class="btn btn-danger-outline btn-sm" onclick="var f=document.getElementById('dlg-printer-delete-form'); if(f) f.requestSubmit();">حذف این پرینتر از سیستم</button>
+        </div>
       </div>
 
       <div class="dlg-foot dlg-printer-foot">
@@ -165,16 +161,90 @@
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>
           <span>ذخیره تنظیمات</span>
         </button>
+        <button type="button" class="btn btn-outline" onclick="closeDlg(this)">انصراف</button>
       </div>
     </form>
 
-    <div id="dlg-printer-delete-wrap" class="dlg-printer-delete-bar" hidden>
-      <form method="post" action="/local/printer-delete" hx-post="/local/printer-delete" hx-target="#main-view">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <input type="hidden" id="dlg-printer-delete-id" name="printer_id" value="">
-        <input type="hidden" name="confirm_delete" value="on">
-        <button type="submit" class="btn btn-danger-outline btn-sm">حذف پرینتر از سیستم</button>
-      </form>
+    <form id="dlg-printer-delete-form" method="post" action="/local/printer-delete" hx-post="/local/printer-delete" hx-target="#main-view" hidden>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" id="dlg-printer-delete-id" name="printer_id" value="">
+      <input type="hidden" name="confirm_delete" value="on">
+    </form>
+  </div>
+</div>
+{{end}}
+
+{{define "printerDiscoverDialog"}}
+<div class="dlg-overlay {{if .PrinterDiscoveryMode}}open{{end}}" id="dlg-printer-discover" role="dialog" aria-modal="true" aria-labelledby="dlg-printer-discover-title">
+  <div class="dlg dlg-printer-modal dlg-printer-discover-modal">
+    <div class="dlg-head">
+      <div class="dlg-title-group">
+        <span class="dlg-title-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </span>
+        <div>
+          <h3 id="dlg-printer-discover-title">جستجوی خودکار چاپگرها (USB و LAN)</h3>
+          <p class="dlg-subtitle">شناسایی خودکار پرینترهای نصب‌شده روی سیستم‌عامل، دستگاه‌های USB شناسایی‌شده و شبکه محلی؛ روی «انتخاب پرینتر» کلیک کنید</p>
+        </div>
+      </div>
+      <button type="button" class="dlg-close-pill" onclick="closeDlg(this)">بستن ×</button>
+    </div>
+
+    <div class="dlg-discover-toolbar">
+      <div class="dlg-discover-actions">
+        <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <span>اسکن هم‌زمان (USB و LAN)</span>
+          </button>
+        </form>
+        <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="return_page" value="printers">
+          <button type="submit" class="btn btn-outline btn-sm">جستجوی USB</button>
+        </form>
+        <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="return_page" value="printers">
+          <button type="submit" class="btn btn-outline btn-sm">پرینترهای نصب‌شده روی سیستم‌عامل</button>
+        </form>
+        <form method="post" action="/local/printer-scan" hx-post="/local/printer-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="return_page" value="printers">
+          <button type="submit" class="btn btn-outline btn-sm">جستجوی شبکه</button>
+        </form>
+      </div>
+      <span class="dlg-discover-count">{{faInt (len .DiscoveredPrinters)}} دستگاه شناسایی‌شده</span>
+    </div>
+
+    <div class="dlg-body dlg-discover-body">
+      {{template "scanResults" .}}
+
+      {{if .DiscoveredPrinters}}
+      <div class="discovered-printer-grid">
+        {{range .DiscoveredPrinters}}
+          {{template "discoveredPrinterCard" .}}
+        {{end}}
+      </div>
+      {{else}}
+      <div class="printer-empty-state">
+        <div class="printer-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </div>
+        <h4>در حال حاضر دستگاهی در فهرست نیست</h4>
+        <p>پرینتر حرارتی را با کابل USB روشن کنید یا به شبکه Wi-Fi/LAN وصل نمایید و دکمه «اسکن هم‌زمان (USB و LAN)» را بزنید.</p>
+        <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="btn btn-primary">شروع اسکن خودکار (USB و LAN)</button>
+        </form>
+      </div>
+      {{end}}
+    </div>
+
+    <div class="dlg-foot dlg-printer-foot">
+      <button type="button" class="btn btn-subtle btn-sm" onclick="closeDlg(this); openDlg('dlg-printer-setup');">افزودن دستی</button>
+      <button type="button" class="btn btn-outline" onclick="closeDlg(this)">بستن پنجره جستجو</button>
     </div>
   </div>
 </div>
@@ -392,13 +462,10 @@
       </div>
     </div>
     <div class="printer-hero-actions">
-      <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button type="submit" class="btn btn-primary">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-          <span>جستجوی خودکار چاپگرها (USB و LAN)</span>
-        </button>
-      </form>
+      <button type="button" class="btn btn-primary" onclick="openPrinterDiscoverDialog()">
+        <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span>جستجوی پرینتر (USB و LAN)</span>
+      </button>
       <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">
         <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
         <span>صف چاپ ({{faInt .PrintJobCounts.Pending}})</span>
@@ -453,12 +520,15 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/></svg>
         </span>
         <div>
-          <h3>۱. لیست پرینترهای شما</h3>
-          <p>پرینترهای تعریف‌شده برای صندوق، آشپزخانه و بار • برای تغییر نام ایستگاه یا عرض کاغذ روی «تنظیمات پرینتر» کلیک کنید</p>
+          <h3>لیست پرینترهای شما</h3>
+          <p>پرینترهای تعریف‌شده برای صندوق، آشپزخانه و بار • برای افزودن دستگاه جدید دکمه «جستجوی پرینتر» را بزنید</p>
         </div>
       </div>
       <div class="row-actions">
-        <a href="/?page=settings" hx-get="/?page=settings" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">سیاست چاپ خودکار و سربرگ فیش</a>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openPrinterDiscoverDialog()">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span>جستجوی پرینتر جدید</span>
+        </button>
       </div>
     </div>
 
@@ -609,73 +679,16 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><circle cx="17" cy="12.5" r="1"/></svg>
       </div>
       <h4>هنوز چاپگری تنظیم نشده است</h4>
-      <p>از بخش «جستجوی خودکار چاپگرها» در پایین، پرینتر USB یا شبکه (LAN) خود را بدون نیاز به وارد کردن دستی IP و پورت انتخاب کنید.</p>
+      <p>روی دکمهٔ «جستجوی پرینتر (USB و LAN)» کلیک کنید تا پنجرهٔ شناسایی خودکار باز شود و پرینتر خود را بدون نیاز به وارد کردن IP و پورت انتخاب کنید.</p>
+      <button type="button" class="btn btn-primary" onclick="openPrinterDiscoverDialog()">
+        <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span>جستجوی پرینتر (USB و LAN)</span>
+      </button>
     </div>
     {{end}}
   </section>
 
-  <!-- مرحله ۲: جستجوی خودکار پرینترهای USB، سیستم‌عامل و شبکه LAN -->
-  <section class="panel-card printer-section-card" id="discovery-section">
-    <div class="panel-header">
-      <div class="section-head-with-icon">
-        <span class="section-icon-badge badge-accent">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-        </span>
-        <div>
-          <h3>۲. جستجوی خودکار چاپگرها (پرینترهای نصب‌شده، دستگاه‌های USB شناسایی‌شده و شبکه LAN)</h3>
-          <p>شناسایی خودکار در ویندوز، مک و لینوکس بدون نیاز به وارد کردن دستی IP و پورت • روی «انتخاب پرینتر و تنظیم ایستگاه» کلیک کنید</p>
-        </div>
-      </div>
-      <div class="row-actions">
-        <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <button type="submit" class="btn btn-primary btn-sm">
-            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-            <span>جستجوی همه (USB + LAN)</span>
-          </button>
-        </form>
-        <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view" class="inline-form">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="return_page" value="printers">
-          <button type="submit" class="btn btn-outline btn-sm">جستجوی USB</button>
-        </form>
-        <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view" class="inline-form">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="return_page" value="printers">
-          <button type="submit" class="btn btn-outline btn-sm">پرینترهای نصب‌شده روی سیستم‌عامل</button>
-        </form>
-        <form method="post" action="/local/printer-scan" hx-post="/local/printer-scan" hx-target="#main-view" class="inline-form">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="return_page" value="printers">
-          <button type="submit" class="btn btn-outline btn-sm">جستجوی شبکه</button>
-        </form>
-        <button type="button" class="btn btn-subtle btn-sm" onclick="openDlg('dlg-printer-setup')">افزودن دستی</button>
-      </div>
-    </div>
-
-    {{template "scanResults" .}}
-
-    {{if .DiscoveredPrinters}}
-    <div class="discovered-printer-grid">
-      {{range .DiscoveredPrinters}}
-        {{template "discoveredPrinterCard" .}}
-      {{end}}
-    </div>
-    {{else}}
-    <div class="printer-empty-state">
-      <div class="printer-empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-      </div>
-      <h4>آماده شناسایی خودکار پرینترهای USB و شبکه</h4>
-      <p>چاپگر خود را به پورت USB یا شبکه Wi-Fi/LAN متصل کنید و دکمه «جستجوی همه (USB + LAN)» را بزنید تا کارت پرینتر به همراه مشخصات کامل نمایش داده شود.</p>
-      <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button type="submit" class="btn btn-primary">شروع جستجوی خودکار چاپگرها</button>
-      </form>
-    </div>
-    {{end}}
-  </section>
-
+  {{template "printerDiscoverDialog" .}}
   {{template "printerSetupDialog" .}}
 
 {{else if or (eq .Page "printer-new") (eq .Page "printer-scan")}}
