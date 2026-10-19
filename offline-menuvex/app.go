@@ -1850,6 +1850,40 @@ func New(dataDir string) (*Application, error) {
 	} else if isDefaultUserDir {
 		_ = a.SeedIfEmpty(context.Background())
 	}
+	if os.Getenv("COFFISH_DISABLE_AUTH") == "1" {
+		a.authDisabled = true
+		_ = a.SeedIfEmpty(context.Background())
+		_ = a.store.MigratePrinterSchema(context.Background())
+	}
+	if os.Getenv("COFFISH_PREVIEW_PRINTERS") == "1" {
+		a.queueScan = func(ctx context.Context) ([]string, error) {
+			real, _ := printer.ListQueues(ctx)
+			if len(real) > 0 {
+				return real, nil
+			}
+			return []string{"Epson_TM-T20II_USB", "Bixolon_SRP-330II_80mm", "Xprinter_XP-58IIH_58mm"}, nil
+		}
+		a.usbScan = func() ([]printer.USBDevice, error) {
+			real, _ := printer.DiscoverUSB()
+			if len(real) > 0 {
+				return real, nil
+			}
+			return []printer.USBDevice{
+				{
+					DevicePath:   "/dev/usb/lp0",
+					VendorID:     "04B8",
+					ProductID:    "0E15",
+					Serial:       "EPSN-T20-8841",
+					Manufacturer: "Epson",
+					Product:      "TM-T20II Thermal Receipt",
+					Bus:          "1",
+					PortPath:     "2",
+					Accessible:   true,
+					AccessNote:   "آماده چاپ مستقیم USB",
+				},
+			}, nil
+		}
+	}
 	return a, nil
 }
 
