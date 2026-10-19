@@ -186,10 +186,12 @@ RUNTIME_FILE=/path/to/runtime-x86_64 ./packaging/appimage/build-appimage.sh x86_
 
 - **هیچ خروجی‌ای امضا نشده است.** نه گواهی Code Signing ویندوز، نه Apple Developer ID،
   نه حساب notarization در دسترس بود.
-- macOS: DMGهای ساخته‌شده در این محیط **بدون امضا** هستند (codesign روی Linux وجود ندارد).
-  در CI روی macOS یک امضای ad-hoc (`codesign -s -`) اضافه می‌شود که فقط سالم‌بودن بسته را
-  تأیید می‌کند، نه هویت توسعه‌دهنده را. Gatekeeper روی فایل دانلودشده هشدار می‌دهد؛
-  کاربر باید Right-click → Open یا `xattr -dr com.apple.quarantine` بزند.
+- macOS: DMGها با Developer ID امضا و notarize نشده‌اند (codesign و حساب Apple در دسترس
+  نبود). تنها امضای موجود، **امضای ad-hoc لینکر Go** است:
+  باینری arm64 دارای `LC_CODE_SIGNATURE` معتبر (`SuperBlob 0xfade0cc0`) است — این برای
+  اجرا روی Apple Silicon لازم است. باینری amd64 امضا ندارد (اجباری نیست).
+  امضای ad-hoc هویت توسعه‌دهنده را تأیید نمی‌کند؛ Gatekeeper روی فایل دانلودشده هشدار
+  می‌دهد و کاربر باید Right-click → Open یا `xattr -dr com.apple.quarantine` بزند.
 - Windows: SmartScreen هشدار «Unknown publisher» می‌دهد.
 - برای انتشار واقعی باید این Secrets در GitHub تنظیم شود و همان workflow امضا کند:
   `WINDOWS_CERT_PFX`/`WINDOWS_CERT_PASSWORD`، `APPLE_CERT_P12`/`APPLE_CERT_PASSWORD`،
