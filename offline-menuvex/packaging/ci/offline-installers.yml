@@ -217,10 +217,12 @@ jobs:
           if ($machine -ne 0x8664) { throw ('payload machine is 0x{0:x}' -f $machine) }
           if ($subsystem -ne 2) { throw "payload is not a GUI subsystem binary" }
 
-          # Uninstall
+          # Uninstall (the NSIS uninstaller relaunches itself from %TEMP%, so
+          # poll until the installed files are actually gone).
           $uninstaller = Join-Path $installDir 'Uninstall.exe'
-          $p = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
-          Start-Sleep -Seconds 2
+          Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait | Out-Null
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Test-Path $exe) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Milliseconds 500 }
           if (Test-Path $exe) { throw "application files remain after uninstall" }
           if (-not (Test-Path $dataFile)) { throw "database was deleted by uninstall" }
           if (Test-Path $reg) { throw "uninstall registry key remains" }
@@ -282,10 +284,11 @@ jobs:
           codesign -dv --verbose=2 "$APP" 2>&1 | tee /tmp/codesign.txt || true
           echo "--- Gatekeeper assessment (unsigned builds are expected to fail) ---"
           if spctl --assess --type execute -vv "$APP" 2>&1; then
-            echo "SPCTL=accepted" >> "$GITHUB_ENV"
+            SPCTL="accepted"
           else
-            echo "SPCTL=rejected (unsigned / not notarized)" >> "$GITHUB_ENV"
+            SPCTL="rejected (unsigned / not notarized)"
           fi
+          echo "SPCTL=$SPCTL" >> "$GITHUB_ENV"
           hdiutil detach "$MNT" >/dev/null
           echo "Gatekeeper: $SPCTL"
 

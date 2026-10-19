@@ -42,6 +42,40 @@ dec8f9b306a3ccb2f766853a75e6e5f235413bcd3e9d12f33aeee4f34f0eef05  menuvex-offlin
 
 ---
 
+## ۱.۵) نصب سریع
+
+**Windows (x64)**
+```
+MenuVex-Offline-Setup-1.0.0-x64.exe   → دابل‌کلیک → Next (UAC می‌خواهد)
+نصب در: C:\Program Files\MenuVex Offline
+حذف: Settings → Apps → MenuVex Offline  (داده در %APPDATA%\CoffishDesktop می‌ماند)
+```
+
+**Debian / Ubuntu (amd64 یا arm64)**
+```bash
+sudo dpkg -i menuvex-offline_1.0.0_amd64.deb
+sudo apt-get -f install          # اگر وابستگی GTK/WebKit ناقص بود
+menuvex-offline                  # یا از منوی برنامه‌ها: MenuVex Offline
+sudo dpkg -r menuvex-offline     # حذف برنامه؛ ~/.config/CoffishDesktop می‌ماند
+```
+
+**AppImage (بدون نصب)**
+```bash
+chmod +x MenuVex-Offline-1.0.0-x86_64.AppImage
+./MenuVex-Offline-1.0.0-x86_64.AppImage
+# اگر FUSE نصب نبود:
+./MenuVex-Offline-1.0.0-x86_64.AppImage --appimage-extract-and-run
+```
+
+**macOS**
+```
+DMG را باز کنید و «MenuVex Offline» را به Applications بکشید.
+اجرای اول: Right-click → Open (چون امضا/notarize نشده است)
+یا: xattr -dr com.apple.quarantine "/Applications/MenuVex Offline.app"
+```
+
+---
+
 ## ۲) چه چیزی و با چه ابزاری ساخته شد
 
 | مورد | ابزار | توضیح |
@@ -183,6 +217,8 @@ Workflow نوشته و YAML آن اعتبارسنجی شد، اما **اجرا �
    ```
 3. حتی در صورت اجرای CI، دانلود/آپلود assetهای Release از این sandbox ممکن نیست:
    `uploads.github.com` و `objects.githubusercontent.com` با کد `000` (blocked) پاسخ می‌دهند.
+   این مورد با یک Release پیش‌نویس آزمایشی هم امتحان شد و آپلود asset با خطای
+   `Post "https://uploads.github.com/.../assets": EOF` شکست خورد؛ آن پیش‌نویس حذف شد.
    بنابراین Release واقعی با asset از این محیط قابل ساخت نیست.
 
 به همین دلیل فایل workflow با همان محتوا و فقط با یک هدر توضیحی در مسیر زیر نگه داشته شد:
@@ -204,6 +240,8 @@ git push
 
 - push به شاخهٔ `arena/9d25b45b-menuvex-printer` → تست + ساخت + اعتبارسنجی + artifact
 - push تگ `offline-v1.0.0` → ساخت GitHub Release با همهٔ installerها و `SHA256SUMS`
+  (پیشوند `offline-` عمداً انتخاب شد چون مخزن از قبل تگ‌ها/ریلیزهای `v1.0.0` و
+  `v1.0.1-rc.1` مربوط به «دستیار پرینتر منووکس» را دارد و نباید با آن‌ها قاطی شود.)
 
 مراحل workflow دقیقاً همان کارهایی را انجام می‌دهد که در این سند به‌صورت محلی انجام شد،
 به‌علاوهٔ نصب/حذف واقعی (`dpkg -i`/`dpkg -r`، NSIS `/S` + بررسی رجیستری و حفظ DB،
