@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -241,6 +242,22 @@ type authPageData struct {
 	Notice  string
 	Expired bool
 	License LicenseState
+	// Phone شمارهٔ ثبت‌شدهٔ مالک برای پیش‌پرکردن فرم ورود.
+	Phone string
+	// Registered یعنی حساب مالک قبلاً ثبت شده است (ثبت‌نام دوباره ممکن نیست).
+	Registered bool
+}
+
+func isValidPhone(phone string) bool {
+	if len(phone) != 11 || !strings.HasPrefix(phone, "09") {
+		return false
+	}
+	for _, ch := range phone {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *Application) renderAuth(w http.ResponseWriter, name string, data authPageData) {
@@ -256,7 +273,7 @@ func (a *Application) renderAuth(w http.ResponseWriter, name string, data authPa
 
 func authExemptPath(path string) bool {
 	switch {
-	case path == "/license", path == "/login", path == "/logout", path == "/license/activate":
+	case path == "/license", path == "/login", path == "/logout", path == "/license/activate", path == "/register":
 		return true
 	case strings.HasPrefix(path, "/static/"):
 		return true
@@ -292,12 +309,30 @@ func (a *Application) enforceAuth(w http.ResponseWriter, r *http.Request) bool {
 		http.Redirect(w, r, "/license?expired=1", http.StatusSeeOther)
 		return true
 	}
+	if path == "/register" {
+		// ثبت‌نام فقط یک بار: بعد از ساخت حساب مالک، این صفحه همیشه به ورود می‌رود.
+		if a.ownerRegistered(r.Context()) {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return true
+		}
+		if r.Method == http.MethodGet {
+			a.renderAuth(w, "register", authPageData{License: lic})
+			return true
+		}
+		return false // POST به handleRegister می‌رسد.
+	}
 	if path == "/login" {
 		if _, ok := a.sessionOf(r); ok {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return true
 		}
-		a.renderAuth(w, "login", authPageData{License: lic})
+		// هنوز حسابی ساخته نشده؟ اول ثبت‌نام (مثل نسخهٔ وب).
+		owner, registered := a.ownerAccount(r.Context())
+		if !registered {
+			http.Redirect(w, r, "/register", http.StatusSeeOther)
+			return true
+		}
+		a.renderAuth(w, "login", authPageData{License: lic, Phone: owner.Phone, Registered: true})
 		return true
 	}
 	if _, ok := a.sessionOf(r); !ok {
@@ -362,9 +397,121 @@ func (a *Application) handleLogin(w http.ResponseWriter, r *http.Request) {
 		fail("پرسنلی با این شماره موبایل یافت نشد.")
 		return
 	}
-	// ورود مدیر — فعلاً Dummy: هر موبایل معتبر با گذرواژه ۴+ نویسه‌ای.
-	a.newSession(w, "manager", "مدیر کافه")
+	// ورود مدیر: فقط حساب مالکی که با «ثبت‌نام» ساخته شده پذیرفته می‌شود.
+	owner, ok := a.ownerAccount(ctx)
+	if !ok {
+		fail("هنوز حسابی ثبت نشده است؛ ابتدا از صفحهٔ ثبت‌نام حساب بسازید.")
+		return
+	}
+	if phone != owner.Phone || subtle.ConstantTimeCompare([]byte(hashPassword(password)), []byte(owner.PasswordHash)) != 1 {
+		fail("شماره موبایل یا گذرواژه نادرست است.")
+		return
+	}
+	name := strings.TrimSpace(owner.FirstName + " " + owner.LastName)
+	if name == "" {
+		name = "مدیر کافه"
+	}
+	a.newSession(w, "manager", name)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// ownerAccount حساب مالک ثبت‌نامی روی پروفایل کافه (cafe-main-profile) ذخیره می‌شود (مطابق اسکیمای وب account).
+type ownerAccount struct {
+	FirstName    string
+	LastName     string
+	Phone        string
+	CafeName     string
+	PasswordHash string
+}
+
+func hashPassword(pw string) string {
+	sum := sha256.Sum256([]byte(pw))
+	return fmt.Sprintf("%x", sum)
+}
+
+func (a *Application) ownerAccount(ctx context.Context) (ownerAccount, bool) {
+	prof, err := a.store.Entity(ctx, "cafe_profile", "cafe-main-profile")
+	if err != nil {
+		return ownerAccount{}, false
+	}
+	phone := strings.TrimSpace(prof.Field("owner_phone"))
+	hash := strings.TrimSpace(prof.Field("owner_password_hash"))
+	if phone == "" || hash == "" {
+		return ownerAccount{}, false
+	}
+	return ownerAccount{
+		FirstName:    strings.TrimSpace(prof.Field("owner_first_name")),
+		LastName:     strings.TrimSpace(prof.Field("owner_last_name")),
+		Phone:        phone,
+		CafeName:     strings.TrimSpace(prof.Field("name")),
+		PasswordHash: hash,
+	}, true
+}
+
+// ownerRegistered آیا ثبت‌نام مالک قبلاً انجام شده است؟ (ثبت‌نام فقط یک بار انجام می‌شود.)
+func (a *Application) ownerRegistered(ctx context.Context) bool {
+	_, ok := a.ownerAccount(ctx)
+	return ok
+}
+
+func (a *Application) renderRegister(w http.ResponseWriter, r *http.Request, msg string) {
+	a.renderAuth(w, "register", authPageData{Error: msg, License: a.LicenseState()})
+}
+
+// handleRegister ثبت‌نام یک‌باره مالک (مطابق اسکیمای وب: account + tenant) و ورود خودکار پس از آن.
+func (a *Application) handleRegister(w http.ResponseWriter, r *http.Request) {
+	if a.ownerRegistered(r.Context()) {
+		// ثبت‌نام دوم ممکن نیست.
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	first := strings.TrimSpace(r.Form.Get("first_name"))
+	last := strings.TrimSpace(r.Form.Get("last_name"))
+	phone := strings.TrimSpace(r.Form.Get("phone"))
+	cafe := strings.TrimSpace(r.Form.Get("cafe_name"))
+	address := strings.TrimSpace(r.Form.Get("address"))
+	pw := r.Form.Get("password")
+	confirm := r.Form.Get("password_confirm")
+	fail := func(msg string) { a.renderRegister(w, r, msg) }
+	switch {
+	case first == "" || last == "":
+		fail("نام و نام خانوادگی را وارد کنید.")
+		return
+	case !isValidPhone(phone):
+		fail("شماره موبایل معتبر نیست. مثال: 09123456789")
+		return
+	case cafe == "":
+		fail("نام کافه یا مجموعه را وارد کنید.")
+		return
+	case len(pw) < 6:
+		fail("گذرواژه باید حداقل ۶ نویسه باشد.")
+		return
+	case pw != confirm:
+		fail("تکرار گذرواژه با گذرواژه یکسان نیست.")
+		return
+	}
+	now := time.Now()
+	fields := map[string]any{
+		"owner_first_name":    first,
+		"owner_last_name":     last,
+		"owner_phone":         phone,
+		"owner_name":          strings.TrimSpace(first + " " + last),
+		"owner_role":          "owner",
+		"owner_password_hash": hashPassword(pw),
+		"owner_registered_at": now.Format(time.RFC3339),
+		"name":                cafe,
+		"phone":               phone,
+	}
+	if address != "" {
+		fields["address"] = address
+	}
+	if _, err := a.store.SaveLocalRecord(r.Context(), "cafe_profile", "cafe-main-profile", fields); err != nil {
+		fail("خطا در ذخیره ثبت‌نام: " + err.Error())
+		return
+	}
+	// ورود خودکار بلافاصله بعد از ثبت‌نام (مثل نسخه وب).
+	a.newSession(w, "manager", strings.TrimSpace(first+" "+last))
+	http.Redirect(w, r, "/?page=pos&msg="+url.QueryEscape("ثبت‌نام با موفقیت انجام شد؛ خوش آمدید."), http.StatusSeeOther)
 }
 
 func (a *Application) handleLogout(w http.ResponseWriter, r *http.Request) {

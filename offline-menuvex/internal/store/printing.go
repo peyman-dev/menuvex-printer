@@ -289,6 +289,11 @@ func (s *Store) EnqueueOrderPrintJobsDocs(ctx context.Context, orderID string, d
 		return jobs, jErr
 	}
 
+	// قاعدهٔ «تنها چاپگر کافه»: اگر فقط یک چاپگر فعال وجود دارد، همهٔ اسناد
+	// (فیش مشتری + بلیت کامل آشپزخانه) از همان چاپگر چاپ می‌شوند و نبودِ نقش
+	// یا مسیر دسته‌بندی هرگز چاپ را متوقف نمی‌کند.
+	single := len(active) == 1
+
 	// فیش مشتری ← چاپگر صندوق (ایستگاه صندوق/کشیر) یا اولین چاپگر فعال
 	cashier := findPrinter(func(p Entity) bool { return hasRole(p, "cashier") })
 	if cashier == nil {
@@ -397,23 +402,28 @@ func (s *Store) EnqueueOrderPrintJobsDocs(ctx context.Context, orderID string, d
 			kitchenByPrinter[p.ID] = nw
 			kitchenWants = append(kitchenWants, nw)
 		}
-		var leftover []string
-		for catID := range orderCats {
-			if ri, ok := routeByCat[catID]; ok {
-				addKitchen(ri.printer, []string{catID}, wantKitchen*ri.copies)
-			} else {
-				leftover = append(leftover, catID)
+		if single {
+			// تنها چاپگر: یک بلیت کامل آشپزخانه از همان چاپگر (بدون نیاز به مسیر/نقش).
+			addKitchen(&active[0], nil, wantKitchen)
+		} else {
+			var leftover []string
+			for catID := range orderCats {
+				if ri, ok := routeByCat[catID]; ok {
+					addKitchen(ri.printer, []string{catID}, wantKitchen*ri.copies)
+				} else {
+					leftover = append(leftover, catID)
+				}
 			}
-		}
-		if !anyRoute {
-			// رفتار قبلی: یک بلیت کامل برای چاپگر ایستگاه بار/آشپزخانه (اگر جدا از صندوق است)
-			if kp := kitchenStation(); kp != nil && kp.ID != cashier.ID {
-				addKitchen(kp, nil, wantKitchen)
-			}
-		} else if len(leftover) > 0 {
-			// دسته‌های بدون مسیر ← پرینتر پیش‌فرض آشپزخانه (قاعده وب)
-			if kp := kitchenStation(); kp != nil {
-				addKitchen(kp, leftover, wantKitchen)
+			if !anyRoute {
+				// رفتار قبلی: یک بلیت کامل برای چاپگر ایستگاه بار/آشپزخانه (اگر جدا از صندوق است)
+				if kp := kitchenStation(); kp != nil && kp.ID != cashier.ID {
+					addKitchen(kp, nil, wantKitchen)
+				}
+			} else if len(leftover) > 0 {
+				// دسته‌های بدون مسیر ← پرینتر پیش‌فرض آشپزخانه (قاعده وب)
+				if kp := kitchenStation(); kp != nil {
+					addKitchen(kp, leftover, wantKitchen)
+				}
 			}
 		}
 		for _, kw := range kitchenWants {

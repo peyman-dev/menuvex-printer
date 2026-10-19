@@ -140,3 +140,41 @@ func TestSaveLocalRecordRejectsNegativePrice(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSinglePrinterReceivesAllDocs(t *testing.T) {
+	s := openTest(t)
+	ctx := context.Background()
+	// تنها چاپگر کافه: بدون نقش و بدون هیچ مسیر دسته‌بندی.
+	pid, err := s.SaveLocalRecord(ctx, "printer", "", map[string]any{"name": "چاپگر تنها", "is_active": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SaveLocalRecord(ctx, "product", "", map[string]any{"title": "قهوه", "price": "10000"}); err != nil {
+		t.Fatal(err)
+	}
+	prods, _ := s.Entities(ctx, "product")
+	orderID, err := s.CreatePOSOrder(ctx, POSOrderInput{Items: []POSOrderLineInput{{ProductID: prods[0].ID, Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobs, err := s.EnqueueOrderPrintJobs(ctx, orderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byDoc := map[string]PrintJobView{}
+	for _, j := range jobs {
+		byDoc[j.DocType] = j
+		if j.PrinterID != pid {
+			t.Fatalf("job %s must target the single printer %s, got %+v", j.DocType, pid, j)
+		}
+		if j.Status == PrintStatusFailed {
+			t.Fatalf("single-printer job must not fail for missing role/route: %+v", j)
+		}
+	}
+	if _, ok := byDoc["customer"]; !ok {
+		t.Fatalf("customer receipt job missing: %+v", jobs)
+	}
+	if _, ok := byDoc["kitchen"]; !ok {
+		t.Fatalf("kitchen ticket job missing for single printer: %+v", jobs)
+	}
+}

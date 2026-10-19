@@ -55,6 +55,72 @@
 </body>
 </html>{{end}}
 
+{{define "register"}}<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ثبت‌نام در منووکس آفلاین</title>
+  <link rel="icon" href="/static/logo.webp">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="auth-body">
+  <main class="auth-shell">
+    <section class="auth-hero">
+      <a class="auth-brand" href="/register"><img src="/static/logo.webp" alt="منووکس"><strong>منووکس</strong></a>
+      <span class="auth-pill">✦ سامانه جامع مدیریت کافه و رستوران</span>
+      <h1>مدیریت حرفه‌ای<br>کسب‌وکارتان،<br><span>ساده‌تر از همیشه</span></h1>
+      <p>همین حالا ثبت‌نام کنید و فروشگاه خود را با یک پنل ساده، سریع و همیشه در دسترس مدیریت کنید.</p>
+      <ul class="auth-points">
+        <li>مدیریت یکپارچه فروش و سفارش‌ها</li>
+        <li>کنترل هوشمند موجودی و ضایعات</li>
+        <li>گزارش‌های دقیق برای تصمیم‌گیری بهتر</li>
+      </ul>
+    </section>
+
+    <section class="auth-card">
+      <div class="auth-trial">✦ ۱۵ روز اشتراک کامل هدیه</div>
+      <p class="auth-welcome">شروع رایگان</p>
+      <h2>ایجاد حساب کاربری</h2>
+      <p class="auth-desc">اطلاعات خود را وارد کنید؛ این ثبت‌نام فقط یک بار انجام می‌شود و بعداً با همین حساب وارد می‌شوید.</p>
+      {{if .Error}}<div class="auth-error">{{.Error}}</div>{{end}}
+      <form method="post" action="/register" class="auth-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <div class="auth-grid">
+          <label>نام
+            <input name="first_name" placeholder="مثلاً سارا" autocomplete="given-name" required>
+          </label>
+          <label>نام خانوادگی
+            <input name="last_name" placeholder="مثلاً محمدی" autocomplete="family-name" required>
+          </label>
+        </div>
+        <label>شماره موبایل
+          <input name="phone" placeholder="۰۹۱۲ ـــ ـــ ـــ" inputmode="tel" autocomplete="tel" required>
+        </label>
+        <label>نام کافه یا مجموعه
+          <input name="cafe_name" placeholder="مثلاً کافه شهر" autocomplete="organization" required>
+        </label>
+        <label>آدرس (اختیاری)
+          <input name="address" placeholder="نشانی مجموعه">
+        </label>
+        <div class="auth-grid">
+          <label>گذرواژه
+            <input type="password" name="password" placeholder="حداقل ۶ نویسه" autocomplete="new-password" required>
+          </label>
+          <label>تکرار گذرواژه
+            <input type="password" name="password_confirm" placeholder="تکرار گذرواژه" autocomplete="new-password" required>
+          </label>
+        </div>
+        <button class="auth-submit" type="submit">ثبت‌نام و ورود به برنامه</button>
+      </form>
+      <p class="auth-foot">حساب دارید؟ <a href="/login">وارد شوید</a></p>
+      {{if .License.Holder}}<p class="auth-license-note">اشتراک فعال: {{.License.Holder}} • {{faInt .License.DaysLeft}} روز باقی‌مانده</p>{{end}}
+    </section>
+  </main>
+</body>
+</html>
+{{end}}
+
 {{define "login"}}<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
@@ -95,7 +161,7 @@
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         <input type="hidden" name="mode" id="login-mode" value="manager">
         <label>شماره موبایل
-          <input name="phone" placeholder="۰۹۱۲ ـــ ـــ ـــ" inputmode="tel" autocomplete="username" required>
+          <input name="phone" value="{{.Phone}}" placeholder="۰۹۱۲ ـــ ـــ ـــ" inputmode="tel" autocomplete="username" required>
         </label>
         <label>گذرواژه
           <input type="password" name="password" placeholder="گذرواژه" autocomplete="current-password" required>

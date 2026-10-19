@@ -1019,6 +1019,10 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .auth-points li{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:#14395E}
 .auth-points li::before{content:"✓";width:24px;height:24px;flex:none;display:flex;align-items:center;justify-content:center;background:#DFF5E9;color:#0E9F6E;border-radius:50%;font-size:13px}
 .auth-card{width:408px;flex:none;background:#fff;border:1px solid #E7ECF2;border-radius:22px;box-shadow:0 24px 60px -30px rgba(20,57,94,.35);padding:30px 28px}
+.auth-trial{display:flex;align-items:center;justify-content:center;gap:6px;background:#FFFAEB;border:1px solid #F0D9A8;color:#B54708;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:800;margin-bottom:12px}
+.auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.auth-foot{text-align:center;font-size:12.5px;color:#7A8799;margin:14px 0 0}
+.auth-foot a{color:#2468CC;font-weight:800;text-decoration:none}
 .auth-card-icon{width:58px;height:58px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;background:#F3F8FF;border:1px solid #E3EDF7;border-radius:16px;color:#2468CC}
 .auth-card-icon svg{width:28px;height:28px}
 .auth-welcome{text-align:center;color:#2468CC;font-weight:800;font-size:13px;margin:0}
@@ -1596,11 +1600,24 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pos-stage-opt{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#1F2328;padding:7px 8px;border-radius:8px;cursor:pointer}
 .pos-stage-opt:hover{background:#F6FAFD}
 .pos-stages-save{width:100%;margin-top:8px}
-.pos-printers-menu{min-width:280px;padding:8px}
-.pos-printer-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-radius:8px}
-.pos-printer-row:hover{background:#F6FAFD}
-.pos-printer-name{font-size:12.5px;font-weight:700;color:#1F2328}
-.pos-printer-name small{display:block;font-size:10.5px;font-weight:500;color:#98A2B3}
+.pos-printers-menu{min-width:320px;max-width:360px;padding:10px;display:grid;gap:8px}
+.pos-printer-card{border:1px solid #E3EDF7;border-radius:12px;padding:10px 12px;background:#FBFDFE;display:grid;gap:6px}
+.pos-printer-card:hover{border-color:#BFD6F2;background:#F6FAFD}
+.pos-printer-card.is-off{opacity:.65}
+.pos-printer-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pos-printer-name{font-size:13px;font-weight:800;color:#14395E}
+.pos-printer-status{font-size:10.5px;font-weight:800;border-radius:999px;padding:3px 9px;background:#EEF2F6;color:#667085;white-space:nowrap}
+.pos-printer-status.is-ok{background:#DFF5E9;color:#067647}
+.pos-printer-status.is-bad{background:#FDECEA;color:#B42318}
+.pos-printer-status.is-warn{background:#FFF4D6;color:#B54708}
+.pos-printer-meta{display:flex;flex-wrap:wrap;gap:5px;font-size:10.5px;color:#667085}
+.pos-printer-meta>span{background:#F1F5FA;border-radius:6px;padding:2px 7px}
+.pos-printer-role{background:#EAF2FD!important;color:#175CD3;font-weight:800}
+.pos-printer-role.is-none{background:#F1F5FA!important;color:#98A2B3}
+.pos-printer-off{color:#B42318;font-weight:700}
+.pos-printer-detail{font-size:10.5px;color:#98A2B3;direction:ltr;text-align:left;word-break:break-all}
+.pos-printer-detail:empty{display:none}
+.pos-printer-test{justify-self:start}
 .pos-printer-empty{font-size:12px;color:#667085;padding:8px}
 .pos-titem{position:relative;display:block;border:1px solid #E3EDF7;border-radius:14px;background:#fff;padding:10px 12px 10px 14px;margin-bottom:8px;text-align:right}
 .pos-titem.selected{border-color:#2468CC;box-shadow:0 0 0 1px #2468CC inset}
@@ -2324,8 +2341,8 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pf-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:560px){.pf-grid-2{grid-template-columns:1fr}}
 
-/* سلکت‌های دیالوگ پرینتر عمداً بومی‌اند (data-native-select): اسکریپت ui-select
-   در بعضی WebViewها سلکت بومی را زیر تریگر پنهان نمی‌کرد و هر فیلد دو بار دیده می‌شد. */
+/* سلکت‌های دیالوگ پرینتر هم مثل بقیه برنامه از ui-select سفارشی استفاده می‌کنند؛
+   سلکت بومی با استایل درون‌خطی !important پنهان می‌شود تا فقط یک کنترل دیده شود. */
 .pf-dlg select{height:40px;width:100%;border:1px solid #E3EDF7;border-radius:10px;padding:0 10px;font:inherit;font-size:12.5px;background:#fff;color:#1F2328}
 .pf-dlg .ui-select-native{display:none !important}
 

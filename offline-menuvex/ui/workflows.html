@@ -40,15 +40,27 @@
           </button>
           <div class="dd-menu pos-printers-menu" role="menu" hidden>
             {{range .Printers}}
-            <div class="pos-printer-row">
-              <span class="pos-printer-name">{{.Label}}<small>{{.Field "station"}}</small></span>
-              <button type="submit" class="btn btn-outline btn-sm" formaction="/local/print-test" formmethod="post" hx-post="/local/print-test" hx-target="#main-view" name="printer_id" value="{{.ID}}">چاپ آزمایشی</button>
+            {{$role := .Field "role"}}
+            {{$state := .Field "last_check_state"}}
+            <div class="pos-printer-card{{if eq (.Field "is_active") "false"}} is-off{{end}}">
+              <div class="pos-printer-top">
+                <strong class="pos-printer-name">{{.Label}}</strong>
+                {{if eq $state "ok"}}<span class="pos-printer-status is-ok">متصل</span>{{else if eq $state "failed"}}<span class="pos-printer-status is-bad">قطع</span>{{else if eq $state "uncertain"}}<span class="pos-printer-status is-warn">نامشخص</span>{{else}}<span class="pos-printer-status">بررسی‌نشده</span>{{end}}
+              </div>
+              <div class="pos-printer-meta">
+                {{if eq $role "cashier"}}<span class="pos-printer-role">صندوق</span>{{else if eq $role "kitchen"}}<span class="pos-printer-role">آشپزخانه</span>{{else if or (eq $role "all") (eq $role "both")}}<span class="pos-printer-role">صندوق + آشپزخانه</span>{{else}}<span class="pos-printer-role is-none">بدون نقش</span>{{end}}
+                {{with .Field "station"}}<span>{{.}}</span>{{end}}
+                {{with .Field "paper_width"}}<span>{{.}}</span>{{end}}
+                {{if eq (.Field "is_active") "false"}}<span class="pos-printer-off">غیرفعال</span>{{end}}
+              </div>
+              <div class="pos-printer-detail">{{if .Field "queue"}}{{.Field "queue"}}{{else if .Field "connection"}}{{.Field "connection"}}{{end}}</div>
+              <button type="submit" class="btn btn-outline btn-sm pos-printer-test" formaction="/local/print-test" formmethod="post" hx-post="/local/print-test" hx-target="#main-view" name="printer_id" value="{{.ID}}">چاپ آزمایشی</button>
             </div>
             {{else}}
             <p class="pos-printer-empty">چاپگری تعریف نشده است.</p>
             {{end}}
             <input type="hidden" name="return_page" value="pos">
-            <a href="/?page=settings" hx-get="/?page=settings" hx-target="#main-view" hx-push-url="true" class="dd-item">تنظیمات پرینترها</a>
+            <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="dd-item">مرکز چاپگرها و تنظیمات</a>
           </div>
         </div>
         {{end}}
@@ -216,14 +228,6 @@
           </div>
 
           <div class="pos-cset">
-            <div class="pos-setbox">
-              <span class="pos-setbox-title">روش پرداخت</span>
-              <div class="pos-payseg">
-                <button type="button" class="pos-paybtn active" id="pos-pay-cash" onclick="posSetPayment('card_pos')">نقدی / کارتخوان</button>
-                <button type="button" class="pos-paybtn" id="pos-pay-credit" onclick="posSetPayment('credit_debtor')">اعتباری (نسیه)</button>
-              </div>
-            </div>
-
             <div class="pos-extra-grid">
               <input type="text" id="pos-extra-toman" inputmode="numeric" placeholder="مبلغ اضافی" aria-label="مبلغ اضافی به تومان" oninput="posRenderCart()">
               <input type="hidden" name="extra_irr" id="pos-extra-irr" value="0">
@@ -775,13 +779,11 @@
       var panel = document.getElementById('pos-tables-panel');
       if (panel) panel.classList.toggle('pos-tables-off', ch !== 'dine_in');
     }
+    // روش پرداخت انتخابی ندارد: پیش‌فرض همیشه «کارتخوان» است و نسیه فقط از مسیر
+    // دکمهٔ «بعداً پرداخت می‌کند» (با ثبت مشخصات مشتری در دیالوگ بدهکار) انجام می‌شود.
     function posSetPayment(val) {
       var sel = document.getElementById('pos-payment-method');
       if (sel) sel.value = val;
-      var cash = document.getElementById('pos-pay-cash');
-      var credit = document.getElementById('pos-pay-credit');
-      if (cash) cash.classList.toggle('active', val !== 'credit_debtor');
-      if (credit) credit.classList.toggle('active', val === 'credit_debtor');
       var lbl = document.getElementById('pos-submit-label');
       if (lbl && !window.posEditInit) lbl.textContent = val === 'credit_debtor' ? 'ثبت سفارش اعتباری (نسیه)' : 'ثبت سفارش';
     }

@@ -427,6 +427,45 @@ func (a *Application) handlePrintQueueRetry(w http.ResponseWriter, r *http.Reque
 	a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")}, printOutcomeMessage(done))
 }
 
+// handlePrintQueueDelete یک Job را از صف چاپ حذف می‌کند (Job در حال چاپ قابل حذف نیست).
+func (a *Application) handlePrintQueueDelete(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(r.Form.Get("job_id"))
+	job, err := a.store.PrintJob(r.Context(), jobID)
+	if err != nil {
+		a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")}, "Job چاپ یافت نشد.")
+		return
+	}
+	if job.Status == store.PrintStatusPrinting {
+		a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")}, "Job در حال چاپ است و فعلاً قابل حذف نیست.")
+		return
+	}
+	if err := a.store.DeleteLocalRecord(r.Context(), "print_job", jobID); err != nil {
+		a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")}, "خطا در حذف Job: "+err.Error())
+		return
+	}
+	a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")}, "Job از صف چاپ حذف شد.")
+}
+
+// handlePrintQueueClear همه Jobهای تمام‌شده (چاپ‌شده/ناموفق/لغوشده/ارسال‌شده) را پاک می‌کند.
+func (a *Application) handlePrintQueueClear(w http.ResponseWriter, r *http.Request) {
+	jobs, err := a.store.PrintJobsFilter(r.Context(), "", "", 0)
+	if err != nil {
+		a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")}, "خطا در خواندن صف چاپ.")
+		return
+	}
+	removed := 0
+	for _, j := range jobs {
+		switch j.Status {
+		case store.PrintStatusPending, store.PrintStatusPrinting:
+			continue // در صف یا در حال چاپ: دست‌نخورده می‌ماند.
+		}
+		if err := a.store.DeleteLocalRecord(r.Context(), "print_job", j.ID); err == nil {
+			removed++
+		}
+	}
+	a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")}, "سوابق تمام‌شده صف چاپ پاک شد ("+strconv.Itoa(removed)+" مورد).")
+}
+
 func (a *Application) handlePrintQueueRetryAll(w http.ResponseWriter, r *http.Request) {
 	jobs, err := a.store.PrintJobsFilter(r.Context(), store.PrintStatusFailed, "", 50)
 	if err != nil {

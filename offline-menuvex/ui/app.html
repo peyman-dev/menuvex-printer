@@ -835,6 +835,7 @@ document.addEventListener('htmx:afterSwap', function (e) {
     set('pf-usb-manufacturer', d.usbManufacturer);
     var role = document.getElementById('pf-role'); if (role) role.value = isEdit ? (d.role || '') : '';
     var paper = document.getElementById('pf-paper'); if (paper) paper.value = isEdit ? (d.paper || '80') : '80';
+    if (window.syncUiSelects) window.syncUiSelects(document);
     var cut = document.getElementById('pf-cut'); if (cut) cut.checked = isEdit ? d.cut === '1' : true;
     var active = document.getElementById('pf-active'); if (active) active.checked = isEdit ? d.active === '1' : true;
     var title = document.getElementById('pf-title'); if (title) title.textContent = isEdit ? 'تنظیمات پرینتر' : 'تنظیم پرینتر پیداشده';

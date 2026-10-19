@@ -1924,11 +1924,14 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /local/print-queue-retry", a.handlePrintQueueRetry)
 	mux.HandleFunc("POST /local/print-queue-retry-all", a.handlePrintQueueRetryAll)
 	mux.HandleFunc("POST /local/print-queue-cancel", a.handlePrintQueueCancel)
+	mux.HandleFunc("POST /local/print-queue-delete", a.handlePrintQueueDelete)
+	mux.HandleFunc("POST /local/print-queue-clear", a.handlePrintQueueClear)
 	mux.HandleFunc("POST /local/export-backup", a.handleExportBackup)
 	mux.HandleFunc("GET /local/products-export", a.handleProductsExport)
 	mux.HandleFunc("GET /local/inventory-export", a.handleInventoryExport)
 	mux.HandleFunc("POST /license/activate", a.handleLicenseActivate)
 	mux.HandleFunc("POST /login", a.handleLogin)
+	mux.HandleFunc("POST /register", a.handleRegister)
 	mux.HandleFunc("POST /logout", a.handleLogout)
 	mux.HandleFunc("GET /logout", a.handleLogout)
 	mux.HandleFunc("GET /uploads/", a.handleUploadServe)
@@ -1978,7 +1981,7 @@ func (a *Application) Handler() http.Handler {
 			}
 		}
 		if !a.authDisabled {
-			if (r.URL.Path == "/license" || r.URL.Path == "/login") && r.Method == "GET" {
+			if (r.URL.Path == "/license" || r.URL.Path == "/login" || r.URL.Path == "/register") && r.Method == "GET" {
 				if a.enforceAuth(w, r) {
 					return
 				}

@@ -62,21 +62,54 @@ func TestLicenseAndLoginGate(t *testing.T) {
 	if st := a.LicenseState(); !st.Valid || st.Expired || st.DaysLeft < 300 {
 		t.Fatalf("license state after dummy activation: %+v", st)
 	}
-	// ۳) بدون ورود: صفحه اصلی به ورود می‌رود؛ ورود مدیر Dummy نشست می‌سازد.
-	if code, _, _ := do("GET", "/", nil, ""); code == 200 {
-		// رندر مستقیم صفحه ورود هم قابل قبول است اگر ۲۰۰ باشد؛ وجود فرم را بررسی کن
-		if _, body, _ := do("GET", "/login", nil, ""); !strings.Contains(body, "ورود به حساب کاربری") {
-			t.Fatal("expected login page")
-		}
+	// ۳) قبل از ثبت‌نام: ورود به ثبت‌نام هدایت می‌شود؛ ثبت‌نام یک‌باره نشست می‌سازد.
+	if code, _, _ := do("GET", "/login", nil, ""); code != 303 && code != 302 {
+		t.Fatalf("login before register must redirect to register, got %d", code)
 	}
-	code, _, setCookie := do("POST", "/login", url.Values{
+	if _, body, _ := do("GET", "/register", nil, ""); !strings.Contains(body, "ایجاد حساب کاربری") {
+		t.Fatal("expected register page")
+	}
+	// ورود مدیر قبل از ثبت‌نام نباید با رمز دلخواه قبول شود.
+	if _, _, sc := do("POST", "/login", url.Values{
+		"csrf": {a.csrf}, "mode": {"manager"}, "phone": {"09120001122"}, "password": {"dummy-pass"},
+	}, ""); strings.Contains(sc, "coffish_session") {
+		t.Fatal("manager login must be rejected before registration")
+	}
+	code, _, setCookie := do("POST", "/register", url.Values{
+		"csrf": {a.csrf}, "first_name": {"تست"}, "last_name": {"مدیر"},
+		"phone": {"09120001122"}, "cafe_name": {"کافه تست"},
+		"password": {"dummy-pass"}, "password_confirm": {"dummy-pass"},
+	}, "")
+	if code != 303 && code != 302 {
+		t.Fatalf("register -> %d", code)
+	}
+	if !strings.Contains(setCookie, "coffish_session") {
+		t.Fatalf("register must auto-login (session cookie), got %q", setCookie)
+	}
+	// ثبت‌نام دوم ممکن نیست: صفحه ثبت‌نام به ورود می‌رود و POST دوم حساب را عوض نمی‌کند.
+	if code, _, _ := do("GET", "/register", nil, ""); code != 303 && code != 302 {
+		t.Fatalf("second register page must redirect, got %d", code)
+	}
+	if _, _, sc := do("POST", "/register", url.Values{
+		"csrf": {a.csrf}, "first_name": {"دوم"}, "last_name": {"نفر"},
+		"phone": {"09129998877"}, "cafe_name": {"کافه دوم"},
+		"password": {"second-pass"}, "password_confirm": {"second-pass"},
+	}, ""); strings.Contains(sc, "coffish_session") {
+		t.Fatal("second registration must not create a session")
+	}
+	// رمز اشتباه رد می‌شود؛ مشخصات ثبت‌نامی وارد می‌شود.
+	if _, _, sc := do("POST", "/login", url.Values{
+		"csrf": {a.csrf}, "mode": {"manager"}, "phone": {"09120001122"}, "password": {"wrong-pass"},
+	}, ""); strings.Contains(sc, "coffish_session") {
+		t.Fatal("wrong password must be rejected")
+	}
+	code, _, setCookie = do("POST", "/login", url.Values{
 		"csrf": {a.csrf}, "mode": {"manager"}, "phone": {"09120001122"}, "password": {"dummy-pass"},
 	}, "")
 	if code != 303 && code != 302 && code != 200 {
 		t.Fatalf("manager login -> %d", code)
 	}
 	if !strings.Contains(setCookie, "coffish_session") {
-		// ممکن است ریدایرکت بدون کوکی برگردد اگر فرم رد شده؛ متن را بررسی کن
 		t.Fatalf("login must set session cookie, got %q", setCookie)
 	}
 	cookie := strings.Split(setCookie, ";")[0]
