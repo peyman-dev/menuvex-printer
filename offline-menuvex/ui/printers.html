@@ -43,7 +43,7 @@
         {{range .PrinterQueues}}
         <div class="list-row compact">
           <div><strong dir="ltr">{{.}}</strong><div class="row-sub">صف چاپ سیستم‌عامل</div></div>
-          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=spooler&queue_name={{urlquery .}}&name={{urlquery .}}" hx-get="/?page=printer-new&kind=spooler&queue_name={{urlquery .}}&name={{urlquery .}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
+          <button type="button" class="btn btn-sm btn-primary" onclick="printerFoundOpen(this)" data-kind="spooler" data-name="{{.}}" data-queue="{{.}}" data-summary="صف چاپ سیستم‌عامل">انتخاب</button>
         </div>
         {{end}}
       </div>
@@ -68,7 +68,7 @@
             <div class="row-sub">{{.AccessNote}}</div>
           </div>
           {{if .Accessible}}
-          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-get="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
+          <button type="button" class="btn btn-sm btn-primary" onclick="printerFoundOpen(this)" data-kind="usb" data-name="{{.DisplayName}}" data-model="{{.Product}}" data-usb-path="{{.DevicePath}}" data-usb-vid="{{.VendorID}}" data-usb-pid="{{.ProductID}}" data-usb-serial="{{.Serial}}" data-usb-bus="{{.Bus}}" data-usb-port="{{.PortPath}}" data-usb-product="{{.Product}}" data-usb-manufacturer="{{.Manufacturer}}" data-summary="USB مستقیم">انتخاب</button>
           {{else}}<span class="badge status-muted">از صف سیستم‌عامل استفاده کنید</span>{{end}}
         </div>
         {{end}}
@@ -319,7 +319,7 @@
             <div class="row-sub">{{.AccessNote}}</div>
           </div>
           {{if .Accessible}}
-          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-get="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
+          <button type="button" class="btn btn-sm btn-primary" onclick="printerFoundOpen(this)" data-kind="usb" data-name="{{.DisplayName}}" data-model="{{.Product}}" data-usb-path="{{.DevicePath}}" data-usb-vid="{{.VendorID}}" data-usb-pid="{{.ProductID}}" data-usb-serial="{{.Serial}}" data-usb-bus="{{.Bus}}" data-usb-port="{{.PortPath}}" data-usb-product="{{.Product}}" data-usb-manufacturer="{{.Manufacturer}}" data-summary="USB مستقیم">انتخاب</button>
           {{else}}<span class="badge status-muted">قابل چاپ مستقیم نیست</span>{{end}}
         </div>
         {{end}}
@@ -617,6 +617,86 @@
     {{end}}
   </section>
 {{end}}
+
+  <!-- دیالوگ تنظیم پرینتر پیداشده: انتخاب نتیجهٔ جستجو صفحه را عوض نمی‌کند؛
+       مشخصات اتصال خودکار پر شده و فقط نام/نقش/کاغذ با کاربر است. -->
+  <div class="dlg-overlay" id="dlg-printer-found" role="dialog" aria-modal="true" aria-labelledby="pf-title">
+    <form method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" class="dlg dlg-wide pf-dlg">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="return_page" value="printers">
+      <input type="hidden" name="connection_kind" id="pf-kind" value="">
+      <div class="pf-head">
+        <div>
+          <h3 class="dlg-title" id="pf-title">تنظیم پرینتر</h3>
+          <p class="row-sub" id="pf-summary">—</p>
+        </div>
+        <button type="button" class="btn btn-subtle btn-sm" onclick="closeDlg(this)">بستن ×</button>
+      </div>
+
+      <div class="dlg-field" data-pf-only="network" hidden>
+        <label>مشخصات شبکه</label>
+        <div class="pf-grid-2">
+          <input name="host" id="pf-host" dir="ltr" placeholder="192.168.1.203" autocomplete="off">
+          <input name="port" id="pf-port" dir="ltr" inputmode="numeric" placeholder="9100">
+        </div>
+      </div>
+      <div class="dlg-field" data-pf-only="spooler" hidden>
+        <label for="pf-queue">نام صف چاپ سیستم‌عامل</label>
+        <input name="queue_name" id="pf-queue" dir="ltr" autocomplete="off">
+      </div>
+      <div class="dlg-field" data-pf-only="usb" hidden>
+        <label for="pf-usb-path">مسیر دستگاه USB</label>
+        <input name="usb_path" id="pf-usb-path" dir="ltr" placeholder="/dev/usb/lp0">
+        <input type="hidden" name="usb_vid" id="pf-usb-vid">
+        <input type="hidden" name="usb_pid" id="pf-usb-pid">
+        <input type="hidden" name="usb_serial" id="pf-usb-serial">
+        <input type="hidden" name="usb_bus" id="pf-usb-bus">
+        <input type="hidden" name="usb_port" id="pf-usb-port">
+        <input type="hidden" name="usb_product" id="pf-usb-product">
+        <input type="hidden" name="usb_manufacturer" id="pf-usb-manufacturer">
+      </div>
+
+      <div class="dlg-field">
+        <label for="pf-name">نام پرینتر (مثلاً صندوق فروش، آشپزخانه، بار)</label>
+        <input name="name" id="pf-name" maxlength="128" required>
+      </div>
+      <div class="pf-grid-2">
+        <div class="dlg-field">
+          <label for="pf-model">مدل دستگاه</label>
+          <input name="model" id="pf-model" maxlength="128" placeholder="Printer POS-80">
+        </div>
+        <div class="dlg-field">
+          <label for="pf-station">ایستگاه کاری (اختیاری)</label>
+          <input name="station" id="pf-station" maxlength="64" placeholder="بار گرم و سرد">
+        </div>
+      </div>
+      <div class="pf-grid-2">
+        <div class="dlg-field">
+          <label for="pf-role">نقش چاپگر</label>
+          <select name="role" id="pf-role">
+            <option value="">بدون نقش ثابت</option>
+            <option value="cashier">صندوق (فیش مشتری)</option>
+            <option value="kitchen">آشپزخانه و بار (بلیت آماده‌سازی)</option>
+            <option value="all">هر دو</option>
+          </select>
+        </div>
+        <div class="dlg-field">
+          <label for="pf-paper">عرض کاغذ</label>
+          <select name="paper" id="pf-paper">
+            <option value="80" selected>۸۰ میلی‌متر (استاندارد)</option>
+            <option value="58">۵۸ میلی‌متر (کم‌عرض)</option>
+          </select>
+        </div>
+      </div>
+      <label class="inline-check"><input type="checkbox" name="cut" checked> برش خودکار کاغذ — فقط پرینترهای دارای کاتر</label>
+      <label class="inline-check"><input type="checkbox" name="is_active" checked> این چاپگر در چاپ خودکار استفاده شود</label>
+      <p class="field-hint">فونت چاپ همان فونت برنامه است و قابل انتخاب نیست. پس از ذخیره در همین صفحه می‌مانید؛ از کارت پرینتر «بررسی اتصال» و «چاپ آزمایشی» را بزنید.</p>
+      <div class="pf-actions">
+        <button type="submit" class="btn btn-primary">ذخیره پرینتر</button>
+        <button type="button" class="btn btn-subtle" onclick="closeDlg(this)">انصراف</button>
+      </div>
+    </form>
+  </div>
 {{end}}
 
 {{define "scanResults"}}{{with .PrinterScan}}
@@ -651,7 +731,7 @@
           <td dir="ltr"><strong>{{.Host}}</strong></td>
           <td>{{faInt .Port}}</td>
           <td><span class="badge status-warn">پورت باز است</span></td>
-          <td><a class="btn btn-subtle btn-sm" href="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}&name={{urlquery .Host}}" hx-get="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}&name={{urlquery .Host}}" hx-target="#main-view" hx-push-url="true">انتخاب پرینتر</a></td>
+          <td><button type="button" class="btn btn-subtle btn-sm" onclick="printerFoundOpen(this)" data-kind="network" data-name="پرینتر {{.Host}}" data-host="{{.Host}}" data-port="{{.Port}}" data-summary="شبکه (LAN)">انتخاب پرینتر</button></td>
         </tr>
       {{end}}
       </tbody>

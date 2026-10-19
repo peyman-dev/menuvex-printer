@@ -2311,3 +2311,15 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .scan-progress-bar{height:100%;background:linear-gradient(90deg,var(--primary),#14B8A6);transition:width .35s ease}
 @media (max-width:1100px){.printer-layout{grid-template-columns:minmax(0,1fr)}.printer-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.printer-kind-options{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:640px){.printer-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.printer-meta{grid-template-columns:minmax(0,1fr)}}
+
+/* دیالوگ تنظیم پرینتر پیداشده (انتخاب از نتایج جستجو، بدون جابه‌جایی صفحه) */
+.pf-dlg{text-align:right}
+.pf-dlg [hidden]{display:none !important}
+.pf-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.pf-head .dlg-title{margin:0}
+.pf-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pf-grid-2 .dlg-field{margin-bottom:0}
+.pf-dlg .dlg-field{margin-bottom:0}
+.pf-dlg .dlg-field input,.pf-dlg .dlg-field select{height:40px}
+.pf-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:560px){.pf-grid-2{grid-template-columns:1fr}}

@@ -166,14 +166,29 @@ func printerProfileFromForm(r *http.Request) (printer.Profile, error) {
 // ─── Handlers ───────────────────────────────────────────────────────────
 
 func (a *Application) handlePrinterSave(w http.ResponseWriter, r *http.Request) {
+	// ذخیره از دیالوگ «پرینتر پیداشده» (return_page=printers) کاربر را همان‌جایی
+	// که هست نگه می‌دارد؛ فقط ویزارد افزودن دستی مثل قبل به جزئیات چاپگر می‌رود.
+	stayOnPrinters := strings.TrimSpace(r.FormValue("return_page")) == "printers"
 	profile, err := printerProfileFromForm(r)
 	if err != nil {
+		if stayOnPrinters {
+			a.navigateQuery(w, r, "printers", nil, "خطا در ثبت چاپگر: "+err.Error())
+			return
+		}
 		a.navigateQuery(w, r, "printer-new", map[string]string{"kind": profile.Kind}, "خطا در ثبت چاپگر: "+err.Error())
 		return
 	}
 	id, err := a.store.SavePrinter(r.Context(), profile)
 	if err != nil {
+		if stayOnPrinters {
+			a.navigateQuery(w, r, "printers", nil, "خطا در ثبت چاپگر: "+err.Error())
+			return
+		}
 		a.navigateQuery(w, r, "printer-new", map[string]string{"kind": profile.Kind}, "خطا در ثبت چاپگر: "+err.Error())
+		return
+	}
+	if stayOnPrinters {
+		a.navigateQuery(w, r, "printers", nil, "چاپگر «"+profile.Name+"» ذخیره شد. برای اطمینان از مسیر، از کارت چاپگر «بررسی اتصال» و سپس «چاپ آزمایشی» را اجرا کنید.")
 		return
 	}
 	a.navigatePrinter(w, r, id, "چاپگر «"+profile.Name+"» ذخیره شد. برای اطمینان از مسیر، «بررسی اتصال» و سپس «چاپ آزمایشی» را اجرا کنید.")

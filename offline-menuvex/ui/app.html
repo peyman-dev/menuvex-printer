@@ -797,6 +797,40 @@ document.addEventListener('htmx:afterSwap', function (e) {
     routeBulkUpdate(form);
   });
 
+  // ── دیالوگ «تنظیم پرینتر» برای پرینترهای پیداشده ──
+  // انتخاب نتیجهٔ جستجو (صف سیستم‌عامل / USB / شبکه) نباید کاربر را به صفحهٔ
+  // دیگری ببرد: همین‌جا دیالوگ باز می‌شود و مشخصات اتصال از data-* دکمه پر می‌شود.
+  window.printerFoundOpen = function(btn){
+    var d = btn.dataset || {};
+    var dlg = document.getElementById('dlg-printer-found');
+    if (!dlg) return;
+    var set = function(id, v){ var el = document.getElementById(id); if (el) el.value = v || ''; };
+    set('pf-kind', d.kind);
+    set('pf-name', d.name);
+    set('pf-model', d.model);
+    set('pf-host', d.host);
+    set('pf-port', d.port);
+    set('pf-queue', d.queue);
+    set('pf-usb-path', d.usbPath);
+    set('pf-usb-vid', d.usbVid);
+    set('pf-usb-pid', d.usbPid);
+    set('pf-usb-serial', d.usbSerial);
+    set('pf-usb-bus', d.usbBus);
+    set('pf-usb-port', d.usbPort);
+    set('pf-usb-product', d.usbProduct);
+    set('pf-usb-manufacturer', d.usbManufacturer);
+    var role = document.getElementById('pf-role'); if (role) role.value = '';
+    var paper = document.getElementById('pf-paper'); if (paper) paper.value = '80';
+    var summary = document.getElementById('pf-summary');
+    if (summary) {
+      var detail = d.kind === 'network' ? (d.host + ':' + (d.port || '9100')) : d.kind === 'spooler' ? d.queue : d.kind === 'usb' ? (d.usbPath || d.name || '') : '';
+      summary.textContent = (d.summary || 'پرینتر پیداشده') + (detail ? ' • ' + detail : '');
+    }
+    dlg.querySelectorAll('[data-pf-only]').forEach(function(el){ el.hidden = el.getAttribute('data-pf-only') !== d.kind; });
+    openDlg('dlg-printer-found');
+    var name = document.getElementById('pf-name'); if (name) { name.focus(); name.select(); }
+  };
+
   // ── لغو سفارش ──
   window.ordOpenCancel = function(btn){
     document.getElementById('dlg-cancel-title').textContent = 'لغو سفارش ' + btn.dataset.orderNumber;

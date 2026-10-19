@@ -763,3 +763,38 @@ func TestPrinterUSBScanShowsAccessButNeverAutoAdds(t *testing.T) {
 		t.Fatalf("printer-center USB discovery must not auto-add printers: %+v", list)
 	}
 }
+
+// TestFoundPrinterSelectionOpensDialog انتخاب پرینتر پیداشده نباید کاربر را به
+// صفحهٔ «افزودن چاپگر» ببرد: دکمه‌ها دیالوگ تنظیم را در همان صفحه باز می‌کنند و
+// ذخیره از دیالوگ هم روی همان صفحهٔ فهرست چاپگرها برمی‌گردد.
+func TestFoundPrinterSelectionOpensDialog(t *testing.T) {
+	a := testApp(t)
+	a.usbCache = []printer.USBDevice{{Product: "POS-80", DevicePath: "/dev/usb/lp0", Accessible: true}}
+	a.usbCacheAt = time.Now()
+	page := ordersGet(t, a, "/?page=printers&discovery=usb")
+	for _, s := range []string{
+		`id="dlg-printer-found"`, `onclick="printerFoundOpen(this)"`, "POS-80",
+		`name="return_page" value="printers"`, "فونت چاپ همان فونت برنامه است",
+	} {
+		if !strings.Contains(page, s) {
+			t.Fatalf("printers page missing dialog selection %q", s)
+		}
+	}
+	if strings.Contains(page, "printer-new&kind=") {
+		t.Fatal("found-printer selection must not link to the printer-new page")
+	}
+
+	// ذخیره از دیالوگ: چاپگر ساخته می‌شود و پاسخ روی صفحهٔ فهرست می‌ماند.
+	body := ordersPost(t, a, "/local/printer-save", url.Values{
+		"return_page": {"printers"}, "connection_kind": {"network"},
+		"name": {"پرینتر دیالوگی"}, "host": {"192.168.1.203"}, "port": {"9100"},
+		"role": {"cashier"}, "paper": {"80"}, "is_active": {"on"},
+	})
+	if !strings.Contains(body, "پرینتر دیالوگی") || !strings.Contains(body, "ذخیره شد") {
+		t.Fatalf("dialog save must land back on printers list: %s", body)
+	}
+	profiles, _ := a.store.Printers(context.Background())
+	if len(profiles) != 1 || profiles[0].Name != "پرینتر دیالوگی" || profiles[0].Kind != printer.KindNetwork {
+		t.Fatalf("dialog-saved printer wrong: %+v", profiles)
+	}
+}
