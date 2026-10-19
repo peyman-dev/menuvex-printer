@@ -93,7 +93,7 @@ func TestRecentOrdersDialogStaysOpen(t *testing.T) {
 	pos := ordersGet(t, a, "/?page=pos")
 	for _, s := range []string{
 		`id="dlg-recent"`, "__keepRecentDlg", "htmx:beforeRequest", "htmx:afterSwap",
-		"posRecentCounts", "data-dlg-close",
+		"posRecentCounts", "data-dlg-close", "pos-recent-x", "is-busy",
 	} {
 		if !strings.Contains(pos, s) {
 			t.Fatalf("POS recent dialog keep-open missing %q", s)

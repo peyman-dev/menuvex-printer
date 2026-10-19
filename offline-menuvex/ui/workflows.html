@@ -430,6 +430,7 @@
   <!-- دیالوگ «سفارش‌های صندوق» — عین pos-recent-orders-dialog وب (کلید R) -->
   <div class="dlg-overlay" id="dlg-recent" hidden role="dialog" aria-modal="true" aria-labelledby="recent-title">
     <div class="dlg-card pos-recent-card">
+      <button type="button" class="dlg-x pos-recent-x" onclick="posCloseDlg('dlg-recent')" aria-label="بستن" title="بستن (Esc)">×</button>
       <div class="dlg-head">
         <div>
           <h3 id="recent-title">سفارش‌های صندوق</h3>
@@ -437,7 +438,6 @@
         </div>
         <div class="pos-recent-headacts">
           <a href="/?page=pos" hx-get="/?page=pos" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">بروزرسانی</a>
-          <button type="button" class="btn btn-outline btn-sm" onclick="posCloseDlg('dlg-recent')">بستن <span class="pos-kbd-inline">Esc</span></button>
         </div>
       </div>
       <div class="pos-recent-tools">

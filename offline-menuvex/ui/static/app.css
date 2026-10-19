@@ -2349,3 +2349,33 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .discovery-hero-text h3{margin:0 0 6px;font-size:15px;color:#101828}
 .discovery-hero-text p{margin:0;font-size:12px;line-height:2;color:#475467}
 .discovery-hero-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ═══ دیالوگ سفارش‌های صندوق: تب‌های سگمنتی، خوانایی و بستن بالا-چپ ═══ */
+.pos-recent-card{padding:20px 22px;border-radius:16px}
+.pos-recent-x{left:14px;right:auto;top:14px;width:34px;height:34px;font-size:18px;background:#F9FAFB}
+.pos-recent-card .dlg-head{padding-inline-end:46px;margin-bottom:14px}
+.pos-recent-card .dlg-head h3{font-size:16.5px;font-weight:800;color:#101828}
+.pos-recent-card .dlg-sub{font-size:12px;color:#667085;margin-top:3px}
+.pos-recent-headacts .btn{min-height:34px}
+/* تب‌ها: سگمنت‌کنترل استاندارد به‌جای دکمه‌های پراکندهٔ کپسولی */
+.pos-recent-tools{gap:12px;align-items:stretch}
+.pos-recent-tabs{display:inline-flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;background:#F2F4F7;border:1px solid #E4E7EC;border-radius:12px;padding:4px;max-width:100%}
+.pos-rtab{height:36px;padding:0 14px;border:0;background:transparent;color:#475467;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:background .12s,color .12s,box-shadow .12s}
+.pos-rtab:hover{color:#101828;background:#E9EDF3}
+.pos-rtab:focus-visible{outline:2px solid #2F6FB5;outline-offset:1px}
+.pos-rtab.active{background:#fff;color:#1D4F8C;box-shadow:0 1px 3px rgba(16,24,40,.14)}
+.pos-rtab-n{background:#E4E7EC;color:#344054;border-radius:999px;min-width:23px;height:20px;display:inline-grid;place-items:center;font-size:11px;font-weight:800;padding:0 6px;line-height:1}
+.pos-rtab.active .pos-rtab-n{background:#1D4F8C;color:#fff}
+/* خوانایی فهرست و کارت‌ها */
+.pos-recent-search{height:40px}
+.pos-recent-list{gap:10px;max-height:56vh;padding:3px;scrollbar-width:thin}
+.pos-rcard{padding:13px 14px;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.pos-rnum{font-size:13.5px}
+.pos-rtotal{font-size:14.5px}
+.pos-ritems{font-size:12.5px;line-height:1.9;color:#475467}
+.pos-racts{gap:7px}
+.pos-racts .btn{min-height:34px;font-weight:700}
+.pos-recent-foot{font-size:11px;color:#667085}
+.pos-recent-card.is-busy .pos-recent-list{opacity:.5;pointer-events:none}
+.pos-recent-card.is-busy .pos-ract-main button{pointer-events:none}
+@media (max-width:640px){.pos-recent-tabs{display:flex;width:100%}.pos-rtab{flex:1;justify-content:center;padding:0 8px}}

@@ -871,9 +871,13 @@ document.addEventListener('htmx:afterSwap', function (e) {
     if (!elt || !elt.closest) return;
     if (elt.closest('[data-dlg-close]')) return;
     if (elt.closest('#dlg-recent') || elt.closest('#dlg-recent-defer')) {
+      var list = document.getElementById('pos-recent-list');
+      var card = elt.closest('.pos-recent-card');
+      if (card) card.classList.add('is-busy');
       window.__keepRecentDlg = {
         grp: window.posRecentGrp || 'open',
-        q: (document.getElementById('pos-recent-q') || {}).value || ''
+        q: (document.getElementById('pos-recent-q') || {}).value || '',
+        scroll: list ? list.scrollTop : 0
       };
     }
   });
@@ -882,19 +886,21 @@ document.addEventListener('htmx:afterSwap', function (e) {
     if (!keep) return;
     if (e.detail && e.detail.target && e.detail.target.id !== 'main-view') return;
     window.__keepRecentDlg = null;
-    setTimeout(function(){
-      var d = document.getElementById('dlg-recent');
-      if (!d) return;
-      var defer = document.getElementById('dlg-recent-defer');
-      if (defer) { defer.hidden = true; defer.classList.remove('open'); }
-      d.hidden = false;
-      d.classList.add('open');
-      if (typeof window.posRecentCounts === 'function') window.posRecentCounts();
-      var q = document.getElementById('pos-recent-q');
-      if (q) q.value = keep.q || '';
-      if (typeof window.posRecentTab === 'function') window.posRecentTab(keep.grp || 'open');
-      else if (typeof window.posRecentFilter === 'function') window.posRecentFilter();
-    }, 30);
+    // هم‌زمان با swap (قبل از اولین paint) برمی‌گردانیم تا دیالوگ نلرزد و
+    // فهرستِ فیلترنشده حتی یک فریم هم دیده نشود.
+    var d = document.getElementById('dlg-recent');
+    if (!d) return;
+    var defer = document.getElementById('dlg-recent-defer');
+    if (defer) { defer.hidden = true; defer.classList.remove('open'); }
+    d.hidden = false;
+    d.classList.add('open');
+    if (typeof window.posRecentCounts === 'function') window.posRecentCounts();
+    var q = document.getElementById('pos-recent-q');
+    if (q) q.value = keep.q || '';
+    if (typeof window.posRecentTab === 'function') window.posRecentTab(keep.grp || 'open');
+    else if (typeof window.posRecentFilter === 'function') window.posRecentFilter();
+    var list = document.getElementById('pos-recent-list');
+    if (list) list.scrollTop = keep.scroll || 0;
   });
 
   // ── لغو سفارش ──
