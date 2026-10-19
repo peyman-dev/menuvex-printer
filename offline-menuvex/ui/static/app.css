@@ -1019,6 +1019,7 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .auth-points li{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:#14395E}
 .auth-points li::before{content:"✓";width:24px;height:24px;flex:none;display:flex;align-items:center;justify-content:center;background:#DFF5E9;color:#0E9F6E;border-radius:50%;font-size:13px}
 .auth-card{width:408px;flex:none;background:#fff;border:1px solid #E7ECF2;border-radius:22px;box-shadow:0 24px 60px -30px rgba(20,57,94,.35);padding:30px 28px}
+.auth-submit{margin-top:2px}
 .auth-trial{display:flex;align-items:center;justify-content:center;gap:6px;background:#FFFAEB;border:1px solid #F0D9A8;color:#B54708;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:800;margin-bottom:12px}
 .auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .auth-foot{text-align:center;font-size:12.5px;color:#7A8799;margin:14px 0 0}
@@ -1600,8 +1601,10 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pos-stage-opt{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#1F2328;padding:7px 8px;border-radius:8px;cursor:pointer}
 .pos-stage-opt:hover{background:#F6FAFD}
 .pos-stages-save{width:100%;margin-top:8px}
-.pos-printers-menu{min-width:320px;max-width:360px;padding:10px;display:grid;gap:8px}
-.pos-printer-card{border:1px solid #E3EDF7;border-radius:12px;padding:10px 12px;background:#FBFDFE;display:grid;gap:6px}
+.pos-printers-menu{width:264px;min-width:0;max-width:calc(100vw - 24px);padding:8px}
+.pos-printers-menu .pos-printer-card{margin-bottom:8px}
+.pos-printers-menu .pos-printer-card:last-of-type{margin-bottom:4px}
+.pos-printer-card{border:1px solid #E3EDF7;border-radius:12px;padding:8px 10px;background:#FBFDFE;display:grid;gap:5px}
 .pos-printer-card:hover{border-color:#BFD6F2;background:#F6FAFD}
 .pos-printer-card.is-off{opacity:.65}
 .pos-printer-top{display:flex;align-items:center;justify-content:space-between;gap:8px}

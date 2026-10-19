@@ -117,7 +117,7 @@ func TestRegisterTemplateExists(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := buf.String()
-	for _, want := range []string{"ایجاد حساب کاربری", `name="first_name"`, `name="last_name"`, `name="phone"`, `name="cafe_name"`, `name="password"`, `name="password_confirm"`, "۱۵ روز اشتراک کامل هدیه", "مدیریت حرفه‌ای"} {
+	for _, want := range []string{"ایجاد حساب کاربری", `name="first_name"`, `name="last_name"`, `name="phone"`, `name="cafe_name"`, `name="password"`, `name="password_confirm"`, "۱۵ روز اشتراک کامل هدیه", "مدیریت حرفه‌ای", "btn btn-primary btn-lg btn-block"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("register page missing %q", want)
 		}
