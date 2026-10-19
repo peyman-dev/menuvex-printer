@@ -46,7 +46,7 @@ echo "==> Building MenuVex Offline $VERSION for darwin/$ARCH (CGO_ENABLED=$CGO)"
 (
     cd "$ROOT"
     CGO_ENABLED="$CGO" GOOS=darwin GOARCH="$ARCH" go build \
-        -trimpath \
+        -trimpath -buildvcs=false \
         -ldflags "-s -w -X main.version=$VERSION" \
         -o "$WORK/MenuVexOffline" \
         ./cmd/coffish-desktop

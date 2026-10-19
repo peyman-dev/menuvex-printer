@@ -32,7 +32,7 @@ echo "==> Building Windows GUI executable"
 (
     cd "$ROOT"
     CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
-        -trimpath \
+        -trimpath -buildvcs=false \
         -ldflags "-H windowsgui -s -w -X main.version=$VERSION" \
         -o "$WORK/MenuVexOffline.exe" \
         ./cmd/coffish-desktop

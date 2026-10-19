@@ -17,27 +17,27 @@ offline-menuvex/release-artifacts/
 
 | # | فایل | سیستم / معماری | حجم (بایت) | نوع واقعی |
 |---|------|----------------|------------|-----------|
-| ۱ | `MenuVex-Offline-Setup-1.0.0-x64.exe` | Windows 10/11 x64 | 4,557,572 | NSIS 3.x installer (PE32 stub + payload PE32+ x64) |
-| ۲ | `menuvex-offline_1.0.0_amd64.deb` | Debian/Ubuntu amd64 | 5,758,722 | بستهٔ دبیان (`dpkg-deb`, control/postinst/postrm) |
-| ۳ | `menuvex-offline_1.0.0_arm64.deb` | Debian/Ubuntu arm64 | 5,311,844 | بستهٔ دبیان arm64 (cross-compiled) |
+| ۱ | `MenuVex-Offline-Setup-1.0.0-x64.exe` | Windows 10/11 x64 | 4,557,093 | NSIS 3.x installer (PE32 stub + payload PE32+ x64) |
+| ۲ | `menuvex-offline_1.0.0_amd64.deb` | Debian/Ubuntu amd64 | 5,758,456 | بستهٔ دبیان (`dpkg-deb`, control/postinst/postrm) |
+| ۳ | `menuvex-offline_1.0.0_arm64.deb` | Debian/Ubuntu arm64 | 5,311,582 | بستهٔ دبیان arm64 (cross-compiled) |
 | ۴ | `MenuVex-Offline-1.0.0-x86_64.AppImage` | Linux x86_64 | 6,277,624 | AppImage type-2 (ELF runtime + squashfs) |
 | ۵ | `MenuVex-Offline-1.0.0-aarch64.AppImage` | Linux aarch64 | 5,806,600 | AppImage type-2 (runtime + squashfs arm64) |
-| ۶ | `MenuVex-Offline-macOS-arm64.dmg` | macOS Apple Silicon | 6,778,754 | UDIF `.dmg` (HFS+ شامل `.app` و symlink به `/Applications`) |
-| ۷ | `MenuVex-Offline-macOS-amd64.dmg` | macOS Intel | 7,086,601 | UDIF `.dmg` (همان ساختار) |
-| ۸ | `MenuVex-Offline-1.0.0-linux-amd64.tar.gz` | Linux x86_64 | 5,791,489 | آرشیو portable (نصب‌کننده نیست) |
+| ۶ | `MenuVex-Offline-macOS-arm64.dmg` | macOS Apple Silicon | 6,778,489 | UDIF `.dmg` (HFS+ شامل `.app` و symlink به `/Applications`) |
+| ۷ | `MenuVex-Offline-macOS-amd64.dmg` | macOS Intel | 7,086,439 | UDIF `.dmg` (همان ساختار) |
+| ۸ | `MenuVex-Offline-1.0.0-linux-amd64.tar.gz` | Linux x86_64 | 5,791,465 | آرشیو portable (نصب‌کننده نیست) |
 | ۹ | `SHA256SUMS` | — | — | sha256 هر هشت فایل |
 
 `SHA256SUMS` (بازتولیدشدنی با `cd offline-menuvex/release-artifacts && sha256sum -c SHA256SUMS`):
 
 ```
-fb769367c61b76dd079902f15aff7e72587c5f92a8f4fb1b8c4fa9b59b5caf76  MenuVex-Offline-1.0.0-aarch64.AppImage
-68092a920a3eb8ae673ec966bc6aa86628934d0e4fc650f1c7ed2faec7a453a1  MenuVex-Offline-1.0.0-linux-amd64.tar.gz
-323e300b8f4bd13e612c21057649c89a214fbab53acc64b2338cb6a1a58602b5  MenuVex-Offline-1.0.0-x86_64.AppImage
-606481db436695dd15426c1c15ae2e7bd050684e3dbf25a1776a981f81ff6f80  MenuVex-Offline-Setup-1.0.0-x64.exe
-94d772d115beb47c2d210f3cf62120272975e845d98150c4872f7cc8c37e9bfa  MenuVex-Offline-macOS-amd64.dmg
-c1ce958f64eb891fe6d7549ba0277f100ed711c6a5fedd99997d3097cdb4927a  MenuVex-Offline-macOS-arm64.dmg
-63dcc53ae1911bfdb7629dd1ab79caf09f8b397e65a613898de9c1c912679bcc  menuvex-offline_1.0.0_amd64.deb
-dec8f9b306a3ccb2f766853a75e6e5f235413bcd3e9d12f33aeee4f34f0eef05  menuvex-offline_1.0.0_arm64.deb
+6b0d3a02a219afe34da7ab567d3bc3a84f2d062e4583fe02d5e4c2142c6ac33e  MenuVex-Offline-1.0.0-aarch64.AppImage
+1dd92666201874d08c980e629ef04b2576a2c6d5bc9db9f5305c442df148b9b0  MenuVex-Offline-1.0.0-linux-amd64.tar.gz
+2e66974b0f4a0fbbf5cd20a188a043fe4cafbe42cb81d45714af62f15821fae9  MenuVex-Offline-1.0.0-x86_64.AppImage
+34da1a55f601ff7f1191583eb88665ffe961ae2e0eeed9acfe6847e9f172b73c  MenuVex-Offline-Setup-1.0.0-x64.exe
+ca4f6e3027a27fbce6632a27a96b642cbb9f89f42545e0e4fa87a611da3cae68  MenuVex-Offline-macOS-amd64.dmg
+130a05088a66d3482d61376b4e21ef3091affb3b125d02c3efc5400918355fc2  MenuVex-Offline-macOS-arm64.dmg
+5b9f1324938d0bd66416c126d0b08a5b5bc83aee7ee42c42702508d34314e20d  menuvex-offline_1.0.0_amd64.deb
+614002f10996228178ede060a01afb11234d6615270193a6315f1073db9469e2  menuvex-offline_1.0.0_arm64.deb
 ```
 
 ---
@@ -112,7 +112,7 @@ RUNTIME_FILE=/path/to/runtime-x86_64 ./packaging/appimage/build-appimage.sh x86_
 
 | فایل | اعتبارسنجی ساختاری | نصب واقعی | اجرا |
 |------|--------------------|-----------|------|
-| `Setup-x64.exe` | PE32 NSIS stub، subsystem=GUI، وجود payload PE32+ x86-64 با subsystem=GUI؛ **بایت‌های payload به‌صورت verbatim داخل installer پیدا شد** (build تأییدی بدون فشرده‌سازی) | ❌ انجام نشد (نه Windows داریم نه wine) | ❌ انجام نشد |
+| `Setup-x64.exe` | PE32 NSIS stub، subsystem=GUI، وجود payload PE32+ x86-64 با subsystem=GUI؛ **بایت‌های payload به‌صورت verbatim داخل installer پیدا شد** (build تأییدی بدون فشرده‌سازی)؛ با 7-Zip 26.04: `Type = Nsis`، `SubType = NSIS-3 Unicode`، محتویات شامل `MenuVexOffline.exe` (۱۹,۹۹۸,۷۲۰ بایت) و `Uninstall.exe` | ❌ انجام نشد (نه Windows داریم نه wine) | ❌ انجام نشد |
 | `.deb amd64` | `dpkg-deb -I` / `-c`، control درست، وابستگی‌ها، `postinst`/`postrm`، آیکن‌ها، desktop entry | ✅ استخراج بسته و اجرای باینری از مسیر نصب (`/`، بیرون از درخت سورس) | ✅ `-version` و سرویس HTTP: `/license`=200، `/static/app.css`=200؛ ساخت DB در `~/.config/CoffishDesktop` |
 | `.deb arm64` | همان بررسی‌های ساختاری + ELF header = AArch64 | ❌ (هاست arm64 نداریم) | ❌ |
 | `AppImage x86_64` | ELF + magic `AI\x02` در offset ۸، squashfs در offset 944,632، فایل‌های داخل squashfs | ✅ `--appimage-extract` و اجرای پیلود | ✅ `--appimage-extract-and-run -version` و smoke کامل HTTP + ساخت DB |
@@ -123,6 +123,34 @@ RUNTIME_FILE=/path/to/runtime-x86_64 ./packaging/appimage/build-appimage.sh x86_
 نکتهٔ مهم: نصب واقعی `dpkg -i` انجام نشد چون کاربر sandbox ریشه (uid 1001) نیست؛ به‌جای آن
 همان درخت نصب با `dpkg-deb -x` استخراج و باینری از مسیر نصب، بیرون از درخت سورس، اجرا شد.
 همین تست در CI با `sudo dpkg -i` و سپس `dpkg -r` واقعی اجرا می‌شود.
+
+### ۳.۱) اثبات اینکه داخل هر installer همان باینری تست‌شده است
+
+همهٔ باینری‌ها با `-trimpath -buildvcs=false` ساخته می‌شوند (بازتولیدپذیر). باینری
+استخراج‌شده از هر بسته با خروجی تازهٔ `go build` مقایسه شد و **بایت‌به‌بایت یکسان** بود:
+
+| بسته | فایل استخراج‌شده | sha256 |
+|------|------------------|--------|
+| `.deb amd64` و `.tar.gz` | `usr/bin/menuvex-offline` | `e5229d3b7431d6f70886ebde5e05d44e3883fbd2aa7d6ca93b0cd51d367ee568` |
+| `.deb arm64` | `usr/bin/menuvex-offline` | `b2f95a7a36b06b0a1d1af3d3d17a7ae6042fe7ec2d4990f0d0b6fb8353e97a97` |
+| `AppImage x86_64` | `squashfs-root/usr/bin/menuvex-offline` | `e5229d3b…` (همان بالا) |
+| `AppImage aarch64` | `usr/bin/menuvex-offline` (unsquashfs در offset) | `b2f95a7a…` (همان بالا) |
+| `Setup-x64.exe` | `MenuVexOffline.exe` (استخراج با 7-Zip) | `af4ed7d7f2e726bb82de2cec678456c86189be294e753f13a8e3f256f2b60a69` |
+| `macOS-arm64.dmg` | `MenuVex Offline.app/Contents/MacOS/MenuVexOffline` | `8fade69469f8ce607d1385249ddaeb26a3ecf605cb4a12cb13689a7fa01046b9` |
+| `macOS-amd64.dmg` | همان مسیر | `f3e7823e68de5ec6852729ca72559e194316f534227756c681d666f67a0ac5f0` |
+
+خروجی `7zz l` روی installer ویندوز:
+
+```
+Type = Nsis
+SubType = NSIS-3 Unicode
+Method = LZMA:25
+Solid = +
+   Date      Time    Attr         Size   Compressed  Name
+2026-10-19 14:00:00 .....     19998720               MenuVexOffline.exe
+                    .....                            Uninstall.exe
+2026-10-19 14:00:00           20053374      4410657  6 files
+```
 
 ### محدودیت‌های شناخته‌شدهٔ تست
 
