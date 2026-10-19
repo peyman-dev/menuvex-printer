@@ -411,7 +411,8 @@ func TestPrintQueueSafetyAndOrderIndependence(t *testing.T) {
 	if len(jobs) != 1 {
 		t.Fatalf("jobs = %+v", jobs)
 	}
-	if body := ordersPost(t, a, "/local/print-queue-retry", url.Values{"job_id": {jobs[0].ID}}); !strings.Contains(body, "قابل ارسال دوباره نیست") {
+	sentJobID := jobs[0].ID
+	if body := ordersPost(t, a, "/local/print-queue-retry", url.Values{"job_id": {sentJobID}}); !strings.Contains(body, "قابل ارسال دوباره نیست") {
 		t.Fatalf("sent job must not be retried: %s", body)
 	}
 	time.Sleep(80 * time.Millisecond)
@@ -493,7 +494,7 @@ func TestPrintQueueSafetyAndOrderIndependence(t *testing.T) {
 		t.Fatalf("uncertain job must be blocked: %+v", uncertain)
 	}
 
-	// A queued job can be cancelled; a sent one cannot.
+	// A queued or failed job can be cancelled; a sent one cannot.
 	queued, _ := a.store.EnqueueTestPrintJob(ctx, profile.ID)
 	if got, err := a.store.CancelPrintJob(ctx, queued.ID); err != nil || got.Status != store.PrintStatusCancelled {
 		t.Fatalf("cancel queued: %+v err=%v", got, err)
@@ -505,8 +506,11 @@ func TestPrintQueueSafetyAndOrderIndependence(t *testing.T) {
 	if got := len(fake.received()); got != 1 {
 		t.Fatalf("cancelled job reached the printer (%d payloads)", got)
 	}
-	if _, err := a.store.CancelPrintJob(ctx, jobs[0].ID); err == nil {
-		t.Fatal("sent/failed job must not be cancellable")
+	if _, err := a.store.CancelPrintJob(ctx, sentJobID); err == nil {
+		t.Fatal("sent job must not be cancellable")
+	}
+	if got, err := a.store.CancelPrintJob(ctx, jobs[0].ID); err != nil || got.Status != store.PrintStatusCancelled {
+		t.Fatalf("failed job must be cancellable by operator: %+v err=%v", got, err)
 	}
 }
 
@@ -761,5 +765,106 @@ func TestPrinterUSBScanShowsAccessButNeverAutoAdds(t *testing.T) {
 	list, _ = a.store.Printers(context.Background())
 	if len(list) != 0 {
 		t.Fatalf("printer-center USB discovery must not auto-add printers: %+v", list)
+	}
+}
+
+func TestUnifiedDiscoveryCardsAndDialogSave(t *testing.T) {
+	a := testApp(t)
+	a.queueScan = func(context.Context) ([]string, error) {
+		return []string{"Bixolon_SRP-330II_58mm"}, nil
+	}
+	a.usbScan = func() ([]printer.USBDevice, error) {
+		return []printer.USBDevice{
+			{DevicePath: "/dev/usb/lp0", VendorID: "04B8", ProductID: "0E15", Manufacturer: "Epson", Product: "TM-T20II", Accessible: true, AccessNote: "آماده چاپ مستقیم"},
+		}, nil
+	}
+	a.netScan = func() ([]printer.NetworkRange, error) {
+		return []printer.NetworkRange{{CIDR: "192.168.88.0/24", InterfaceName: "eth0", Address: "192.168.88.10", Hosts: 254}}, nil
+	}
+
+	body := ordersPost(t, a, "/local/printer-discover-all", url.Values{})
+	for _, want := range []string{
+		"discovered-printer-card",
+		"Bixolon_SRP-330II_58mm",
+		"TM-T20II",
+		"/dev/usb/lp0",
+		"انتخاب پرینتر و تنظیم ایستگاه",
+		"dlg-printer-setup",
+		"تنظیم پرینتر",
+		"80 mm",
+		"58 mm",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("unified discovery missing %q", want)
+		}
+	}
+
+	// Saving from the setup dialog persists station name, 58mm/80mm paper, font size, and font family.
+	saveForm := url.Values{
+		"name":             {"آشپزخانه گرم"},
+		"station":          {"آشپزخانه گرم"},
+		"role":             {"kitchen"},
+		"model":            {"Epson TM-T20II"},
+		"connection_kind":  {"usb"},
+		"usb_path":         {"/dev/usb/lp0"},
+		"usb_vid":          {"04B8"},
+		"usb_pid":          {"0E15"},
+		"paper":            {"58mm"},
+		"width_dots":       {"384"},
+		"copies":           {"2"},
+		"font_size":        {"26"},
+		"font_family":      {"Noto Sans Arabic"},
+		"cut":              {"on"},
+		"is_active":        {"on"},
+		"return_page":      {"printers"},
+	}
+	res := ordersPost(t, a, "/local/printer-save", saveForm)
+	if !strings.Contains(res, "ذخیره شد") {
+		t.Fatalf("dialog save did not confirm: %s", res)
+	}
+	profiles, err := a.store.Printers(context.Background())
+	if err != nil || len(profiles) != 1 {
+		t.Fatalf("profiles = %+v err=%v", profiles, err)
+	}
+	got := profiles[0]
+	if got.Name != "آشپزخانه گرم" || got.Role != "kitchen" || got.PaperMM != 58 || got.WidthDots != 384 || got.Copies != 2 || got.FontSize != 26 {
+		t.Fatalf("saved profile mismatch: %+v", got)
+	}
+}
+
+func TestPrintQueueCancelAllAndClear(t *testing.T) {
+	a := testApp(t)
+	ctx := context.Background()
+	p := saveNetworkPrinter(t, a, "صندوق لغو صف", "192.168.99.50", 9100, "cashier", true)
+
+	j1, err := a.store.EnqueueTestPrintJob(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j2, err := a.store.EnqueueTestPrintJob(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.store.FailPrintJob(ctx, j2.ID, "dial tcp timeout", false); err != nil {
+		t.Fatal(err)
+	}
+
+	body := ordersPost(t, a, "/local/print-queue-cancel-all", url.Values{})
+	if !strings.Contains(body, "لغو شد") {
+		t.Fatalf("cancel-all message missing: %s", body)
+	}
+	g1, _ := a.store.PrintJob(ctx, j1.ID)
+	g2, _ := a.store.PrintJob(ctx, j2.ID)
+	if g1.Status != store.PrintStatusCancelled || g2.Status != store.PrintStatusCancelled {
+		t.Fatalf("expected both jobs cancelled, got %+v and %+v", g1, g2)
+	}
+
+	body = ordersPost(t, a, "/local/print-queue-clear", url.Values{})
+	if !strings.Contains(body, "پاک‌سازی") {
+		t.Fatalf("clear message missing: %s", body)
+	}
+	counts := a.store.PrintJobCounts(ctx)
+	if counts.Total != 0 {
+		t.Fatalf("expected empty queue after clear, got %+v", counts)
 	}
 }

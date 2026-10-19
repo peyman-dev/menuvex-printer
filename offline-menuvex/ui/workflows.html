@@ -5078,68 +5078,38 @@
     <section class="panel-card">
       <div class="panel-header">
         <div>
-          <h2>چاپگرهای حرارتی ۸۰ میلی‌متری متصل</h2>
-          <p>تعریف فیش‌پرینترهای صندوق و بار گرم/سرد</p>
+          <h2>چاپگرهای حرارتی متصل و مدیریت ایستگاه‌ها</h2>
+          <p>جستجوی خودکار چاپگرهای USB و شبکه (LAN)، انتخاب ایستگاه کاری و تنظیم کاغذ ۵۸ یا ۸۰ میلی‌متر در مرکز پرینترها انجام می‌شود.</p>
+        </div>
+        <div class="row-actions">
+          <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">افزودن فیش‌پرینتر جدید</a>
+          <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">صف چاپ</a>
         </div>
       </div>
-      {{if .Printers}}
+      {{if .PrinterProfiles}}
       <div class="item-list">
-        {{range .Printers}}
+        {{range .PrinterProfiles}}
         <div class="list-row">
           <div>
-            <strong>{{.Label}}</strong>
-            <div class="row-sub">مدل: {{.Field "model"}} • اتصال: {{.Field "connection"}} • ایستگاه: {{.Field "station"}}</div>
+            <strong>{{.Name}}</strong>
+            <div class="row-sub">{{.KindLabel}} • {{.DestinationLabel}} • نقش: {{.RoleLabel}} • کاغذ: {{faInt .PaperMM}} میلی‌متر ({{faInt .WidthDots}} dots)</div>
           </div>
           <span class="row-actions">
-            <span class="badge status-ok">فعال ({{.Field "paper_width"}})</span>
+            {{if .IsActive}}<span class="badge status-ok">فعال ({{.PaperWidth}})</span>{{else}}<span class="badge">غیرفعال</span>{{end}}
             <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view" class="inline-form">
               <input type="hidden" name="csrf" value="{{$.CSRF}}">
               <input type="hidden" name="printer_id" value="{{.ID}}">
+              <input type="hidden" name="return_page" value="settings">
               <button type="submit" class="btn btn-subtle btn-sm">چاپ آزمایشی</button>
             </form>
+            <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">مدیریت و تنظیمات</a>
           </span>
         </div>
         {{end}}
       </div>
+      {{else}}
+      <p class="empty-text">هنوز چاپگری ثبت نشده است؛ با زدن «افزودن فیش‌پرینتر جدید» پرینترهای USB و LAN به‌صورت خودکار شناسایی می‌شوند.</p>
       {{end}}
-
-      <hr class="section-divider">
-      <h3>افزودن فیش‌پرینتر جدید</h3>
-      <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="form-grid">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <input type="hidden" name="kind" value="printer">
-        <input type="hidden" name="return_page" value="settings">
-        <div class="form-row-2">
-          <label>عنوان چاپگر
-            <input name="title" placeholder="چاپگر آشپزخانه گرم" required>
-          </label>
-          <label>مدل دستگاه
-            <input name="model" value="Epson TM-T20 (80mm)">
-          </label>
-        </div>
-        <div class="form-row-2">
-          <label>آدرس شبکه / پورت (LAN / USB)
-            <input name="connection" placeholder="192.168.1.203:9100">
-          </label>
-          <label>ایستگاه کاری
-            <input name="station" value="بار گرم و سرد">
-          </label>
-        </div>
-        <div class="form-row-2">
-          <label>عرض کاغذ
-            <select name="paper_width">
-              <option value="80mm" selected>۸۰ میلی‌متر</option>
-              <option value="58mm">۵۸ میلی‌متر</option>
-            </select>
-          </label>
-          <label>نام صف چاپ سیستم‌عامل (CUPS — اختیاری)
-            <input name="queue" placeholder="مثلاً: EPSON-TM-T20">
-          </label>
-        </div>
-        <button type="submit" class="btn btn-outline">+ ثبت چاپگر حرارتی</button>
-      </form>
-
-
     </section>
     {{else}}
     <section class="panel-card">

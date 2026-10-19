@@ -90,11 +90,33 @@ func LocalNetworks() ([]NetworkRange, error) {
 			})
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].CIDR < out[j].CIDR })
+	sort.Slice(out, func(i, j int) bool {
+		pi, pj := networkPriority(out[i]), networkPriority(out[j])
+		if pi != pj {
+			return pi < pj
+		}
+		return out[i].CIDR < out[j].CIDR
+	})
 	if len(out) == 0 {
 		return nil, errors.New("هیچ شبکه محلی خصوصی فعالی پیدا نشد؛ برای اسکن، ابتدا دستگاه را به شبکه کافه وصل کنید یا چاپگر را دستی اضافه کنید")
 	}
 	return out, nil
+}
+
+func networkPriority(r NetworkRange) int {
+	name := strings.ToLower(r.InterfaceName)
+	for _, virt := range []string{"tun", "tap", "utun", "wg", "docker", "veth", "br-", "virbr", " tailscale"} {
+		if strings.HasPrefix(name, strings.TrimSpace(virt)) {
+			return 3
+		}
+	}
+	if strings.HasPrefix(r.CIDR, "192.168.") {
+		return 0
+	}
+	if strings.HasPrefix(r.CIDR, "10.") || strings.HasPrefix(r.CIDR, "172.") {
+		return 1
+	}
+	return 2
 }
 
 // ScanResult is one open host. Only open RAW ports are returned; no device is
@@ -346,6 +368,23 @@ func (s *Scanner) Status(id string) (ScanStatus, bool) {
 		return ScanStatus{}, false
 	}
 	return cloneScanStatus(st.status), true
+}
+
+// LatestStatus returns the most recent scan snapshot (preferring a running scan).
+func (s *Scanner) LatestStatus() (ScanStatus, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := len(s.order) - 1; i >= 0; i-- {
+		if st, ok := s.scans[s.order[i]]; ok && st.status.Running {
+			return cloneScanStatus(st.status), true
+		}
+	}
+	if len(s.order) > 0 {
+		if st, ok := s.scans[s.order[len(s.order)-1]]; ok {
+			return cloneScanStatus(st.status), true
+		}
+	}
+	return ScanStatus{}, false
 }
 
 // Cancel stops a running scan. Finished scans are unaffected.

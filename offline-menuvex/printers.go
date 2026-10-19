@@ -92,20 +92,33 @@ func (a *Application) navigateQuery(w http.ResponseWriter, r *http.Request, page
 func urlQueryEscape(v string) string { return url.QueryEscape(v) }
 
 func (a *Application) navigatePrinter(w http.ResponseWriter, r *http.Request, id, message string) {
+	if strings.TrimSpace(r.FormValue("return_page")) == "printers" {
+		a.navigateQuery(w, r, "printers", nil, message)
+		return
+	}
 	a.navigateQuery(w, r, "printer", map[string]string{"id": id}, message)
 }
 
-// printerProfileFromForm builds a profile from the wizard/detail form. It is
-// shared by create and edit so both apply exactly the same rules.
+// printerProfileFromForm builds a profile from the dialog/wizard/detail form.
+// It is shared by create and edit so both apply the exact same validation rules.
 func printerProfileFromForm(r *http.Request) (printer.Profile, error) {
 	get := r.FormValue
+	name := strings.TrimSpace(get("name"))
+	station := strings.TrimSpace(get("station"))
+	if name == "" && station != "" {
+		name = station
+	}
+	if station == "" && name != "" {
+		station = name
+	}
 	p := printer.Profile{
-		ID:      strings.TrimSpace(get("id")),
-		Name:    strings.TrimSpace(get("name")),
-		Model:   strings.TrimSpace(get("model")),
-		Station: strings.TrimSpace(get("station")),
-		Role:    strings.ToLower(strings.TrimSpace(get("role"))),
-		Kind:    strings.ToLower(strings.TrimSpace(get("connection_kind"))),
+		ID:         strings.TrimSpace(get("id")),
+		Name:       name,
+		Model:      strings.TrimSpace(get("model")),
+		Station:    station,
+		Role:       strings.ToLower(strings.TrimSpace(get("role"))),
+		Kind:       strings.ToLower(strings.TrimSpace(get("connection_kind"))),
+		FontFamily: strings.TrimSpace(get("font_family")),
 	}
 	if p.Kind == "" {
 		p.Kind = strings.ToLower(strings.TrimSpace(get("kind")))
@@ -115,7 +128,13 @@ func printerProfileFromForm(r *http.Request) (printer.Profile, error) {
 	default:
 		return p, errors.New("نقش چاپگر باید صندوق، آشپزخانه یا هر دو باشد")
 	}
-	switch get("paper") {
+	paperVal := strings.TrimSpace(get("paper"))
+	if paperVal == "" {
+		paperVal = strings.TrimSpace(get("paper_mm"))
+	}
+	paperVal = strings.TrimSuffix(strings.ToLower(paperVal), "mm")
+	paperVal = strings.TrimSpace(normalizeDigits(paperVal))
+	switch paperVal {
 	case "58":
 		p.PaperMM = printer.Paper58
 	case "80", "":
@@ -123,10 +142,26 @@ func printerProfileFromForm(r *http.Request) (printer.Profile, error) {
 	default:
 		return p, errors.New("عرض کاغذ فقط ۵۸ یا ۸۰ میلی‌متر است")
 	}
-	p.WidthDots = printer.DefaultWidthDots(p.PaperMM)
-	p.Copies = 1
-	p.Cut = get("cut") == "on" || get("cut") == "true"
-	p.Active = get("is_active") == "on" || get("is_active") == "true"
+	if wd, err := strconv.Atoi(normalizeDigits(strings.TrimSpace(get("width_dots")))); err == nil && wd > 0 {
+		p.WidthDots = wd
+	} else {
+		p.WidthDots = printer.DefaultWidthDots(p.PaperMM)
+	}
+	if cp, err := strconv.Atoi(normalizeDigits(strings.TrimSpace(get("copies")))); err == nil && cp >= 1 && cp <= 3 {
+		p.Copies = cp
+	} else {
+		p.Copies = 1
+	}
+	if fs, err := strconv.Atoi(normalizeDigits(strings.TrimSpace(get("font_size")))); err == nil && fs >= 12 && fs <= 48 {
+		p.FontSize = fs
+	} else {
+		p.FontSize = 24
+	}
+	if p.FontFamily == "" {
+		p.FontFamily = "Noto Sans Arabic"
+	}
+	p.Cut = get("cut") == "on" || get("cut") == "true" || get("cut") == "1"
+	p.Active = get("is_active") == "on" || get("is_active") == "true" || get("is_active") == "1"
 	switch p.Kind {
 	case printer.KindNetwork:
 		host := strings.TrimSpace(get("host"))
@@ -166,14 +201,18 @@ func printerProfileFromForm(r *http.Request) (printer.Profile, error) {
 // ─── Handlers ───────────────────────────────────────────────────────────
 
 func (a *Application) handlePrinterSave(w http.ResponseWriter, r *http.Request) {
+	errPage := "printer-new"
+	if strings.TrimSpace(r.FormValue("return_page")) == "printers" {
+		errPage = "printers"
+	}
 	profile, err := printerProfileFromForm(r)
 	if err != nil {
-		a.navigateQuery(w, r, "printer-new", map[string]string{"kind": profile.Kind}, "خطا در ثبت چاپگر: "+err.Error())
+		a.navigateQuery(w, r, errPage, map[string]string{"kind": profile.Kind}, "خطا در ثبت چاپگر: "+err.Error())
 		return
 	}
 	id, err := a.store.SavePrinter(r.Context(), profile)
 	if err != nil {
-		a.navigateQuery(w, r, "printer-new", map[string]string{"kind": profile.Kind}, "خطا در ثبت چاپگر: "+err.Error())
+		a.navigateQuery(w, r, errPage, map[string]string{"kind": profile.Kind}, "خطا در ثبت چاپگر: "+err.Error())
 		return
 	}
 	a.navigatePrinter(w, r, id, "چاپگر «"+profile.Name+"» ذخیره شد. برای اطمینان از مسیر، «بررسی اتصال» و سپس «چاپ آزمایشی» را اجرا کنید.")
@@ -310,17 +349,8 @@ func (a *Application) handlePrinterProbe(w http.ResponseWriter, r *http.Request)
 	a.navigatePrinter(w, r, id, "بررسی اتصال: "+res.Summary)
 }
 
-func (a *Application) handlePrinterQueueScan(w http.ResponseWriter, r *http.Request) {
-	a.navigateQuery(w, r, "printers", map[string]string{"discovery": "queues"},
-		"فهرست چاپگرهای نصب‌شده روی سیستم بررسی شد؛ نتیجه همین‌جا نمایش داده می‌شود.")
-}
-
-func (a *Application) handlePrinterUSBScan(w http.ResponseWriter, r *http.Request) {
+func (a *Application) cacheUSBScan() ([]printer.USBDevice, error) {
 	devices, err := a.discoverUSB()
-	msg := fmt.Sprintf("%d دستگاه چاپگر USB پیدا شد؛ فقط دستگاه‌هایی که گره usblp دارند قابل افزودن مستقیم هستند.", len(devices))
-	if err != nil {
-		msg = err.Error()
-	}
 	a.usbCacheMu.Lock()
 	a.usbCache = append([]printer.USBDevice(nil), devices...)
 	a.usbCacheAt = time.Now()
@@ -329,7 +359,37 @@ func (a *Application) handlePrinterUSBScan(w http.ResponseWriter, r *http.Reques
 		a.usbCacheErr = err.Error()
 	}
 	a.usbCacheMu.Unlock()
+	return devices, err
+}
 
+// handlePrinterDiscoverAll runs unified discovery across USB, OS queues, and
+// LAN network on all operating systems without requiring manual IP/port entry.
+func (a *Application) handlePrinterDiscoverAll(w http.ResponseWriter, r *http.Request) {
+	_, _ = a.cacheUSBScan()
+	extra := map[string]string{"discovery": "all"}
+	if ranges, err := a.listNetworks(); err == nil && len(ranges) > 0 {
+		if snap, sErr := a.scanner().Start(ranges[0].CIDR, printerScanDefaultPort, ranges); sErr == nil {
+			extra["scan"] = snap.ID
+		} else if latest, ok := a.scanner().LatestStatus(); ok {
+			extra["scan"] = latest.ID
+		}
+	}
+	a.navigateQuery(w, r, "printers", extra,
+		"جستجوی خودکار پرینترهای USB، سیستم‌عامل و شبکه (LAN) انجام شد؛ پرینتر مورد نظر را از کارت‌های پیدا‌شده انتخاب کنید.")
+}
+
+func (a *Application) handlePrinterQueueScan(w http.ResponseWriter, r *http.Request) {
+	_, _ = a.cacheUSBScan()
+	a.navigateQuery(w, r, "printers", map[string]string{"discovery": "queues"},
+		"فهرست چاپگرهای نصب‌شده روی سیستم بررسی شد؛ نتیجه همین‌جا نمایش داده می‌شود.")
+}
+
+func (a *Application) handlePrinterUSBScan(w http.ResponseWriter, r *http.Request) {
+	devices, err := a.cacheUSBScan()
+	msg := fmt.Sprintf("%d دستگاه چاپگر USB پیدا شد؛ فقط دستگاه‌هایی که گره usblp دارند قابل افزودن مستقیم هستند.", len(devices))
+	if err != nil {
+		msg = err.Error()
+	}
 	page := "printer-new"
 	extra := map[string]string{"kind": "usb"}
 	if strings.TrimSpace(r.FormValue("return_page")) == "printers" {
@@ -340,22 +400,51 @@ func (a *Application) handlePrinterUSBScan(w http.ResponseWriter, r *http.Reques
 }
 
 func (a *Application) handlePrinterScanStart(w http.ResponseWriter, r *http.Request) {
+	targetPage := "printer-scan"
+	if strings.TrimSpace(r.FormValue("return_page")) == "printers" {
+		targetPage = "printers"
+	}
 	ranges, err := a.listNetworks()
 	if err != nil {
-		a.navigateQuery(w, r, "printer-scan", nil, err.Error())
+		extra := map[string]string(nil)
+		if targetPage == "printers" {
+			extra = map[string]string{"discovery": "lan"}
+		}
+		a.navigateQuery(w, r, targetPage, extra, err.Error())
 		return
 	}
 	cidr := strings.TrimSpace(r.Form.Get("cidr"))
+	if cidr == "" && len(ranges) > 0 {
+		cidr = ranges[0].CIDR
+	}
 	port, _ := strconv.Atoi(normalizeDigits(strings.TrimSpace(r.Form.Get("port"))))
 	if port == 0 {
 		port = printerScanDefaultPort
 	}
 	snap, err := a.scanner().Start(cidr, port, ranges)
 	if err != nil {
-		a.navigateQuery(w, r, "printer-scan", nil, "شروع جستجو انجام نشد: "+err.Error())
+		if errors.Is(err, printer.ErrScanBusy) {
+			if latest, ok := a.scanner().LatestStatus(); ok {
+				extra := map[string]string{"scan": latest.ID}
+				if targetPage == "printers" {
+					extra["discovery"] = "lan"
+				}
+				a.navigateQuery(w, r, targetPage, extra, "جستجوی شبکه در حال اجراست.")
+				return
+			}
+		}
+		extra := map[string]string(nil)
+		if targetPage == "printers" {
+			extra = map[string]string{"discovery": "lan"}
+		}
+		a.navigateQuery(w, r, targetPage, extra, "شروع جستجو انجام نشد: "+err.Error())
 		return
 	}
-	a.navigateQuery(w, r, "printer-scan", map[string]string{"scan": snap.ID},
+	extra := map[string]string{"scan": snap.ID}
+	if targetPage == "printers" {
+		extra["discovery"] = "lan"
+	}
+	a.navigateQuery(w, r, targetPage, extra,
 		fmt.Sprintf("جستجوی شبکه در %s آغاز شد؛ نتایج به‌صورت زنده به‌روزرسانی می‌شوند.", snap.CIDR))
 }
 
@@ -370,7 +459,15 @@ func (a *Application) handlePrinterScanStatus(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if r.Header.Get("HX-Request") == "true" {
-		view := View{CSRF: a.csrf, Page: "printer-scan", PrinterScan: &snap}
+		profiles, _ := a.store.Printers(r.Context())
+		discovered := printer.BuildDiscoveredPrinters(nil, nil, nil, &snap, profiles)
+		view := View{
+			CSRF:               a.csrf,
+			Page:               "printer-scan",
+			PrinterScan:        &snap,
+			PrinterProfiles:    profiles,
+			DiscoveredPrinters: discovered,
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := a.templates.ExecuteTemplate(w, "scanResults", view); err != nil {
 			http.Error(w, "template render failed", http.StatusInternalServerError)
@@ -390,7 +487,13 @@ func (a *Application) handlePrinterScanCancel(w http.ResponseWriter, r *http.Req
 	if !a.scanner().Cancel(id) {
 		msg = "این جستجو در حال اجرا نیست یا قبلاً تمام شده است."
 	}
-	a.navigateQuery(w, r, "printer-scan", map[string]string{"scan": id}, msg)
+	targetPage := "printer-scan"
+	extra := map[string]string{"scan": id}
+	if strings.TrimSpace(r.FormValue("return_page")) == "printers" {
+		targetPage = "printers"
+		extra["discovery"] = "lan"
+	}
+	a.navigateQuery(w, r, targetPage, extra, msg)
 }
 
 // ─── Print queue ────────────────────────────────────────────────────────
@@ -444,7 +547,34 @@ func (a *Application) handlePrintQueueCancel(w http.ResponseWriter, r *http.Requ
 		a.navigateQuery(w, r, "print-queue", nil, "لغو Job انجام نشد: "+err.Error())
 		return
 	}
-	a.navigateQuery(w, r, "print-queue", nil, "Job «"+job.DocTypeLabel()+"» لغو شد؛ سفارش و وضعیت آن تغییری نکرد.")
+	a.navigateQuery(w, r, "print-queue", map[string]string{"status": r.Form.Get("status_filter")},
+		"Job «"+job.DocTypeLabel()+"» لغو شد؛ سفارش و وضعیت آن تغییری نکرد.")
+}
+
+func (a *Application) handlePrintQueueCancelAll(w http.ResponseWriter, r *http.Request) {
+	n, err := a.store.CancelAllPrintJobs(r.Context())
+	if err != nil {
+		a.navigateQuery(w, r, "print-queue", nil, "لغو صف چاپ انجام نشد: "+err.Error())
+		return
+	}
+	msg := fmt.Sprintf("%d مورد در صف چاپ لغو شد؛ سفارش‌ها دست‌نخورده باقی ماندند.", n)
+	if n == 0 {
+		msg = "هیچ موردی در صف چاپ برای لغو وجود نداشت."
+	}
+	a.navigateQuery(w, r, "print-queue", nil, msg)
+}
+
+func (a *Application) handlePrintQueueClear(w http.ResponseWriter, r *http.Request) {
+	n, err := a.store.ClearPrintQueue(r.Context())
+	if err != nil {
+		a.navigateQuery(w, r, "print-queue", nil, "پاک‌سازی صف چاپ انجام نشد: "+err.Error())
+		return
+	}
+	msg := fmt.Sprintf("صف چاپ پاک‌سازی شد (%d مورد حذف شد).", n)
+	if n == 0 {
+		msg = "صف چاپ از قبل خالی بود."
+	}
+	a.navigateQuery(w, r, "print-queue", nil, msg)
 }
 
 // printOutcomeMessage separates "handed to the transport" from "physically

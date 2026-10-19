@@ -36,6 +36,33 @@ func ListQueues(ctx context.Context) ([]string, error) {
 	return ParseQueueList(string(out)), nil
 }
 
+func platformQueueDetails(ctx context.Context) map[string]QueueDetail {
+	details := map[string]QueueDetail{}
+	lpstat, err := exec.LookPath("lpstat")
+	if err != nil {
+		return details
+	}
+	cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(cctx, lpstat, "-v").Output()
+	if err != nil {
+		return details
+	}
+	for q, uri := range ParseCUPSDevices(string(out)) {
+		mfg, model, cat, portInfo, paper := InferPrinterSpecs(q, uri, "", "")
+		details[q] = QueueDetail{
+			QueueName:    q,
+			DeviceURI:    uri,
+			DriverModel:  model,
+			Manufacturer: mfg,
+			PortName:     portInfo,
+			Category:     cat,
+			PaperMM:      paper,
+		}
+	}
+	return details
+}
+
 // sendSpoolerRaw submits bytes to one CUPS queue as a RAW job. Payload is
 // passed on stdin so no receipt text ever appears in the process list.
 func sendSpoolerRaw(ctx context.Context, queue string, payload []byte) error {

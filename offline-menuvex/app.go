@@ -131,6 +131,8 @@ type View struct {
 	PrinterRecentJobs   []store.PrintJobView
 
 	PrinterDiscoveryMode string
+	PrinterQueueDetails  map[string]printer.QueueDetail
+	DiscoveredPrinters   []printer.DiscoveredPrinter
 
 	POSFormToken        string
 	POSGroups           []POSGroup
@@ -1797,6 +1799,9 @@ func New(dataDir string) (*Application, error) {
 		"faInt64": func(n int64) string {
 			return store.FormatPersianNumber(strconv.FormatInt(n, 10))
 		},
+		"addInt": func(a, b int) int {
+			return a + b
+		},
 	}
 	t, err := template.New("app").Funcs(funcMap).ParseFS(assets, "ui/*.html")
 	if err != nil {
@@ -1917,12 +1922,15 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /local/printer-delete", a.handlePrinterDelete)
 	mux.HandleFunc("POST /local/printer-usb-scan", a.handlePrinterUSBScan)
 	mux.HandleFunc("POST /local/printer-queue-scan", a.handlePrinterQueueScan)
+	mux.HandleFunc("POST /local/printer-discover-all", a.handlePrinterDiscoverAll)
 	mux.HandleFunc("POST /local/printer-scan", a.handlePrinterScanStart)
 	mux.HandleFunc("GET /local/printer-scan-status", a.handlePrinterScanStatus)
 	mux.HandleFunc("POST /local/printer-scan-cancel", a.handlePrinterScanCancel)
 	mux.HandleFunc("POST /local/print-queue-retry", a.handlePrintQueueRetry)
 	mux.HandleFunc("POST /local/print-queue-retry-all", a.handlePrintQueueRetryAll)
 	mux.HandleFunc("POST /local/print-queue-cancel", a.handlePrintQueueCancel)
+	mux.HandleFunc("POST /local/print-queue-cancel-all", a.handlePrintQueueCancelAll)
+	mux.HandleFunc("POST /local/print-queue-clear", a.handlePrintQueueClear)
 	mux.HandleFunc("POST /local/export-backup", a.handleExportBackup)
 	mux.HandleFunc("GET /local/products-export", a.handleProductsExport)
 	mux.HandleFunc("GET /local/inventory-export", a.handleInventoryExport)
@@ -3828,6 +3836,9 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.Purchases, _ = a.store.Entities(ctx, "purchase")
 	case "settings":
 		v.Printers, _ = a.store.Entities(ctx, "printer")
+		v.PrinterProfiles, _ = a.store.Printers(ctx)
+		v.PrinterStats = a.store.PrinterStats(ctx)
+		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
 		v.PrinterRoutes, _ = a.store.Entities(ctx, "printer_route")
 		v.PrintJobs, _ = a.store.PrintJobs(ctx, "")
 		v.PrintPolicy = a.printPolicy(ctx)
@@ -3863,7 +3874,36 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
 		v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", "", 8)
 		v.Printers, _ = a.store.Entities(ctx, "printer")
+		v.PrinterDraft = printer.Profile{PaperMM: printer.Paper80, WidthDots: 576, Copies: 1, FontFamily: "Noto Sans Arabic", FontSize: 24, Cut: true, Active: true}
+		networks, nErr := a.listNetworks()
+		v.PrinterNetworks = networks
+		if nErr != nil {
+			v.PrinterNetworkError = nErr.Error()
+		}
+		if scanID := strings.TrimSpace(r.URL.Query().Get("scan")); scanID != "" {
+			if snap, ok := a.scanner().Status(scanID); ok {
+				v.PrinterScan = &snap
+			}
+		}
 		switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("discovery"))) {
+		case "all":
+			v.PrinterDiscoveryMode = "all"
+			queues, queueErr := a.listQueues(ctx)
+			v.PrinterQueues = queues
+			if queueErr != nil {
+				v.PrinterQueueError = queueErr.Error()
+			}
+			a.usbCacheMu.Lock()
+			if time.Since(a.usbCacheAt) < 2*time.Minute {
+				v.PrinterUSBDevices = append([]printer.USBDevice(nil), a.usbCache...)
+				v.PrinterUSBError = a.usbCacheErr
+			}
+			a.usbCacheMu.Unlock()
+			if v.PrinterScan == nil {
+				if snap, ok := a.scanner().LatestStatus(); ok {
+					v.PrinterScan = &snap
+				}
+			}
 		case "queues":
 			v.PrinterDiscoveryMode = "queues"
 			queues, queueErr := a.listQueues(ctx)
@@ -3871,6 +3911,11 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			if queueErr != nil {
 				v.PrinterQueueError = queueErr.Error()
 			}
+			a.usbCacheMu.Lock()
+			if time.Since(a.usbCacheAt) < 2*time.Minute {
+				v.PrinterUSBDevices = append([]printer.USBDevice(nil), a.usbCache...)
+			}
+			a.usbCacheMu.Unlock()
 		case "usb":
 			v.PrinterDiscoveryMode = "usb"
 			a.usbCacheMu.Lock()
@@ -3879,7 +3924,18 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				v.PrinterUSBError = a.usbCacheErr
 			}
 			a.usbCacheMu.Unlock()
+			queues, _ := a.listQueues(ctx)
+			v.PrinterQueues = queues
+		case "lan":
+			v.PrinterDiscoveryMode = "lan"
+			if v.PrinterScan == nil {
+				if snap, ok := a.scanner().LatestStatus(); ok {
+					v.PrinterScan = &snap
+				}
+			}
 		}
+		v.PrinterQueueDetails = printer.EnrichQueueDetails(ctx, v.PrinterQueues)
+		v.DiscoveredPrinters = printer.BuildDiscoveredPrinters(v.PrinterQueues, v.PrinterQueueDetails, v.PrinterUSBDevices, v.PrinterScan, v.PrinterProfiles)
 	case "printer":
 		id := strings.TrimSpace(r.URL.Query().Get("id"))
 		p, pErr := a.store.Printer(ctx, id)
@@ -3903,20 +3959,28 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			}
 			v.PrinterProfiles, _ = a.store.Printers(ctx)
 			v.PrinterStats = a.store.PrinterStats(ctx)
+			v.PrintJobCounts = a.store.PrintJobCounts(ctx)
 			queues, qErr := a.listQueues(ctx)
 			v.PrinterQueues = queues
 			if qErr != nil {
 				v.PrinterQueueError = qErr.Error()
 			}
+			v.PrinterQueueDetails = printer.EnrichQueueDetails(ctx, v.PrinterQueues)
 		}
 	case "printer-new":
-		draft := printer.Profile{PaperMM: printer.Paper80, WidthDots: 576, Copies: 1, Cut: true, Active: true}
+		draft := printer.Profile{PaperMM: printer.Paper80, WidthDots: 576, Copies: 1, FontFamily: "Noto Sans Arabic", FontSize: 24, Cut: true, Active: true}
 		q := r.URL.Query()
 		if kind := strings.ToLower(strings.TrimSpace(q.Get("kind"))); kind == printer.KindNetwork || kind == printer.KindSpooler || kind == printer.KindUSB {
 			draft.Kind = kind
 		}
 		draft.Name = strings.TrimSpace(q.Get("name"))
 		draft.Model = strings.TrimSpace(q.Get("model"))
+		draft.Station = strings.TrimSpace(q.Get("station"))
+		draft.Role = strings.ToLower(strings.TrimSpace(q.Get("role")))
+		if pmm, err := strconv.Atoi(strings.TrimSpace(q.Get("paper"))); err == nil && (pmm == 58 || pmm == 80) {
+			draft.PaperMM = pmm
+			draft.WidthDots = printer.DefaultWidthDots(pmm)
+		}
 		draft.Host = strings.TrimSpace(q.Get("host"))
 		draft.Port, _ = strconv.Atoi(strings.TrimSpace(q.Get("port")))
 		draft.QueueName = strings.TrimSpace(q.Get("queue_name"))
@@ -3943,6 +4007,10 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		}
 		a.usbCacheMu.Unlock()
 		v.PrinterProfiles, _ = a.store.Printers(ctx)
+		v.PrinterStats = a.store.PrinterStats(ctx)
+		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
+		v.PrinterQueueDetails = printer.EnrichQueueDetails(ctx, v.PrinterQueues)
+		v.DiscoveredPrinters = printer.BuildDiscoveredPrinters(v.PrinterQueues, v.PrinterQueueDetails, v.PrinterUSBDevices, v.PrinterScan, v.PrinterProfiles)
 	case "printer-scan":
 		networks, nErr := a.listNetworks()
 		v.PrinterNetworks = networks
@@ -3953,8 +4021,13 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			if snap, ok := a.scanner().Status(id); ok {
 				v.PrinterScan = &snap
 			}
+		} else if snap, ok := a.scanner().LatestStatus(); ok {
+			v.PrinterScan = &snap
 		}
 		v.PrinterProfiles, _ = a.store.Printers(ctx)
+		v.PrinterStats = a.store.PrinterStats(ctx)
+		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
+		v.DiscoveredPrinters = printer.BuildDiscoveredPrinters(nil, nil, nil, v.PrinterScan, v.PrinterProfiles)
 	case "print-queue":
 		v.PrintJobFilter = strings.TrimSpace(r.URL.Query().Get("status"))
 		switch v.PrintJobFilter {
@@ -3967,6 +4040,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
 		v.PrintJobs, _ = a.store.PrintJobsFilter(ctx, v.PrintJobFilter, v.PrintQueuePrinter, 100)
 		v.PrinterProfiles, _ = a.store.Printers(ctx)
+		v.PrinterStats = a.store.PrinterStats(ctx)
 	case "editor":
 		v.Kind = r.URL.Query().Get("kind")
 		v.EntityID = r.URL.Query().Get("id")

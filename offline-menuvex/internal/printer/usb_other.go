@@ -3,21 +3,45 @@
 package printer
 
 import (
+	"context"
 	"errors"
 	"io"
+	"runtime"
+	"sort"
+	"time"
 )
 
-// ErrUSBUnsupported is returned on systems without direct USB access.
-var ErrUSBUnsupported = errors.New("شناسایی و چاپ مستقیم USB در این سیستم‌عامل پشتیبانی نمی‌شود؛ چاپگر را به‌صورت صف چاپ سیستم‌عامل اضافه کنید")
+// ErrUSBUnsupported is returned on systems without direct usblp device nodes.
+var ErrUSBUnsupported = errors.New("چاپ مستقیم از مسیر دستگاه لینوکس در این سیستم‌عامل استفاده نمی‌شود؛ چاپ از طریق صف سیستم‌عامل انجام می‌شود")
 
 // ErrUSBMissing indicates that no usblp device node can receive bytes.
 var ErrUSBMissing = errors.New("گره دستگاه usblp در دسترس نیست")
 
-// DiscoverUSB reports that direct USB discovery is not implemented here. The
-// audited Agent uses libusb directly; the Go rewrite avoids a C dependency and
-// therefore relies on the operating system's print queue instead.
+// DiscoverUSB discovers USB-attached printers on Windows and macOS via the
+// platform print/USB subsystem so operators can see and select USB printers on
+// every operating system.
 func DiscoverUSB() ([]USBDevice, error) {
-	return nil, ErrUSBUnsupported
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	details := platformQueueDetails(ctx)
+	var out []USBDevice
+	for _, d := range details {
+		if d.Category != "usb" {
+			continue
+		}
+		out = append(out, USBDevice{
+			Product:      d.DriverModel,
+			Manufacturer: d.Manufacturer,
+			PortPath:     d.PortName,
+			Accessible:   false,
+			AccessNote:   "آماده انتخاب از طریق صف چاپ سیستم‌عامل (" + d.QueueName + ")",
+			System:       runtime.GOOS,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Product < out[j].Product
+	})
+	return out, nil
 }
 
 func usbSupport() error { return ErrUSBUnsupported }

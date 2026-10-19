@@ -13,10 +13,10 @@ import (
 	"github.com/sinaqaffari/coffish/desktop/internal/printer"
 )
 
-// PrinterSchemaVersion is stored in the local database meta section. Version 1
-// infers a connection kind for printers created before the printer centre
-// existed, so the new transport safely takes over legacy records.
-const PrinterSchemaVersion = "1"
+// PrinterSchemaVersion is stored in the local database meta section. Version 2
+// infers a connection kind and station role for printers created before the
+// unified printer centre existed, including prefixed "LAN 192.168.x.x:9100" strings.
+const PrinterSchemaVersion = "2"
 
 // PrinterStats summarizes the printer inventory for the management centre.
 type PrinterStats struct {
@@ -47,7 +47,7 @@ func (s *Store) MigratePrinterSchema(ctx context.Context) error {
 			}
 			ent := Entity{ID: e.ID, Type: e.Type, Version: e.Version, Payload: e.Payload}
 			changed := false
-			if fmt.Sprint(payload["kind"]) == "" {
+			if fmt.Sprint(payload["kind"]) == "" || payload["kind"] == nil {
 				if kind, host, port, queue, usbPath := inferLegacyConnection(ent); kind != "" {
 					payload["kind"] = kind
 					switch kind {
@@ -62,11 +62,17 @@ func (s *Store) MigratePrinterSchema(ctx context.Context) error {
 					changed = true
 				}
 			}
-			if fmt.Sprint(payload["paper_width"]) == "" {
+			if fmt.Sprint(payload["role"]) == "" || payload["role"] == nil {
+				if r := inferRoleFromStation(fmt.Sprint(payload["station"])); r != "" {
+					payload["role"] = r
+					changed = true
+				}
+			}
+			if fmt.Sprint(payload["paper_width"]) == "" || payload["paper_width"] == nil {
 				payload["paper_width"] = "80mm"
 				changed = true
 			}
-			if fmt.Sprint(payload["width_dots"]) == "" {
+			if fmt.Sprint(payload["width_dots"]) == "" || payload["width_dots"] == nil {
 				paper := fmt.Sprint(payload["paper_width"])
 				width := 576
 				if paper == "58mm" {
@@ -175,6 +181,8 @@ func (s *Store) SavePrinter(ctx context.Context, p printer.Profile) (string, err
 		"paper_width":      paperWidthLabel(p.PaperMM),
 		"width_dots":       strconv.Itoa(p.WidthDots),
 		"copies":           strconv.Itoa(p.Copies),
+		"font_family":      p.FontFamily,
+		"font_size":        strconv.Itoa(p.FontSize),
 		"cut":              p.Cut,
 		"is_active":        p.Active,
 	}
@@ -305,6 +313,11 @@ func ProfileFromEntity(e Entity) printer.Profile {
 	}
 	p.WidthDots, _ = strconv.Atoi(e.Field("width_dots"))
 	p.Copies, _ = strconv.Atoi(e.Field("copies"))
+	p.FontFamily = e.Field("font_family")
+	p.FontSize, _ = strconv.Atoi(e.Field("font_size"))
+	if p.Role == "" {
+		p.Role = inferRoleFromStation(p.Station)
+	}
 	p.Cut = e.Field("cut") != "false"
 	p.Active = e.Field("is_active") != "false"
 	p.LastCheckAt = e.Field("last_check_at")
@@ -314,6 +327,25 @@ func ProfileFromEntity(e Entity) printer.Profile {
 		_ = json.Unmarshal([]byte(raw), &p.LastCheckStages)
 	}
 	return p.Normalize()
+}
+
+func inferRoleFromStation(station string) string {
+	s := strings.ToLower(strings.TrimSpace(station))
+	if s == "" {
+		return ""
+	}
+	hasCashier := strings.Contains(s, "صندوق") || strings.Contains(s, "cashier")
+	hasKitchen := strings.Contains(s, "بار") || strings.Contains(s, "آشپزخانه") || strings.Contains(s, "kitchen")
+	if hasCashier && hasKitchen {
+		return "all"
+	}
+	if hasCashier {
+		return "cashier"
+	}
+	if hasKitchen {
+		return "kitchen"
+	}
+	return ""
 }
 
 func inferLegacyConnection(e Entity) (kind, host string, port int, queue, usbPath string) {
@@ -338,16 +370,20 @@ func splitHostPort(raw string) (string, int, bool) {
 	if raw == "" {
 		return "", 0, false
 	}
-	idx := strings.LastIndex(raw, ":")
-	if idx <= 0 || idx == len(raw)-1 {
-		return "", 0, false
+	// Handle prefixed legacy strings like "USB / LAN 192.168.1.201:9100" or "LAN 192.168.1.202:9100"
+	for _, token := range strings.Fields(raw) {
+		idx := strings.LastIndex(token, ":")
+		if idx <= 0 || idx == len(token)-1 {
+			continue
+		}
+		host := strings.Trim(token[:idx], "[]")
+		port, err := strconv.Atoi(token[idx+1:])
+		if err != nil || port < 1 || port > 65535 {
+			continue
+		}
+		return host, port, true
 	}
-	host := strings.Trim(raw[:idx], "[]")
-	port, err := strconv.Atoi(raw[idx+1:])
-	if err != nil || port < 1 || port > 65535 {
-		return "", 0, false
-	}
-	return host, port, true
+	return "", 0, false
 }
 
 func sortProfiles(list []printer.Profile) {

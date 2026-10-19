@@ -203,6 +203,20 @@ export default function App() {
                     به‌روزرسانی
                   </button>
                   <button
+                    className="secondary"
+                    disabled={!desktop || busy || pending === 0}
+                    onClick={() =>
+                      run(async () => {
+                        for (const j of jobs.filter((x) => x.status === 'queued')) {
+                          await api.cancel(j.jobId);
+                        }
+                        await refresh();
+                      })
+                    }
+                  >
+                    لغو همهٔ صف چاپ
+                  </button>
+                  <button
                     className="danger"
                     disabled={!desktop || busy || jobs.length === 0}
                     onClick={() => {
@@ -217,7 +231,7 @@ export default function App() {
                         });
                     }}
                   >
-                    پاک‌سازی صف
+                    پاک‌سازی کامل صف
                   </button>
                 </div>
               </div>

@@ -1,665 +1,1057 @@
-{{define "printerPages"}}
-{{if eq .Page "printers"}}
-  <section class="dash-head">
-    <div>
-      <p class="dash-eyebrow">PRINTER CENTER</p>
-      <h2 class="dash-title">چاپگرها، مسیر فیش و صف چاپ</h2>
-      <p class="dash-sub">اول فهرست چاپگرهای نصب‌شده، USB یا شبکه را جستجو کنید؛ با انتخاب دستگاه، مقصد اتصال خودکار پر می‌شود و نیازی به واردکردن IP یا نام صف نیست. خطای چاپ هیچ‌وقت سفارش ثبت‌شده را تغییر نمی‌دهد.</p>
-    </div>
-    <div class="dash-head-actions printer-center-actions">
-      <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button type="submit" class="btn btn-primary">پرینترهای نصب‌شده</button>
-      </form>
-      <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <input type="hidden" name="return_page" value="printers">
-        <button type="submit" class="btn btn-outline">جستجوی USB</button>
-      </form>
-      <a href="/?page=printer-scan" hx-get="/?page=printer-scan" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">جستجوی شبکه</a>
-      <a href="/?page=printer-new" hx-get="/?page=printer-new" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">افزودن دستی</a>
-    </div>
-  </section>
-
-  <section class="printer-stats">
-    <article><span>کل چاپگرها</span><strong>{{faInt .PrinterStats.Total}}</strong></article>
-    <article><span>فعال</span><strong>{{faInt .PrinterStats.Active}}</strong></article>
-    <article><span>شبکه</span><strong>{{faInt .PrinterStats.Network}}</strong></article>
-    <article><span>صف سیستم</span><strong>{{faInt .PrinterStats.Spooler}}</strong></article>
-    <article><span>USB مستقیم</span><strong>{{faInt .PrinterStats.USB}}</strong></article>
-    <article class="{{if gt .PrintJobCounts.Failed 0}}has-error{{end}}"><span>Job خطادار</span><strong>{{faInt .PrintJobCounts.Failed}}</strong></article>
-  </section>
-
-  {{if eq .PrinterDiscoveryMode "queues"}}
-  <section class="panel-card printer-discovery-results">
-    <div class="panel-header">
-      <div><h2>پرینترهای نصب‌شده روی سیستم‌عامل</h2><p>صف‌های چاپی که ویندوز یا CUPS پیدا کرده است؛ برای انتخاب، مشخصات اتصال به‌طور خودکار پر می‌شود.</p></div>
-      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">بستن ×</a>
-    </div>
-    {{if .PrinterQueueError}}
-      <p class="field-hint field-warn">{{.PrinterQueueError}}</p>
-    {{else if .PrinterQueues}}
-      <div class="item-list">
-        {{range .PrinterQueues}}
-        <div class="list-row compact">
-          <div><strong dir="ltr">{{.}}</strong><div class="row-sub">صف چاپ سیستم‌عامل</div></div>
-          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=spooler&queue_name={{urlquery .}}&name={{urlquery .}}" hx-get="/?page=printer-new&kind=spooler&queue_name={{urlquery .}}&name={{urlquery .}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
-        </div>
-        {{end}}
-      </div>
+{{define "printerSubnav"}}
+<nav class="printer-subnav" aria-label="مرکز چاپگرها">
+  <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="printer-subnav-item {{if or (eq .Page "printers") (eq .Page "printer") (eq .Page "printer-new") (eq .Page "printer-scan")}}active{{end}}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><circle cx="17" cy="12.5" r="1"/></svg>
+    <span>مرکز چاپگرها</span>
+    <span class="printer-subnav-count">{{faInt .PrinterStats.Total}}</span>
+  </a>
+  <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="printer-subnav-item {{if eq .Page "print-queue"}}active{{end}}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+    <span>صف چاپ</span>
+    {{if gt .PrintJobCounts.Failed 0}}
+    <span class="printer-subnav-count danger">{{faInt .PrintJobCounts.Failed}} خطا</span>
+    {{else if gt .PrintJobCounts.Pending 0}}
+    <span class="printer-subnav-count warn">{{faInt .PrintJobCounts.Pending}} در صف</span>
     {{else}}
-      <p class="empty-text">هیچ صف چاپی روی این سیستم پیدا نشد. چاپگر USB را در سیستم‌عامل نصب کنید یا «جستجوی شبکه» را بزنید.</p>
+    <span class="printer-subnav-count">{{faInt .PrintJobCounts.Total}}</span>
     {{end}}
-  </section>
-  {{else if eq .PrinterDiscoveryMode "usb"}}
-  <section class="panel-card printer-discovery-results">
-    <div class="panel-header">
-      <div><h2>دستگاه‌های USB شناسایی‌شده</h2><p>دستگاه‌های چاپگر متصل به USB پیدا شده‌اند؛ شناسایی به‌تنهایی چیزی را به فهرست یا صف چاپ اضافه نمی‌کند.</p></div>
-      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">بستن ×</a>
-    </div>
-    {{if .PrinterUSBError}}<p class="field-hint field-warn">{{.PrinterUSBError}} برای چاپگرهای نصب‌شده، «پرینترهای نصب‌شده» را بزنید.</p>{{end}}
-    {{if .PrinterUSBDevices}}
-      <div class="item-list usb-list">
-        {{range .PrinterUSBDevices}}
-        <div class="list-row compact">
-          <div>
-            <strong>{{.DisplayName}}</strong>
-            <div class="row-sub" dir="ltr">{{.VendorID}}:{{.ProductID}}{{if .DevicePath}} • {{.DevicePath}}{{end}}</div>
-            <div class="row-sub">{{.AccessNote}}</div>
-          </div>
-          {{if .Accessible}}
-          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-get="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
-          {{else}}<span class="badge status-muted">از صف سیستم‌عامل استفاده کنید</span>{{end}}
+  </a>
+  <a href="/?page=settings" hx-get="/?page=settings" hx-target="#main-view" hx-push-url="true" class="printer-subnav-item {{if eq .Page "settings"}}active{{end}}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+    <span>تنظیمات چاپ و فیش</span>
+  </a>
+</nav>
+{{end}}
+
+{{define "printerSetupDialog"}}
+{{$d := .PrinterDraft}}
+<div class="dlg-overlay {{if or $d.Name $d.Host $d.QueueName $d.USB.DevicePath}}open{{end}}" id="dlg-printer-setup" role="dialog" aria-modal="true" aria-labelledby="dlg-printer-setup-title">
+  <div class="dlg dlg-printer-modal">
+    <div class="dlg-head">
+      <div class="dlg-title-group">
+        <span class="dlg-title-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><circle cx="17" cy="12.5" r="1"/></svg>
+        </span>
+        <div>
+          <h3 id="dlg-printer-setup-title">تنظیم پرینتر</h3>
+          <p class="dlg-subtitle">نام ایستگاه، عرض کاغذ (58mm یا 80mm) و مشخصات چاپگر را وارد کنید</p>
         </div>
+      </div>
+      <button type="button" class="dlg-close-pill" onclick="closeDlg(this)">بستن ×</button>
+    </div>
+
+    <form id="dlg-printer-form" method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" onsubmit="var o=this.closest('.dlg-overlay'); if(o) o.classList.remove('open');">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="return_page" value="printers">
+      <input type="hidden" name="id" value="{{$d.ID}}">
+      <input type="hidden" name="station" value="{{if $d.Station}}{{$d.Station}}{{else if $d.Name}}{{$d.Name}}{{else}}صندوق فروش{{end}}">
+      <input type="hidden" name="connection_kind" value="{{if $d.Kind}}{{$d.Kind}}{{else}}network{{end}}">
+      <input type="hidden" name="host" value="{{$d.Host}}">
+      <input type="hidden" name="port" value="{{if gt $d.Port 0}}{{$d.Port}}{{else}}9100{{end}}">
+      <input type="hidden" name="queue_name" value="{{$d.QueueName}}">
+      <input type="hidden" name="usb_path" value="{{$d.USB.DevicePath}}">
+      <input type="hidden" name="usb_vid" value="{{$d.USB.VendorID}}">
+      <input type="hidden" name="usb_pid" value="{{$d.USB.ProductID}}">
+      <input type="hidden" name="usb_serial" value="{{$d.USB.Serial}}">
+      <input type="hidden" name="usb_bus" value="{{if $d.USB.Bus}}{{$d.USB.Bus}}{{else}}0{{end}}">
+      <input type="hidden" name="usb_port" value="{{if $d.USB.PortPath}}{{$d.USB.PortPath}}{{else}}0{{end}}">
+      <input type="hidden" name="usb_product" value="{{$d.USB.Product}}">
+      <input type="hidden" name="usb_manufacturer" value="{{$d.USB.Manufacturer}}">
+      <input type="hidden" name="paper_mm" value="{{if eq $d.PaperMM 58}}58{{else}}80{{end}}">
+
+      <div class="dlg-body">
+        <div class="dlg-printer-hw-banner">
+          <div class="dlg-printer-hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><path d="M17 12h.01"/></svg>
+          </div>
+          <div class="dlg-printer-hw-meta">
+            <div class="dlg-printer-hw-top">
+              <strong id="dlg-printer-hw-title">{{if $d.Model}}{{$d.Model}}{{else if $d.Name}}{{$d.Name}}{{else}}چاپگر حرارتی انتخاب‌شده{{end}}</strong>
+              <span class="badge status-ok" id="dlg-printer-kind-badge">{{if $d.Kind}}{{$d.KindLabel}}{{else}}آماده اتصال{{end}}</span>
+            </div>
+            <div class="dlg-printer-hw-sub">
+              <span>مسیر اتصال: <code class="ltr" id="dlg-printer-hw-conn">{{if $d.ConnectionDetail}}{{$d.ConnectionDetail}}{{else}}شناسایی خودکار{{end}}</code></span>
+              <span id="dlg-printer-hw-port">ESC/POS</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dlg-field">
+          <label for="dlg-printer-name-input">نام پرینتر (نام ایستگاه — مثلاً صندوق، آشپزخانه، بار)</label>
+          <input id="dlg-printer-name-input" name="name" value="{{if $d.Name}}{{$d.Name}}{{else}}صندوق فروش{{end}}" placeholder="مثلاً: صندوق، آشپزخانه، بار گرم" required oninput="var st=this.form.querySelector('[name=station]'); if(st) st.value=this.value;">
+          <div class="station-preset-row">
+            <span class="station-preset-hint">انتخاب سریع ایستگاه:</span>
+            <button type="button" class="station-preset-chip active" onclick="selectStationPreset('صندوق فروش', 'cashier', this)">صندوق فروش</button>
+            <button type="button" class="station-preset-chip" onclick="selectStationPreset('آشپزخانه', 'kitchen', this)">آشپزخانه</button>
+            <button type="button" class="station-preset-chip" onclick="selectStationPreset('بار گرم و سرد', 'kitchen', this)">بار گرم و سرد</button>
+            <button type="button" class="station-preset-chip" onclick="selectStationPreset('صندوق و آشپزخانه', 'all', this)">صندوق و آشپزخانه</button>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <label>نقش چاپگر (ایستگاه کاری)
+            <select name="role">
+              <option value="cashier" {{if or (eq $d.Role "cashier") (eq $d.Role "")}}selected{{end}}>صندوق (فیش مشتری)</option>
+              <option value="kitchen" {{if eq $d.Role "kitchen"}}selected{{end}}>آشپزخانه و بار (بلیت آماده‌سازی)</option>
+              <option value="all" {{if eq $d.Role "all"}}selected{{end}}>هر دو (صندوق و آشپزخانه)</option>
+            </select>
+          </label>
+          <label>مدل و مشخصات دستگاه
+            <input name="model" value="{{if $d.Model}}{{$d.Model}}{{else}}ESC/POS Thermal{{end}}" placeholder="مثلاً: Epson TM-T20II">
+          </label>
+        </div>
+
+        <div class="dlg-field">
+          <label>انتخاب عرض کاغذ (58mm یا 80mm)</label>
+          <div class="paper-choice-grid">
+            <button type="button" class="paper-choice-card {{if ne $d.PaperMM 58}}active{{end}}" data-paper-choice="80" onclick="setPrinterPaperMM(80, this.form)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+              <div>
+                <strong>80 mm (استاندارد)</strong>
+                <small>مناسب فیش صندوق و بلیت آشپزخانه • ۵۷۶ نقطه</small>
+              </div>
+            </button>
+            <button type="button" class="paper-choice-card {{if eq $d.PaperMM 58}}active{{end}}" data-paper-choice="58" onclick="setPrinterPaperMM(58, this.form)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M9.5 8h5M9.5 12h5M9.5 16h3"/></svg>
+              <div>
+                <strong>58 mm (کم‌عرض)</strong>
+                <small>مناسب پرینترهای جیبی و ۵۸ میلی‌متری • ۳۸۴ نقطه</small>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <label>عرض کاغذ
+            <select name="paper" onchange="setPrinterPaperMM(this.value === '58mm' || this.value === '58' ? 58 : 80, this.form)">
+              <option value="80mm" {{if ne $d.PaperMM 58}}selected{{end}}>80 mm</option>
+              <option value="58mm" {{if eq $d.PaperMM 58}}selected{{end}}>58 mm</option>
+            </select>
+          </label>
+          <label>عرض واقعی — dots
+            <input type="number" name="width_dots" value="{{if gt $d.WidthDots 0}}{{$d.WidthDots}}{{else}}576{{end}}" min="128" max="832" step="8" dir="ltr" data-no-group="1">
+          </label>
+        </div>
+
+        <div class="form-row-2">
+          <label>تعداد نسخه
+            <input type="number" name="copies" value="{{if gt $d.Copies 0}}{{$d.Copies}}{{else}}1{{end}}" min="1" max="3" dir="ltr" data-no-group="1">
+          </label>
+          <label>اندازه فونت
+            <input type="number" name="font_size" value="{{if gt $d.FontSize 0}}{{$d.FontSize}}{{else}}24{{end}}" min="12" max="48" dir="ltr" data-no-group="1">
+          </label>
+        </div>
+
+        <div class="dlg-field">
+          <label>فونت
+            <input name="font_family" value="{{if $d.FontFamily}}{{$d.FontFamily}}{{else}}Noto Sans Arabic{{end}}" dir="ltr" placeholder="Noto Sans Arabic">
+          </label>
+        </div>
+
+        <div class="dlg-checks-stack">
+          <label class="dlg-check-row">
+            <input type="checkbox" name="cut" value="on" {{if $d.Cut}}checked{{end}}>
+            <span>برش خودکار کاغذ — فقط پرینترهای دارای کاتر</span>
+          </label>
+          <label class="dlg-check-row">
+            <input type="checkbox" name="is_active" value="on" {{if $d.Active}}checked{{end}}>
+            <span>فعال بودن چاپگر در چاپ خودکار سفارش‌ها</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="dlg-foot dlg-printer-foot">
+        <button type="submit" class="btn btn-primary btn-block-lg">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>
+          <span>ذخیره تنظیمات</span>
+        </button>
+      </div>
+    </form>
+
+    <div id="dlg-printer-delete-wrap" class="dlg-printer-delete-bar" hidden>
+      <form method="post" action="/local/printer-delete" hx-post="/local/printer-delete" hx-target="#main-view">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" id="dlg-printer-delete-id" name="printer_id" value="">
+        <input type="hidden" name="confirm_delete" value="on">
+        <button type="submit" class="btn btn-danger-outline btn-sm">حذف پرینتر از سیستم</button>
+      </form>
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "discoveredPrinterCard"}}
+<article class="discovered-printer-card kind-{{.Kind}}">
+  <div class="discovered-card-head">
+    <div class="discovered-card-icon kind-{{.Kind}}">
+      {{if eq .Kind "usb"}}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v15"/><path d="M9 5l3-3 3 3"/><circle cx="12" cy="19" r="2"/><path d="M12 14l-5-3v-3"/><circle cx="7" cy="7" r="1.5"/><path d="M12 12l5-2.5V7"/><rect x="15.5" y="4.5" width="3" height="3" rx=".5"/></svg>
+      {{else if eq .Kind "spooler"}}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><path d="M9 13h6"/></svg>
+      {{else}}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1.5"/></svg>
+      {{end}}
+    </div>
+    <div class="discovered-card-title">
+      <div class="discovered-card-badges">
+        <span class="discovered-type-pill kind-{{.Kind}}">{{.TypeLabel}}</span>
+        {{if .Selectable}}
+        <span class="badge status-ok">{{.StatusLabel}}</span>
+        {{else}}
+        <span class="badge status-cancel">قابل چاپ مستقیم نیست</span>
         {{end}}
       </div>
-    {{else if not .PrinterUSBError}}
-      <p class="empty-text">دستگاه چاپگر USB سازگار پیدا نشد. برای چاپگرهای نصب‌شده، فهرست صف‌های سیستم‌عامل را هم بررسی کنید.</p>
-    {{end}}
-  </section>
+      <h4>{{.Name}}</h4>
+      <p>{{.Manufacturer}} • {{.Model}}</p>
+    </div>
+  </div>
+
+  <div class="discovered-specs-grid">
+    <div class="discovered-spec-item">
+      <span class="spec-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        مسیر / آدرس اتصال
+      </span>
+      <strong class="ltr">{{.ConnectionDetail}}</strong>
+    </div>
+    <div class="discovered-spec-item">
+      <span class="spec-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01"/></svg>
+        درگاه و پروتکل
+      </span>
+      <strong>{{.PortInfo}} • {{.Protocol}}</strong>
+    </div>
+    <div class="discovered-spec-item">
+      <span class="spec-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        عرض کاغذ پیشنهادی
+      </span>
+      <strong>{{faInt .PaperMM}} میلی‌متر ({{faInt .WidthDots}} dots)</strong>
+    </div>
+    <div class="discovered-spec-item">
+      <span class="spec-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+        سیستم‌عامل و وضعیت
+      </span>
+      <strong>{{.SystemInfo}}</strong>
+    </div>
+  </div>
+
+  {{if .StatusNote}}
+  <p class="discovered-card-note">{{.StatusNote}}</p>
   {{end}}
 
-  <section class="panel-card">
-    <div class="panel-header">
-      <div>
-        <h2>وضعیت چاپ خودکار</h2>
-        <p>اگر این سوییچ خاموش باشد، هیچ فیش سفارشی ارسال نمی‌شود؛ سفارش‌ها سالم ثبت و تسویه می‌شوند.</p>
+  <div class="discovered-card-foot">
+    {{if .Selectable}}
+    <a href="/?page=printer-new&kind={{.Kind}}&name={{.Name}}{{if .QueueName}}&queue_name={{.QueueName}}{{end}}{{if .Host}}&host={{.Host}}&port={{.Port}}{{end}}{{if .USBPath}}&usb_path={{.USBPath}}&usb_vid={{.USBVID}}&usb_pid={{.USBPID}}&usb_serial={{.USBSerial}}&usb_product={{.Model}}&usb_manufacturer={{.Manufacturer}}{{end}}"
+      class="btn btn-primary btn-select-printer"
+      data-name="صندوق فروش"
+      data-station-name="صندوق فروش"
+      data-model="{{.Model}}"
+      data-manufacturer="{{.Manufacturer}}"
+      data-connection-kind="{{.Kind}}"
+      data-host="{{.Host}}"
+      data-port="{{if gt .Port 0}}{{.Port}}{{else}}9100{{end}}"
+      data-queue-name="{{.QueueName}}"
+      data-usb-path="{{.USBPath}}"
+      data-usb-vid="{{.USBVID}}"
+      data-usb-pid="{{.USBPID}}"
+      data-usb-serial="{{.USBSerial}}"
+      data-usb-bus="{{.USBBus}}"
+      data-usb-port="{{.USBPort}}"
+      data-usb-product="{{.Model}}"
+      data-usb-manufacturer="{{.Manufacturer}}"
+      data-paper-mm="{{if gt .PaperMM 0}}{{.PaperMM}}{{else}}80{{end}}"
+      data-width-dots="{{if gt .WidthDots 0}}{{.WidthDots}}{{else}}576{{end}}"
+      data-type-label="{{.TypeLabel}}"
+      data-connection-detail="{{.ConnectionDetail}}"
+      data-port-info="{{.PortInfo}}"
+      data-protocol="{{.Protocol}}"
+      onclick="if (window.openPrinterSetupDialog && openPrinterSetupDialog(this)) return false;">
+      <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>
+      <span>انتخاب پرینتر و تنظیم ایستگاه</span>
+    </a>
+    {{else}}
+    <span class="badge status-cancel">قابل چاپ مستقیم نیست</span>
+    {{end}}
+  </div>
+</article>
+{{end}}
+
+{{define "scanResults"}}
+{{with .PrinterScan}}
+<div class="scan-status-box" id="scan-results" {{if .Running}}hx-get="/local/printer-scan-status?scan={{.ID}}" hx-trigger="every 900ms" hx-target="#scan-results" hx-swap="outerHTML"{{end}}>
+  {{if .Running}}
+  <div class="scan-progress-banner">
+    <div class="scan-progress-head">
+      <div class="scan-spinner-title">
+        <span class="scan-pulse-dot"></span>
+        <strong>در حال جستجوی چاپگرهای شبکه محلی (LAN)...</strong>
       </div>
-      <form method="post" action="/local/printer-toggle" hx-post="/local/printer-toggle" hx-target="#main-view" class="club-switch-form">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <input type="hidden" name="return_page" value="printers">
-        <label class="club-switch" title="استفاده از چاپگر حرارتی"><input type="checkbox" name="enabled" {{if .PrinterEnabled}}checked{{end}} onchange="this.form.requestSubmit()"><span class="track"></span></label>
+      <span class="ltr">{{faInt .Done}} / {{faInt .Total}} آدرس بررسی شد • {{faInt (len .Results)}} چاپگر پیدا شد</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width: {{.Percent}}%"></div>
+    </div>
+    <div class="scan-progress-foot">
+      <span class="row-sub">زیرشبکه: <code class="ltr">{{.CIDR}}</code> • بررسی پورت استاندارد ESC/POS (<code class="ltr">{{.Port}}</code>)</span>
+      <form method="post" action="/local/printer-scan-cancel" hx-post="/local/printer-scan-cancel" hx-target="#main-view" class="inline-form">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <input type="hidden" name="scan" value="{{.ID}}">
+        <button type="submit" class="btn btn-outline btn-sm">توقف جستجو</button>
       </form>
     </div>
-    <p class="row-sub">{{if .PrinterEnabled}}چاپ فعال است. مقصد فیش مشتری و بلیت آشپزخانه از نقش چاپگرها و مسیر دسته‌بندی‌ها تعیین می‌شود.{{else}}چاپ غیرفعال است. برای ارسال فیش، ابتدا سوییچ را روشن کنید.{{end}}</p>
-    <div class="printer-support-links">
-      <a href="/?page=settings" hx-get="/?page=settings" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">سیاست چاپ و مسیر دسته‌بندی محصولات</a>
-      <a href="/?page=settings" hx-get="/?page=settings" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">سربرگ و پابرگ فیش</a>
-    </div>
-  </section>
+  </div>
+  {{else}}
+  <div class="scan-done-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+    <span>{{if .Error}}نتیجه جستجوی شبکه: {{.Error}}{{else if .Cancelled}}جستجوی شبکه متوقف شد ({{faInt .Done}} از {{faInt .Total}} آدرس بررسی شد).{{else}}جستجوی شبکه محلی کامل شد: {{faInt (len .Results)}} چاپگر شبکه در {{faInt .Done}} آدرس شناسایی شد.{{end}}</span>
+  </div>
+  {{end}}
 
-  {{if .PrinterProfiles}}
-  <section class="printer-grid">
-    {{range .PrinterProfiles}}
-    <article class="printer-card {{if not .Active}}is-off{{end}}">
-      <header class="printer-card-head">
-        <div>
-          <strong>{{.Name}}</strong>
-          <small>{{.KindLabel}}{{if .Model}} • {{.Model}}{{end}}</small>
+  {{if .Results}}
+  <div class="discovered-printer-grid scan-found-grid">
+    {{range .Results}}
+    <article class="discovered-printer-card kind-network">
+      <div class="discovered-card-head">
+        <div class="discovered-card-icon kind-network">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1.5"/></svg>
         </div>
-        <span class="badge {{if .Active}}status-ok{{else}}status-muted{{end}}">{{if .Active}}فعال{{else}}غیرفعال{{end}}</span>
-      </header>
-      <dl class="printer-meta">
-        <div><dt>مقصد</dt><dd dir="ltr">{{if .ConnectionDetail}}{{.ConnectionDetail}}{{else}}—{{end}}</dd></div>
-        <div><dt>نقش</dt><dd>{{if eq .Role "cashier"}}صندوق{{else if eq .Role "kitchen"}}آشپزخانه{{else if eq .Role "all"}}صندوق و آشپزخانه{{else}}تعیین‌نشده{{end}}</dd></div>
-        <div><dt>کاغذ</dt><dd>{{faInt .PaperMM}} میلی‌متر</dd></div>
-        <div><dt>وضعیت بررسی</dt><dd>{{if .LastCheckAt}}{{if eq .LastCheckState "online"}}<span class="badge status-ok">آنلاین</span>{{else if eq .LastCheckState "unconfirmed"}}<span class="badge status-warn">تأییدنشده</span>{{else if eq .LastCheckState "offline"}}<span class="badge status-danger">در دسترس نیست</span>{{else}}<span class="badge status-muted">نامشخص</span>{{end}}{{else}}<span class="badge status-muted">بررسی نشده</span>{{end}}</dd></div>
-      </dl>
-      {{if .LastCheckDetail}}<p class="printer-check-note">{{.LastCheckDetail}}</p>{{end}}
-      <div class="printer-card-actions">
-        <a href="/?page=printer&id={{.ID}}" hx-get="/?page=printer&id={{.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">تنظیمات و جزئیات</a>
-        <form method="post" action="/local/printer-probe" hx-post="/local/printer-probe" hx-target="#main-view" class="inline-form">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.ID}}">
-          <button type="submit" class="btn btn-subtle btn-sm">بررسی اتصال</button>
-        </form>
-        <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view" class="inline-form">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.ID}}">
-          <input type="hidden" name="return_page" value="printer">
-          <button type="submit" class="btn btn-subtle btn-sm">چاپ آزمایشی</button>
-        </form>
+        <div class="discovered-card-title">
+          <div class="discovered-card-badges">
+            <span class="discovered-type-pill kind-network">پرینتر شبکه (LAN)</span>
+            <span class="badge status-ok">پورت باز — آماده اتصال</span>
+          </div>
+          <h4>چاپگر حرارتی شبکه ({{.Host}})</h4>
+          <p>ESC/POS Network Thermal Printer</p>
+        </div>
+      </div>
+
+      <div class="discovered-specs-grid">
+        <div class="discovered-spec-item">
+          <span class="spec-label">آدرس شبکه و پورت</span>
+          <strong class="ltr">{{.Host}}:{{.Port}}</strong>
+        </div>
+        <div class="discovered-spec-item">
+          <span class="spec-label">پروتکل و درگاه</span>
+          <strong>RAW TCP/IP • Port {{.Port}}</strong>
+        </div>
+        <div class="discovered-spec-item">
+          <span class="spec-label">عرض کاغذ پیشنهادی</span>
+          <strong>۸۰ میلی‌متر (قابل تغییر به ۵۸ میلی‌متر)</strong>
+        </div>
+        <div class="discovered-spec-item">
+          <span class="spec-label">وضعیت درگاه</span>
+          <strong>پورت باز و آماده دریافت فیش</strong>
+        </div>
+      </div>
+
+      <div class="discovered-card-foot">
+        <a href="/?page=printer-new&kind=network&host={{.Host}}&port={{.Port}}&name=چاپگر {{.Host}}"
+          class="btn btn-primary btn-select-printer"
+          data-name="صندوق فروش"
+          data-station-name="صندوق فروش"
+          data-model="ESC/POS Network Thermal"
+          data-manufacturer="ESC/POS"
+          data-connection-kind="network"
+          data-host="{{.Host}}"
+          data-port="{{.Port}}"
+          data-paper-mm="80"
+          data-width-dots="576"
+          data-type-label="پرینتر شبکه (LAN)"
+          data-connection-detail="{{.Host}}:{{.Port}}"
+          data-port-info="TCP Port {{.Port}}"
+          data-protocol="RAW TCP/IP (ESC/POS)"
+          onclick="if (window.openPrinterSetupDialog && openPrinterSetupDialog(this)) return false;">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>
+          <span>انتخاب پرینتر و تنظیم ایستگاه</span>
+        </a>
       </div>
     </article>
     {{end}}
+  </div>
+  {{end}}
+</div>
+{{else}}
+<div id="scan-results"></div>
+{{end}}
+{{end}}
+
+{{define "printerPages"}}
+{{if eq .Page "printers"}}
+  {{template "printerSubnav" .}}
+
+  <section class="printer-hero-bar">
+    <div class="printer-hero-info">
+      <div class="printer-hero-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><circle cx="17" cy="12.5" r="1"/></svg>
+      </div>
+      <div>
+        <h2>مرکز چاپگرها و ایستگاه‌های چاپ کافه</h2>
+        <p>جستجوی خودکار چاپگرها در USB و شبکه (LAN) • وضعیت چاپ خودکار: {{if .PrinterEnabled}}<strong class="text-ok">فعال</strong>{{else}}<strong class="text-muted">غیرفعال</strong>{{end}}</p>
+      </div>
+    </div>
+    <div class="printer-hero-actions">
+      <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-primary">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span>جستجوی خودکار چاپگرها (USB و LAN)</span>
+        </button>
+      </form>
+      <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">
+        <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+        <span>صف چاپ ({{faInt .PrintJobCounts.Pending}})</span>
+      </a>
+    </div>
+  </section>
+
+  <div class="printer-kpi-strip">
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/></svg>
+      </span>
+      <div>
+        <small>کل چاپگرهای ثبت‌شده</small>
+        <strong>{{faInt .PrinterStats.Total}} دستگاه</strong>
+      </div>
+    </div>
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+      </span>
+      <div>
+        <small>پرینترهای فعال در گردش</small>
+        <strong>{{faInt .PrinterStats.Active}} فعال</strong>
+      </div>
+    </div>
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-purple">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v15"/><path d="M9 5l3-3 3 3"/><circle cx="12" cy="19" r="2"/><path d="M12 14l-5-3v-3"/><path d="M12 12l5-2.5V7"/></svg>
+      </span>
+      <div>
+        <small>USB و پرینترهای نصب‌شده</small>
+        <strong>{{faInt (addInt .PrinterStats.USB .PrinterStats.Spooler)}} دستگاه</strong>
+      </div>
+    </div>
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-teal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1.5"/></svg>
+      </span>
+      <div>
+        <small>پرینترهای شبکه (LAN)</small>
+        <strong>{{faInt .PrinterStats.Network}} دستگاه</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- مرحله ۱: لیست پرینترهای ثبت‌شده کاربر -->
+  <section class="panel-card printer-section-card">
+    <div class="panel-header">
+      <div class="section-head-with-icon">
+        <span class="section-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/></svg>
+        </span>
+        <div>
+          <h3>۱. لیست پرینترهای شما</h3>
+          <p>پرینترهای تعریف‌شده برای صندوق، آشپزخانه و بار • برای تغییر نام ایستگاه یا عرض کاغذ روی «تنظیمات پرینتر» کلیک کنید</p>
+        </div>
+      </div>
+      <div class="row-actions">
+        <a href="/?page=settings" hx-get="/?page=settings" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">سیاست چاپ خودکار و سربرگ فیش</a>
+      </div>
+    </div>
+
+    {{if .PrinterProfiles}}
+    <div class="printer-grid">
+      {{range .PrinterProfiles}}
+      <article class="printer-card {{if not .Active}}printer-card-muted{{end}}">
+        <div class="printer-card-head">
+          <div class="printer-card-identity">
+            <div class="printer-kind-avatar kind-{{if .Kind}}{{.Kind}}{{else}}legacy{{end}}">
+              {{if eq .Kind "usb"}}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v15"/><path d="M9 5l3-3 3 3"/><circle cx="12" cy="19" r="2"/><path d="M12 14l-5-3v-3"/><circle cx="7" cy="7" r="1.5"/><path d="M12 12l5-2.5V7"/><rect x="15.5" y="4.5" width="3" height="3" rx=".5"/></svg>
+              {{else if eq .Kind "spooler"}}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><path d="M9 13h6"/></svg>
+              {{else}}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1.5"/></svg>
+              {{end}}
+            </div>
+            <div>
+              <div class="printer-card-title-row">
+                <h4>{{.Name}}</h4>
+                <span class="discovered-type-pill kind-{{if .Kind}}{{.Kind}}{{else}}network{{end}}">{{.KindLabel}}</span>
+              </div>
+              <p class="printer-card-sub">{{if .Model}}{{.Model}}{{else}}ESC/POS Thermal Printer{{end}}</p>
+            </div>
+          </div>
+
+          <div class="printer-card-badges">
+            {{if .Active}}
+              <span class="badge status-ok">فعال</span>
+            {{else}}
+              <span class="badge">غیرفعال</span>
+            {{end}}
+            {{if eq .LastCheckState "online"}}
+              <span class="badge status-ok">آنلاین</span>
+            {{else if eq .LastCheckState "unconfirmed"}}
+              <span class="badge status-prep">پورت باز</span>
+            {{else if eq .LastCheckState "offline"}}
+              <span class="badge status-cancel">آفلاین</span>
+            {{else}}
+              <span class="badge status-open">آماده</span>
+            {{end}}
+          </div>
+        </div>
+
+        <div class="printer-spec-grid">
+          <div class="printer-spec-box">
+            <span class="printer-spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+            </span>
+            <div>
+              <small>ایستگاه و نقش چاپ</small>
+              <strong>{{.RoleLabel}}{{if .Station}} • {{.Station}}{{end}}</strong>
+            </div>
+          </div>
+          <div class="printer-spec-box">
+            <span class="printer-spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </span>
+            <div>
+              <small>آدرس / درگاه اتصال</small>
+              <strong class="ltr">{{.DestinationLabel}}</strong>
+            </div>
+          </div>
+          <div class="printer-spec-box">
+            <span class="printer-spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+            </span>
+            <div>
+              <small>عرض کاغذ و تراکم</small>
+              <strong>{{faInt .PaperMM}} میلی‌متر ({{faInt .EffectiveWidthDots}} dots)</strong>
+            </div>
+          </div>
+          <div class="printer-spec-box">
+            <span class="printer-spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg>
+            </span>
+            <div>
+              <small>برش خودکار و نسخه</small>
+              <strong>{{if .Cut}}کاتر فعال{{else}}بدون برش{{end}} • {{faInt .Copies}} نسخه</strong>
+            </div>
+          </div>
+        </div>
+
+        {{if .LastCheckDetail}}
+        <p class="printer-probe-msg">{{.LastCheckDetail}}</p>
+        {{end}}
+
+        <div class="printer-card-actions">
+          <a href="/?page=printer&id={{.ID}}"
+            class="btn btn-primary btn-sm"
+            data-id="{{.ID}}"
+            data-name="{{.Name}}"
+            data-station-name="{{.Name}}"
+            data-station="{{.Station}}"
+            data-model="{{.Model}}"
+            data-role="{{.Role}}"
+            data-connection-kind="{{if .Kind}}{{.Kind}}{{else}}network{{end}}"
+            data-host="{{.Host}}"
+            data-port="{{if gt .Port 0}}{{.Port}}{{else}}9100{{end}}"
+            data-queue-name="{{.QueueName}}"
+            data-usb-path="{{.USBPath}}"
+            data-usb-vid="{{.USBVID}}"
+            data-usb-pid="{{.USBPID}}"
+            data-usb-serial="{{.USBSerial}}"
+            data-usb-bus="{{.USBBus}}"
+            data-usb-port="{{.USBPort}}"
+            data-usb-product="{{.USBProduct}}"
+            data-usb-manufacturer="{{.USBManufacturer}}"
+            data-paper-mm="{{if gt .PaperMM 0}}{{.PaperMM}}{{else}}80{{end}}"
+            data-width-dots="{{.EffectiveWidthDots}}"
+            data-copies="{{if gt .Copies 0}}{{.Copies}}{{else}}1{{end}}"
+            data-font-size="{{if gt .FontSize 0}}{{.FontSize}}{{else}}24{{end}}"
+            data-font-family="{{if .FontFamily}}{{.FontFamily}}{{else}}Noto Sans Arabic{{end}}"
+            data-cut="{{if .Cut}}true{{else}}false{{end}}"
+            data-is-active="{{if .Active}}true{{else}}false{{end}}"
+            data-type-label="{{.KindLabel}}"
+            data-connection-detail="{{.DestinationLabel}}"
+            onclick="if (window.openPrinterSetupDialog && openPrinterSetupDialog(this)) return false;">
+            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>تنظیمات پرینتر</span>
+          </a>
+          <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view" class="inline-form">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="printer_id" value="{{.ID}}">
+            <input type="hidden" name="return_page" value="printers">
+            <button type="submit" class="btn btn-subtle btn-sm">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/></svg>
+              <span>چاپ آزمایشی</span>
+            </button>
+          </form>
+          <form method="post" action="/local/printer-probe" hx-post="/local/printer-probe" hx-target="#main-view" class="inline-form">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="printer_id" value="{{.ID}}">
+            <input type="hidden" name="return_page" value="printers">
+            <button type="submit" class="btn btn-outline btn-sm">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <span>بررسی اتصال</span>
+            </button>
+          </form>
+        </div>
+      </article>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="printer-empty-state">
+      <div class="printer-empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><circle cx="17" cy="12.5" r="1"/></svg>
+      </div>
+      <h4>هنوز چاپگری تنظیم نشده است</h4>
+      <p>از بخش «جستجوی خودکار چاپگرها» در پایین، پرینتر USB یا شبکه (LAN) خود را بدون نیاز به وارد کردن دستی IP و پورت انتخاب کنید.</p>
+    </div>
+    {{end}}
+  </section>
+
+  <!-- مرحله ۲: جستجوی خودکار پرینترهای USB، سیستم‌عامل و شبکه LAN -->
+  <section class="panel-card printer-section-card" id="discovery-section">
+    <div class="panel-header">
+      <div class="section-head-with-icon">
+        <span class="section-icon-badge badge-accent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </span>
+        <div>
+          <h3>۲. جستجوی خودکار چاپگرها (پرینترهای نصب‌شده، دستگاه‌های USB شناسایی‌شده و شبکه LAN)</h3>
+          <p>شناسایی خودکار در ویندوز، مک و لینوکس بدون نیاز به وارد کردن دستی IP و پورت • روی «انتخاب پرینتر و تنظیم ایستگاه» کلیک کنید</p>
+        </div>
+      </div>
+      <div class="row-actions">
+        <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <span>جستجوی همه (USB + LAN)</span>
+          </button>
+        </form>
+        <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="return_page" value="printers">
+          <button type="submit" class="btn btn-outline btn-sm">جستجوی USB</button>
+        </form>
+        <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="return_page" value="printers">
+          <button type="submit" class="btn btn-outline btn-sm">پرینترهای نصب‌شده روی سیستم‌عامل</button>
+        </form>
+        <form method="post" action="/local/printer-scan" hx-post="/local/printer-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="return_page" value="printers">
+          <button type="submit" class="btn btn-outline btn-sm">جستجوی شبکه</button>
+        </form>
+        <button type="button" class="btn btn-subtle btn-sm" onclick="openDlg('dlg-printer-setup')">افزودن دستی</button>
+      </div>
+    </div>
+
+    {{template "scanResults" .}}
+
+    {{if .DiscoveredPrinters}}
+    <div class="discovered-printer-grid">
+      {{range .DiscoveredPrinters}}
+        {{template "discoveredPrinterCard" .}}
+      {{end}}
+    </div>
+    {{else}}
+    <div class="printer-empty-state">
+      <div class="printer-empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      </div>
+      <h4>آماده شناسایی خودکار پرینترهای USB و شبکه</h4>
+      <p>چاپگر خود را به پورت USB یا شبکه Wi-Fi/LAN متصل کنید و دکمه «جستجوی همه (USB + LAN)» را بزنید تا کارت پرینتر به همراه مشخصات کامل نمایش داده شود.</p>
+      <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-primary">شروع جستجوی خودکار چاپگرها</button>
+      </form>
+    </div>
+    {{end}}
+  </section>
+
+  {{template "printerSetupDialog" .}}
+
+{{else if or (eq .Page "printer-new") (eq .Page "printer-scan")}}
+  {{template "printerSubnav" .}}
+
+  <section class="panel-card printer-section-card">
+    <div class="panel-header">
+      <div class="section-head-with-icon">
+        <span class="section-icon-badge badge-accent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </span>
+        <div>
+          <h2>{{if eq .Page "printer-scan"}}جستجوی چاپگر در شبکه محلی (LAN و USB){{else}}افزودن چاپگر در چهار گام (شناسایی خودکار USB و LAN){{end}}</h2>
+          <p>محدودهٔ مجاز شبکه محلی و درگاه‌های USB / صف چاپ سیستم‌عامل (USB مستقیم) • اینترنت قابل اسکن نیست • پرینترهای نصب‌شده روی سیستم‌عامل و شبکه بدون نیاز به ورود دستی IP/پورت نمایش داده می‌شوند</p>
+        </div>
+      </div>
+      <div class="row-actions">
+        <form method="post" action="/local/printer-discover-all" hx-post="/local/printer-discover-all" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="btn btn-primary btn-sm">جستجوی همه پرینترها (USB و LAN)</button>
+        </form>
+        <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="btn btn-outline btn-sm">جستجوی چاپگرهای USB</button>
+        </form>
+        <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="btn btn-outline btn-sm">بروزرسانی صف چاپ سیستم‌عامل</button>
+        </form>
+        <button type="button" class="btn btn-subtle btn-sm" onclick="openDlg('dlg-printer-setup')">افزودن دستی چاپگر</button>
+        <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">بازگشت به لیست پرینترها</a>
+      </div>
+    </div>
+
+    {{template "scanResults" .}}
+
+    {{if .DiscoveredPrinters}}
+    <div class="discovered-printer-grid">
+      {{range .DiscoveredPrinters}}
+        {{template "discoveredPrinterCard" .}}
+      {{end}}
+    </div>
+    {{else}}
+    <div class="printer-empty-state">
+      <h4>هنوز دستگاهی در این بخش شناسایی نشده است</h4>
+      <p>روی دکمه «جستجوی همه پرینترها (USB و LAN)» کلیک کنید تا تمام پرینترهای متصل به سیستم و شبکه محلی (آدرس IPv4 چاپگر، صف چاپ سیستم‌عامل و USB مستقیم) نمایش داده شوند و با انتخاب آن‌ها نقش چاپگر، برش خودکار کاغذ و ذخیره چاپگر انجام شود.</p>
+    </div>
+    {{end}}
+
+    <!-- فرم سازگاری پیش‌فرض در صورت باز شدن مستقیم لینک انتخاب -->
+    {{$d := .PrinterDraft}}
+    <div hidden>
+      <input type="radio" name="connection_kind" value="network" {{if or (eq $d.Kind "network") (eq $d.Kind "")}}checked{{end}}>
+      <input type="radio" name="connection_kind" value="spooler" {{if eq $d.Kind "spooler"}}checked{{end}}>
+      <input type="radio" name="connection_kind" value="usb" {{if eq $d.Kind "usb"}}checked{{end}}>
+    </div>
+  </section>
+
+  {{template "printerSetupDialog" .}}
+
+{{else if eq .Page "printer"}}
+  {{template "printerSubnav" .}}
+  {{$p := .PrinterProfile}}
+  {{if not $p.ID}}
+  <section class="panel-card">
+    <p class="empty-text">چاپگر مورد نظر یافت نشد.</p>
+    <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">بازگشت به لیست پرینترها</a>
   </section>
   {{else}}
-  <section class="empty-hero-card">
-    <div>
-      <h2>هنوز چاپگری تنظیم نشده است</h2>
-      <p>برای شناسایی خودکار، «پرینترهای نصب‌شده»، «جستجوی USB» یا «جستجوی شبکه» را بزنید. مشخصات اتصال از سیستم یا دستگاه پیدا می‌شود؛ افزودن دستی فقط راه جایگزین است. تا انتخاب مقصد، سفارش‌ها بدون چاپ ثبت می‌شوند.</p>
+  <section class="panel-card printer-section-card">
+    <div class="panel-header">
+      <div class="section-head-with-icon">
+        <span class="section-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/></svg>
+        </span>
+        <div>
+          <h2>تنظیمات چاپگر: {{$p.Name}}</h2>
+          <p>{{$p.KindLabel}} • مسیر اتصال: <code class="ltr">{{$p.DestinationLabel}}</code> • نقش: {{$p.RoleLabel}}</p>
+        </div>
+      </div>
+      <div class="row-actions">
+        <form method="post" action="/local/printer-probe" hx-post="/local/printer-probe" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="printer_id" value="{{$p.ID}}">
+          <input type="hidden" name="return_page" value="printer">
+          <button type="submit" class="btn btn-outline btn-sm">بررسی اتصال</button>
+        </form>
+        <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="printer_id" value="{{$p.ID}}">
+          <input type="hidden" name="return_page" value="printer">
+          <button type="submit" class="btn btn-subtle btn-sm">چاپ آزمایشی</button>
+        </form>
+        <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">بازگشت به لیست پرینترها</a>
+      </div>
     </div>
-    <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view">
+
+    {{if .PrinterCheck}}
+    <div class="dlg-printer-hw-banner">
+      <div class="dlg-printer-hw-meta">
+        <div class="dlg-printer-hw-top">
+          <strong>نتیجهٔ بررسی اتصال: {{.PrinterCheck.Summary}}</strong>
+          <span class="badge {{.PrinterCheck.StateClass}}">{{.PrinterCheck.StateLabel}}</span>
+        </div>
+        <div class="dlg-printer-hw-sub">
+          {{range .PrinterCheck.Stages}}
+          <span><strong>{{.Label}}:</strong> {{.LayerLabel}} ({{.Detail}})</span>
+          {{end}}
+        </div>
+      </div>
+    </div>
+    {{end}}
+
+    <form method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" class="form-grid printer-edit-surface">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <button type="submit" class="btn btn-primary btn-lg">جستجوی خودکار چاپگرها</button>
+      <input type="hidden" name="id" value="{{$p.ID}}">
+      <input type="hidden" name="return_page" value="printers">
+      <input type="hidden" name="station" value="{{$p.Station}}">
+      <input type="hidden" name="connection_kind" value="{{if $p.Kind}}{{$p.Kind}}{{else}}network{{end}}">
+      <input type="hidden" name="host" value="{{$p.Host}}">
+      <input type="hidden" name="port" value="{{if gt $p.Port 0}}{{$p.Port}}{{else}}9100{{end}}">
+      <input type="hidden" name="queue_name" value="{{$p.QueueName}}">
+      <input type="hidden" name="usb_path" value="{{$p.USBPath}}">
+      <input type="hidden" name="usb_vid" value="{{$p.USBVID}}">
+      <input type="hidden" name="usb_pid" value="{{$p.USBPID}}">
+      <input type="hidden" name="usb_serial" value="{{$p.USBSerial}}">
+      <input type="hidden" name="usb_bus" value="{{$p.USBBus}}">
+      <input type="hidden" name="usb_port" value="{{$p.USBPort}}">
+      <input type="hidden" name="usb_product" value="{{$p.USBProduct}}">
+      <input type="hidden" name="usb_manufacturer" value="{{$p.USBManufacturer}}">
+      <input type="hidden" name="paper_mm" value="{{if eq $p.PaperMM 58}}58{{else}}80{{end}}">
+
+      <div class="dlg-printer-hw-banner">
+        <div class="dlg-printer-hw-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/></svg>
+        </div>
+        <div class="dlg-printer-hw-meta">
+          <div class="dlg-printer-hw-top">
+            <strong>{{$p.Model}}</strong>
+            <span class="badge status-ok">{{$p.KindLabel}}</span>
+          </div>
+          <div class="dlg-printer-hw-sub">
+            <span>مقصد اتصال (شناسایی خودکار): <code class="ltr">{{$p.DestinationLabel}}</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <label>نام پرینتر (نام ایستگاه — مثلاً صندوق، آشپزخانه، بار)
+          <input name="name" value="{{$p.Name}}" required oninput="var st=this.form.querySelector('[name=station]'); if(st) st.value=this.value;">
+        </label>
+        <label>نقش ایستگاه چاپ
+          <select name="role">
+            <option value="cashier" {{if eq $p.Role "cashier"}}selected{{end}}>صندوق (فیش مشتری)</option>
+            <option value="kitchen" {{if eq $p.Role "kitchen"}}selected{{end}}>آشپزخانه و بار (بلیت آماده‌سازی)</option>
+            <option value="all" {{if eq $p.Role "all"}}selected{{end}}>هر دو (صندوق و آشپزخانه)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="form-row-2">
+        <label>عرض کاغذ (58mm یا 80mm)
+          <select name="paper" onchange="setPrinterPaperMM(this.value === '58mm' ? 58 : 80, this.form)">
+            <option value="80mm" {{if ne $p.PaperMM 58}}selected{{end}}>80 mm (استاندارد)</option>
+            <option value="58mm" {{if eq $p.PaperMM 58}}selected{{end}}>58 mm (کم‌عرض)</option>
+          </select>
+        </label>
+        <label>عرض واقعی — dots
+          <input type="number" name="width_dots" value="{{$p.EffectiveWidthDots}}" min="128" max="832" step="8" dir="ltr" data-no-group="1">
+        </label>
+      </div>
+
+      <div class="form-row-2">
+        <label>تعداد نسخه
+          <input type="number" name="copies" value="{{if gt $p.Copies 0}}{{$p.Copies}}{{else}}1{{end}}" min="1" max="3" dir="ltr" data-no-group="1">
+        </label>
+        <label>اندازه فونت
+          <input type="number" name="font_size" value="{{if gt $p.FontSize 0}}{{$p.FontSize}}{{else}}24{{end}}" min="12" max="48" dir="ltr" data-no-group="1">
+        </label>
+      </div>
+
+      <div class="form-row-2">
+        <label>فونت
+          <input name="font_family" value="{{if $p.FontFamily}}{{$p.FontFamily}}{{else}}Noto Sans Arabic{{end}}" dir="ltr">
+        </label>
+        <label>مدل دستگاه
+          <input name="model" value="{{$p.Model}}">
+        </label>
+      </div>
+
+      <div class="dlg-checks-stack">
+        <label class="dlg-check-row">
+          <input type="checkbox" name="cut" value="on" {{if $p.Cut}}checked{{end}}>
+          <span>برش خودکار — فقط پرینترهای دارای کاتر</span>
+        </label>
+        <label class="dlg-check-row">
+          <input type="checkbox" name="is_active" value="on" {{if $p.Active}}checked{{end}}>
+          <span>فعال بودن چاپگر در چاپ خودکار سفارش‌ها</span>
+        </label>
+      </div>
+
+      <div class="row-actions">
+        <button type="submit" class="btn btn-primary">ذخیره تنظیمات</button>
+        <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">انصراف</a>
+      </div>
     </form>
+
+    <hr class="section-divider">
+    <div class="row-actions">
+      <form method="post" action="/local/printer-delete" hx-post="/local/printer-delete" hx-target="#main-view" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="printer_id" value="{{$p.ID}}">
+        <input type="hidden" name="confirm_delete" value="on">
+        <button type="submit" class="btn btn-danger-outline btn-sm">حذف چاپگر</button>
+      </form>
+      <a href="/?page=print-queue&printer={{$p.ID}}" hx-get="/?page=print-queue&printer={{$p.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">مشاهده Jobهای اخیر این چاپگر</a>
+    </div>
   </section>
   {{end}}
 
-  <section class="panel-card">
-    <div class="panel-header">
-      <div><h2>آخرین Jobهای چاپ</h2><p>وضعیت چاپ از وضعیت سفارش جداست؛ خطای چاپ هیچ سفارشی را حذف نمی‌کند.</p></div>
-      <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">همهٔ صف چاپ</a>
-    </div>
-    {{if .PrinterRecentJobs}}
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>فیش</th><th>سفارش</th><th>چاپگر</th><th>وضعیت</th><th>زمان</th><th></th></tr></thead>
-        <tbody>
-        {{range .PrinterRecentJobs}}
-          <tr>
-            <td>{{.DocTypeLabel}}</td>
-            <td>{{if .OrderNumber}}{{ordno .OrderNumber}}{{else}}—{{end}}</td>
-            <td>{{.PrinterTitle}}</td>
-            <td><span class="badge {{.StatusClass}}">{{.StatusLabel}}</span></td>
-            <td class="row-sub">{{jalaliISO .CreatedAt}}</td>
-            <td>{{if .OrderID}}<a href="/?page=receipt&id={{.OrderID}}" hx-get="/?page=receipt&id={{.OrderID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">فیش</a>{{end}}</td>
-          </tr>
-        {{end}}
-        </tbody>
-      </table>
-    </div>
-    {{else}}<p class="empty-text">هنوز Job چاپی ثبت نشده است.</p>{{end}}
-  </section>
-
-{{else if eq .Page "printer-new"}}
-  <section class="dash-head">
-    <div>
-      <p class="dash-eyebrow">ADD PRINTER</p>
-      <h2 class="dash-title">افزودن چاپگر در چهار گام</h2>
-      <p class="dash-sub">ابتدا پرینترهای نصب‌شده، USB یا شبکه را پیدا کنید؛ انتخاب دستگاه مشخصات اتصال را خودکار پر می‌کند. فقط ثبت نهایی و انتخاب نقش چاپگر با شماست.</p>
-    </div>
-    <div class="dash-head-actions">
-      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">بازگشت به مرکز چاپگرها</a>
-    </div>
-  </section>
-
-  <div class="wizard-steps">
-    <span class="wizard-step is-done">۱. نوع اتصال</span>
-    <span class="wizard-step">۲. مشخصات مقصد</span>
-    <span class="wizard-step">۳. نقش و کاغذ</span>
-    <span class="wizard-step">۴. ذخیره و آزمایش</span>
-  </div>
-
-  <div class="printer-layout">
-    <section class="panel-card">
-      <form method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" class="form-grid">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-
-        <div class="wizard-section">
-          <h3>۱. چاپگر از چه راهی وصل است؟</h3>
-          <div class="printer-kind-options">
-            <label class="printer-kind-option"><input type="radio" name="connection_kind" value="network" {{if or (eq .PrinterDraft.Kind "network") (eq .PrinterDraft.Kind "")}}checked{{end}}><span><strong>شبکه (LAN)</strong><small>IP ثابت چاپگر و پورت RAW؛ مناسب اکثر فیش‌پرینترهای ۸۰ میلی‌متری</small></span></label>
-            <label class="printer-kind-option"><input type="radio" name="connection_kind" value="spooler" {{if eq .PrinterDraft.Kind "spooler"}}checked{{end}}><span><strong>صف چاپ سیستم‌عامل</strong><small>چاپگر از قبل در ویندوز/مک/لینوکس نصب شده است</small></span></label>
-            <label class="printer-kind-option"><input type="radio" name="connection_kind" value="usb" {{if eq .PrinterDraft.Kind "usb"}}checked{{end}}><span><strong>USB مستقیم</strong><small>فقط در لینوکس و وقتی گره usblp در دسترس باشد</small></span></label>
-          </div>
-        </div>
-
-        <div class="wizard-section">
-          <h3>۲. مشخصات مقصد</h3>
-          <p class="row-sub">فقط بخش مربوط به نوع انتخابی خوانده و ذخیره می‌شود.</p>
-
-          <fieldset class="printer-fields-group">
-            <legend>شبکه</legend>
-            <div class="form-row-2">
-              <label>آدرس IPv4 چاپگر
-                <input name="host" value="{{.PrinterDraft.Host}}" placeholder="192.168.1.203" inputmode="decimal" dir="ltr" autocomplete="off">
-              </label>
-              <label>پورت RAW
-                <input name="port" value="{{if .PrinterDraft.Port}}{{.PrinterDraft.Port}}{{else}}9100{{end}}" inputmode="numeric" dir="ltr">
-              </label>
-            </div>
-            <p class="field-hint">DNS پشتیبانی نمی‌شود و فقط IPv4 خصوصی شبکه محلی پذیرفته می‌شود. اگر «IP:PORT» را در یک فیلد بچسبانید، خودکار جدا می‌شود.</p>
-          </fieldset>
-
-          <fieldset class="printer-fields-group">
-            <legend>صف چاپ سیستم‌عامل</legend>
-            <label>نام صف نصب‌شده
-              <input name="queue_name" list="printer-queue-options" value="{{.PrinterDraft.QueueName}}" dir="ltr" placeholder="EPSON-TM-T20" autocomplete="off">
-            </label>
-            <datalist id="printer-queue-options">
-              {{range .PrinterQueues}}<option value="{{.}}"></option>{{end}}
-            </datalist>
-            {{if .PrinterQueueError}}<p class="field-hint field-warn">{{.PrinterQueueError}}</p>
-            {{else if .PrinterQueues}}<p class="field-hint">صف‌های پیدا‌شده: {{range .PrinterQueues}}<span class="meta-chip" dir="ltr">{{.}}</span> {{end}}</p>
-            {{else}}<p class="field-hint">صفی روی این سیستم پیدا نشد؛ می‌توانید نام صف را دستی وارد کنید.</p>{{end}}
-          </fieldset>
-
-          <fieldset class="printer-fields-group">
-            <legend>USB مستقیم</legend>
-            {{if .PrinterUSBError}}<p class="field-hint field-warn">{{.PrinterUSBError}}</p>{{end}}
-            <div class="form-row-2">
-              <label>مسیر دستگاه
-                <input name="usb_path" value="{{.PrinterDraft.USB.DevicePath}}" dir="ltr" placeholder="/dev/usb/lp0">
-              </label>
-              <label>شناسه دستگاه
-                <input value="{{.PrinterDraft.USB.VendorID}}{{if .PrinterDraft.USB.VendorID}}:{{end}}{{.PrinterDraft.USB.ProductID}}" dir="ltr" readonly>
-              </label>
-            </div>
-            <input type="hidden" name="usb_vid" value="{{.PrinterDraft.USB.VendorID}}">
-            <input type="hidden" name="usb_pid" value="{{.PrinterDraft.USB.ProductID}}">
-            <input type="hidden" name="usb_serial" value="{{.PrinterDraft.USB.Serial}}">
-            <input type="hidden" name="usb_bus" value="{{.PrinterDraft.USB.Bus}}">
-            <input type="hidden" name="usb_port" value="{{.PrinterDraft.USB.PortPath}}">
-            <input type="hidden" name="usb_product" value="{{.PrinterDraft.USB.Product}}">
-            <input type="hidden" name="usb_manufacturer" value="{{.PrinterDraft.USB.Manufacturer}}">
-            <p class="field-hint">پیدا شدن دستگاه در USB به‌معنای توانایی چاپ مستقیم نیست؛ برای چاپ بدون گره usblp از صف سیستم‌عامل استفاده کنید.</p>
-          </fieldset>
-        </div>
-
-        <div class="wizard-section">
-          <h3>۳. نام، نقش و کاغذ</h3>
-          <div class="form-row-2">
-            <label>نام چاپگر (برای کاربر)
-              <input name="name" value="{{.PrinterDraft.Name}}" placeholder="چاپگر آشپزخانه گرم" maxlength="128" required>
-            </label>
-            <label>مدل دستگاه
-              <input name="model" value="{{.PrinterDraft.Model}}" placeholder="Epson TM-T20" maxlength="128">
-            </label>
-          </div>
-          <div class="form-row-3">
-            <label>نقش چاپگر
-              <select name="role">
-                <option value="" {{if eq .PrinterDraft.Role ""}}selected{{end}}>بدون نقش ثابت</option>
-                <option value="cashier" {{if eq .PrinterDraft.Role "cashier"}}selected{{end}}>صندوق (فیش مشتری)</option>
-                <option value="kitchen" {{if eq .PrinterDraft.Role "kitchen"}}selected{{end}}>آشپزخانه و بار (بلیت آماده‌سازی)</option>
-                <option value="all" {{if eq .PrinterDraft.Role "all"}}selected{{end}}>هر دو</option>
-              </select>
-            </label>
-            <label>عرض کاغذ
-              <select name="paper">
-                <option value="80" {{if ne .PrinterDraft.PaperMM 58}}selected{{end}}>۸۰ میلی‌متر</option>
-                <option value="58" {{if eq .PrinterDraft.PaperMM 58}}selected{{end}}>۵۸ میلی‌متر</option>
-              </select>
-            </label>
-            <label>ایستگاه کاری (اختیاری)
-              <input name="station" value="{{.PrinterDraft.Station}}" placeholder="بار گرم و سرد" maxlength="64">
-            </label>
-          </div>
-          <div class="form-row-2">
-            <label class="inline-check"><input type="checkbox" name="cut" {{if .PrinterDraft.Cut}}checked{{end}}> برش خودکار کاغذ فعال باشد</label>
-            <label class="inline-check"><input type="checkbox" name="is_active" {{if .PrinterDraft.Active}}checked{{end}}> این چاپگر در چاپ خودکار استفاده شود</label>
-          </div>
-          <p class="field-hint">نقش تعیین می‌کند فیش مشتری یا بلیت آشپزخانه به این چاپگر برود. مسیر هر دسته‌بندی در صفحهٔ تنظیمات چاپ انتخاب می‌شود.</p>
-        </div>
-
-        <div class="wizard-section wizard-submit">
-          <h3>۴. ذخیره</h3>
-          <p class="row-sub">پس از ذخیره، «بررسی اتصال» لایه‌های دسترسی را نشان می‌دهد و «چاپ آزمایشی» واقعاً یک صفحه به مقصد می‌فرستد.</p>
-          <button type="submit" class="btn btn-primary btn-lg">ذخیره چاپگر</button>
-        </div>
-      </form>
-    </section>
-
-    <aside class="panel-card printer-discovery">
-      <div class="panel-header"><div><h2>پیدا کردن دستگاه</h2><p>با انتخاب نتیجه، نوع اتصال و مشخصات دستگاه خودکار پر می‌شود؛ فقط تأیید و تنظیم نقش باقی می‌ماند.</p></div></div>
-      <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button type="submit" class="btn btn-outline btn-block btn-sm">جستجوی چاپگرهای USB</button>
-      </form>
-      <a href="/?page=printer-scan" hx-get="/?page=printer-scan" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-block btn-sm">جستجوی شبکه محلی</a>
-
-      {{if .PrinterUSBDevices}}
-      <div class="item-list usb-list">
-        {{range .PrinterUSBDevices}}
-        <div class="list-row compact">
-          <div>
-            <strong>{{.DisplayName}}</strong>
-            <div class="row-sub" dir="ltr">{{.VendorID}}:{{.ProductID}}{{if .DevicePath}} • {{.DevicePath}}{{end}}</div>
-            <div class="row-sub">{{.AccessNote}}</div>
-          </div>
-          {{if .Accessible}}
-          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-get="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
-          {{else}}<span class="badge status-muted">قابل چاپ مستقیم نیست</span>{{end}}
-        </div>
-        {{end}}
-      </div>
-      {{else}}<p class="empty-text">برای دیدن دستگاه‌های USB، جستجو را اجرا کنید. دستگاه‌های بدون گره usblp فقط از طریق صف سیستم‌عامل قابل استفاده‌اند.</p>{{end}}
-    </aside>
-  </div>
-
-{{else if eq .Page "printer-scan"}}
-  <section class="dash-head">
-    <div>
-      <p class="dash-eyebrow">LOCAL NETWORK DISCOVERY</p>
-      <h2 class="dash-title">جستجوی چاپگر در شبکه محلی</h2>
-      <p class="dash-sub">فقط یکی از شبکه‌های /24 همین دستگاه اسکن می‌شود؛ حداکثر ۲۵۴ میزبان با زمان‌بندی کوتاه و امکان توقف. «پورت باز» به‌معنای چاپگر سالم نیست.</p>
-    </div>
-    <div class="dash-head-actions">
-      <a href="/?page=printer-new" hx-get="/?page=printer-new" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">افزودن دستی چاپگر</a>
-      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">مرکز چاپگرها</a>
-    </div>
-  </section>
-
-  <section class="panel-card">
-    <div class="panel-header"><div><h2>محدودهٔ مجاز</h2><p>این فهرست از رابط‌های شبکهٔ فعلی دستگاه ساخته شده است؛ محدودهٔ دلخواه یا اینترنت قابل اسکن نیست.</p></div></div>
-    {{if .PrinterNetworkError}}
-      <p class="field-hint field-warn">{{.PrinterNetworkError}}</p>
-    {{else}}
-    <form method="post" action="/local/printer-scan" hx-post="/local/printer-scan" hx-target="#main-view" class="form-grid">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <div class="form-row-2">
-        <label>شبکه محلی
-          <select name="cidr" required>
-            {{range .PrinterNetworks}}<option value="{{.CIDR}}">{{.CIDR}} — {{.InterfaceName}} ({{.Address}})</option>{{end}}
-          </select>
-        </label>
-        <label>پورت RAW
-          <input name="port" value="{{if .PrinterScan}}{{.PrinterScan.Port}}{{else}}9100{{end}}" inputmode="numeric" dir="ltr">
-        </label>
-      </div>
-      <button type="submit" class="btn btn-primary">شروع جستجو</button>
-    </form>
-    {{end}}
-    <p class="field-hint">برای چاپگرهای روی پورت غیر ۹۱۰۰، پورت را تغییر دهید؛ برای دستگاه‌های خارج از این محدوده، از «افزودن دستی» استفاده کنید.</p>
-  </section>
-
-  {{if .PrinterScan}}{{template "scanResults" .}}{{end}}
-
-{{else if eq .Page "printer"}}
-  <section class="dash-head">
-    <div>
-      <p class="dash-eyebrow">PRINTER DETAIL</p>
-      <h2 class="dash-title">{{.PrinterProfile.Name}}</h2>
-      <p class="dash-sub">{{.PrinterProfile.KindLabel}} • {{if .PrinterProfile.Active}}فعال{{else}}غیرفعال{{end}}{{if .PrinterProfile.ConnectionDetail}} • <bdi dir="ltr">{{.PrinterProfile.ConnectionDetail}}</bdi>{{end}}</p>
-    </div>
-    <div class="dash-head-actions">
-      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">بازگشت</a>
-      <a href="/?page=print-queue&printer={{.PrinterProfile.ID}}" hx-get="/?page=print-queue&printer={{.PrinterProfile.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">Jobهای این چاپگر</a>
-    </div>
-  </section>
-
-  <div class="printer-layout">
-    <section class="panel-card">
-      <div class="panel-header">
-        <div><h2>تنظیمات چاپگر</h2><p>تغییرات روی Jobهای بعدی اثر می‌گذارد؛ Jobهای موجود مقصد خود را حفظ می‌کنند.</p></div>
-      </div>
-      <form method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" class="form-grid">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <input type="hidden" name="id" value="{{.PrinterProfile.ID}}">
-        <div class="form-row-2">
-          <label>نام چاپگر
-            <input name="name" value="{{.PrinterProfile.Name}}" maxlength="128" required>
-          </label>
-          <label>مدل دستگاه
-            <input name="model" value="{{.PrinterProfile.Model}}" maxlength="128">
-          </label>
-        </div>
-        <div class="form-row-3">
-          <label>نوع اتصال
-            <select name="connection_kind">
-              <option value="network" {{if eq .PrinterProfile.Kind "network"}}selected{{end}}>شبکه</option>
-              <option value="spooler" {{if eq .PrinterProfile.Kind "spooler"}}selected{{end}}>صف سیستم‌عامل</option>
-              <option value="usb" {{if eq .PrinterProfile.Kind "usb"}}selected{{end}}>USB مستقیم</option>
-              {{if eq .PrinterProfile.Kind ""}}<option value="" selected>قدیمی (انتخاب کنید)</option>{{end}}
-            </select>
-          </label>
-          <label>نقش
-            <select name="role">
-              <option value="" {{if eq .PrinterProfile.Role ""}}selected{{end}}>بدون نقش ثابت</option>
-              <option value="cashier" {{if eq .PrinterProfile.Role "cashier"}}selected{{end}}>صندوق</option>
-              <option value="kitchen" {{if eq .PrinterProfile.Role "kitchen"}}selected{{end}}>آشپزخانه و بار</option>
-              <option value="all" {{if eq .PrinterProfile.Role "all"}}selected{{end}}>هر دو</option>
-            </select>
-          </label>
-          <label>ایستگاه
-            <input name="station" value="{{.PrinterProfile.Station}}" maxlength="64">
-          </label>
-        </div>
-        <div class="form-row-3">
-          <label>IP چاپگر شبکه
-            <input name="host" value="{{.PrinterProfile.Host}}" dir="ltr" inputmode="decimal" placeholder="192.168.1.203">
-          </label>
-          <label>پورت
-            <input name="port" value="{{.PrinterProfile.Port}}" dir="ltr" inputmode="numeric">
-          </label>
-          <label>کاغذ
-            <select name="paper">
-              <option value="80" {{if ne .PrinterProfile.PaperMM 58}}selected{{end}}>۸۰ میلی‌متر</option>
-              <option value="58" {{if eq .PrinterProfile.PaperMM 58}}selected{{end}}>۵۸ میلی‌متر</option>
-            </select>
-          </label>
-        </div>
-        <label>نام صف چاپ سیستم‌عامل
-          <input name="queue_name" value="{{.PrinterProfile.QueueName}}" dir="ltr" list="printer-detail-queues">
-        </label>
-        <datalist id="printer-detail-queues">{{range .PrinterQueues}}<option value="{{.}}"></option>{{end}}</datalist>
-        <label>مسیر دستگاه USB
-          <input name="usb_path" value="{{.PrinterProfile.USB.DevicePath}}" dir="ltr" placeholder="/dev/usb/lp0">
-        </label>
-        <input type="hidden" name="usb_vid" value="{{.PrinterProfile.USB.VendorID}}">
-        <input type="hidden" name="usb_pid" value="{{.PrinterProfile.USB.ProductID}}">
-        <input type="hidden" name="usb_serial" value="{{.PrinterProfile.USB.Serial}}">
-        <input type="hidden" name="usb_bus" value="{{.PrinterProfile.USB.Bus}}">
-        <input type="hidden" name="usb_port" value="{{.PrinterProfile.USB.PortPath}}">
-        <input type="hidden" name="usb_product" value="{{.PrinterProfile.USB.Product}}">
-        <input type="hidden" name="usb_manufacturer" value="{{.PrinterProfile.USB.Manufacturer}}">
-        <div class="form-row-2">
-          <label class="inline-check"><input type="checkbox" name="cut" {{if .PrinterProfile.Cut}}checked{{end}}> برش خودکار کاغذ</label>
-          <label class="inline-check"><input type="checkbox" name="is_active" {{if .PrinterProfile.Active}}checked{{end}}> استفاده در چاپ خودکار</label>
-        </div>
-        <button type="submit" class="btn btn-primary">ذخیره تغییرات</button>
-      </form>
-    </section>
-
-    <aside class="panel-card">
-      <div class="panel-header"><div><h2>وضعیت و آزمایش</h2><p>نتیجه‌ها ممکن است تأیید فیزیکی چاپ نداشته باشند.</p></div></div>
-      <div class="printer-actions-stack">
-        <form method="post" action="/local/printer-probe" hx-post="/local/printer-probe" hx-target="#main-view">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <button type="submit" class="btn btn-outline btn-block">بررسی اتصال</button>
-        </form>
-        <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <input type="hidden" name="return_page" value="printer">
-          <button type="submit" class="btn btn-primary btn-block">چاپ آزمایشی</button>
-        </form>
-        <form method="post" action="/local/printer-active" hx-post="/local/printer-active" hx-target="#main-view">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <button type="submit" class="btn btn-subtle btn-block">{{if .PrinterProfile.Active}}غیرفعال‌کردن این چاپگر{{else}}فعال‌کردن این چاپگر{{end}}</button>
-        </form>
-      </div>
-
-      {{if .PrinterCheck}}
-      <div class="probe-panel">
-        <div class="probe-head">
-          <strong>آخرین بررسی</strong>
-          <span class="badge {{.PrinterCheck.StateClass}}">{{.PrinterCheck.StateLabel}}</span>
-        </div>
-        <p class="row-sub">{{.PrinterCheck.Summary}}</p>
-        <div class="probe-stages">
-          {{range .PrinterCheck.Stages}}
-          <div class="probe-stage">
-            <span class="badge {{.LayerClass}}">{{.LayerLabel}}</span>
-            <div><strong>{{.Label}}</strong><small>{{.Detail}}</small></div>
-          </div>
-          {{end}}
-        </div>
-        <p class="field-hint">زمان بررسی: <bdi>{{.PrinterCheck.CheckedAt}}</bdi></p>
-      </div>
-      {{else}}<p class="empty-text">هنوز بررسی‌ای انجام نشده است. با «بررسی اتصال» لایه‌های دسترسی، پورت و پاسخ پروتکل را ببینید.</p>{{end}}
-
-      <details class="danger-zone">
-        <summary>حذف چاپگر</summary>
-        <p class="row-sub">حذف چاپگر Jobهای قبلی و سفارش‌ها را پاک نمی‌کند؛ فقط مسیرهای دسته‌بندی این چاپگر آزاد می‌شوند.</p>
-        <form method="post" action="/local/printer-delete" hx-post="/local/printer-delete" hx-target="#main-view" class="form-grid">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <label class="inline-check"><input type="checkbox" name="confirm_delete" required> از حذف این چاپگر مطمئنم</label>
-          <button type="submit" class="btn btn-danger">حذف چاپگر</button>
-        </form>
-      </details>
-    </aside>
-  </div>
-
-  <section class="panel-card">
-    <div class="panel-header"><div><h2>Jobهای اخیر این چاپگر</h2><p>وضعیت چاپ مستقل از وضعیت سفارش ثبت می‌شود.</p></div></div>
-    {{if .PrinterRecentJobs}}
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>فیش</th><th>سفارش</th><th>وضعیت</th><th>تلاش</th><th>خطا</th><th></th></tr></thead>
-        <tbody>
-        {{range .PrinterRecentJobs}}
-          <tr>
-            <td>{{.DocTypeLabel}}</td>
-            <td>{{if .OrderNumber}}{{ordno .OrderNumber}}{{else}}—{{end}}</td>
-            <td><span class="badge {{.StatusClass}}">{{.StatusLabel}}</span></td>
-            <td>{{faInt .Attempts}}</td>
-            <td class="print-job-error">{{.LastError}}</td>
-            <td>{{if .Retryable}}<form method="post" action="/local/print-queue-retry" hx-post="/local/print-queue-retry" hx-target="#main-view" class="inline-form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="job_id" value="{{.ID}}"><button type="submit" class="btn btn-subtle btn-sm">تلاش دوباره</button></form>{{end}}</td>
-          </tr>
-        {{end}}
-        </tbody>
-      </table>
-    </div>
-    {{else}}<p class="empty-text">برای این چاپگر هنوز Jobی ثبت نشده است.</p>{{end}}
-  </section>
-
 {{else if eq .Page "print-queue"}}
-  <section class="dash-head">
-    <div>
-      <p class="dash-eyebrow">PRINT QUEUE</p>
-      <h2 class="dash-title">صف چاپ و پیگیری فیش‌ها</h2>
-      <p class="dash-sub">هر Job شناسهٔ یکتا دارد؛ ارسال دوباره فقط برای Job خطادارِ قطعی مجاز است. نتیجهٔ نامشخص (مثل Timeout وسط نوشتن) عمداً دوباره ارسال نمی‌شود تا فیش تکراری چاپ نشود.</p>
+  {{template "printerSubnav" .}}
+
+  <section class="printer-hero-bar">
+    <div class="printer-hero-info">
+      <div class="printer-hero-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      </div>
+      <div>
+        <h2>صف چاپ و پیگیری فیش‌ها</h2>
+        <p>پیگیری فیش‌های صندوق و بلیت‌های آشپزخانه • امکان لغو تکی، لغو کامل صف چاپ و تلاش دوباره برای خطاها</p>
+      </div>
     </div>
-    <div class="dash-head-actions">
-      <form method="post" action="/local/print-queue-retry-all" hx-post="/local/print-queue-retry-all" hx-target="#main-view">
+    <div class="printer-hero-actions">
+      <form method="post" action="/local/print-queue-cancel-all" hx-post="/local/print-queue-cancel-all" hx-target="#main-view" class="inline-form">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button type="submit" class="btn btn-outline" {{if eq .PrintJobCounts.Retryable 0}}disabled{{end}}>تلاش دوباره برای خطاهای قطعی ({{faInt .PrintJobCounts.Retryable}})</button>
+        <button type="submit" class="btn btn-danger-outline">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+          <span>لغو همهٔ صف چاپ</span>
+        </button>
       </form>
-      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">مرکز چاپگرها</a>
+      <form method="post" action="/local/print-queue-retry-all" hx-post="/local/print-queue-retry-all" hx-target="#main-view" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-primary">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>تلاش دوباره برای خطاها ({{faInt .PrintJobCounts.Failed}})</span>
+        </button>
+      </form>
+      {{if gt .PrintJobCounts.Total 0}}
+      <form method="post" action="/local/print-queue-clear" hx-post="/local/print-queue-clear" hx-target="#main-view" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-outline">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          <span>پاک‌سازی کامل صف</span>
+        </button>
+      </form>
+      {{end}}
+      <a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">سفارش‌ها و فیش‌ها</a>
     </div>
   </section>
 
-  <section class="printer-stats">
-    <article><span>کل Jobها</span><strong>{{faInt .PrintJobCounts.Total}}</strong></article>
-    <article><span>در صف</span><strong>{{faInt .PrintJobCounts.Pending}}</strong></article>
-    <article><span>در حال چاپ</span><strong>{{faInt .PrintJobCounts.Printing}}</strong></article>
-    <article><span>ارسال‌شده</span><strong>{{faInt .PrintJobCounts.Sent}}</strong></article>
-    <article><span>چاپ‌شده (قدیمی)</span><strong>{{faInt .PrintJobCounts.Printed}}</strong></article>
-    <article class="{{if gt .PrintJobCounts.Failed 0}}has-error{{end}}"><span>خطادار</span><strong>{{faInt .PrintJobCounts.Failed}}</strong></article>
-  </section>
+  <div class="printer-kpi-strip">
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
+      </span>
+      <div>
+        <small>کل Jobها</small>
+        <strong>{{faInt .PrintJobCounts.Total}} مورد</strong>
+      </div>
+    </div>
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-purple">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      </span>
+      <div>
+        <small>در انتظار ارسال</small>
+        <strong>{{faInt .PrintJobCounts.Pending}} در صف</strong>
+      </div>
+    </div>
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+      </span>
+      <div>
+        <small>چاپ / ارسال موفق</small>
+        <strong>{{faInt (addInt .PrintJobCounts.Sent .PrintJobCounts.Printed)}} مورد</strong>
+      </div>
+    </div>
+    <div class="printer-kpi-card">
+      <span class="printer-kpi-icon kpi-danger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+      </span>
+      <div>
+        <small>خطادار / لغوشده</small>
+        <strong>{{faInt .PrintJobCounts.Failed}} خطا • {{faInt .PrintJobCounts.Cancelled}} لغو</strong>
+      </div>
+    </div>
+  </div>
 
-  <section class="panel-card">
+  <section class="panel-card printer-section-card">
     <div class="panel-header">
-      <div><h2>فیلتر صف</h2><p>سفارش‌ها و فیش‌ها حتی وقتی چاپ ناموفق است ثبت‌شده باقی می‌مانند.</p></div>
-    </div>
-    <div class="queue-filters">
-      <a class="queue-filter {{if eq .PrintJobFilter ""}}is-active{{end}}" href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true">همه</a>
-      <a class="queue-filter {{if eq .PrintJobFilter "pending"}}is-active{{end}}" href="/?page=print-queue&status=pending" hx-get="/?page=print-queue&status=pending" hx-target="#main-view" hx-push-url="true">در صف</a>
-      <a class="queue-filter {{if eq .PrintJobFilter "failed"}}is-active{{end}}" href="/?page=print-queue&status=failed" hx-get="/?page=print-queue&status=failed" hx-target="#main-view" hx-push-url="true">خطادار</a>
-      <a class="queue-filter {{if eq .PrintJobFilter "sent"}}is-active{{end}}" href="/?page=print-queue&status=sent" hx-get="/?page=print-queue&status=sent" hx-target="#main-view" hx-push-url="true">ارسال‌شده</a>
-      <a class="queue-filter {{if eq .PrintJobFilter "printing"}}is-active{{end}}" href="/?page=print-queue&status=printing" hx-get="/?page=print-queue&status=printing" hx-target="#main-view" hx-push-url="true">در حال چاپ</a>
-      <a class="queue-filter {{if eq .PrintJobFilter "cancelled"}}is-active{{end}}" href="/?page=print-queue&status=cancelled" hx-get="/?page=print-queue&status=cancelled" hx-target="#main-view" hx-push-url="true">لغوشده</a>
-      <form method="get" action="/" hx-get="/" hx-target="#main-view" hx-push-url="true" class="inline-form">
-        <input type="hidden" name="page" value="print-queue">
-        <input type="hidden" name="status" value="{{.PrintJobFilter}}">
-        <select name="printer" onchange="this.form.requestSubmit()" aria-label="فیلتر چاپگر">
-          <option value="">همهٔ چاپگرها</option>
-          {{range .PrinterProfiles}}<option value="{{.ID}}" {{if eq $.PrintQueuePrinter .ID}}selected{{end}}>{{.Name}}</option>{{end}}
-        </select>
-      </form>
+      <div class="filter-pills">
+        <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="pill {{if eq .PrintJobFilter ""}}active{{end}}">همه ({{faInt .PrintJobCounts.Total}})</a>
+        <a href="/?page=print-queue&status=pending" hx-get="/?page=print-queue&status=pending" hx-target="#main-view" hx-push-url="true" class="pill {{if eq .PrintJobFilter "pending"}}active{{end}}">در انتظار ({{faInt .PrintJobCounts.Pending}})</a>
+        <a href="/?page=print-queue&status=printing" hx-get="/?page=print-queue&status=printing" hx-target="#main-view" hx-push-url="true" class="pill {{if eq .PrintJobFilter "printing"}}active{{end}}">در حال چاپ ({{faInt .PrintJobCounts.Printing}})</a>
+        <a href="/?page=print-queue&status=sent" hx-get="/?page=print-queue&status=sent" hx-target="#main-view" hx-push-url="true" class="pill {{if eq .PrintJobFilter "sent"}}active{{end}}">ارسال‌شده ({{faInt .PrintJobCounts.Sent}})</a>
+        <a href="/?page=print-queue&status=failed" hx-get="/?page=print-queue&status=failed" hx-target="#main-view" hx-push-url="true" class="pill {{if eq .PrintJobFilter "failed"}}active{{end}}">خطا ({{faInt .PrintJobCounts.Failed}})</a>
+        <a href="/?page=print-queue&status=cancelled" hx-get="/?page=print-queue&status=cancelled" hx-target="#main-view" hx-push-url="true" class="pill {{if eq .PrintJobFilter "cancelled"}}active{{end}}">لغو شده ({{faInt .PrintJobCounts.Cancelled}})</a>
+      </div>
     </div>
 
     {{if .PrintJobs}}
     <div class="table-wrap">
-      <table class="data-table print-queue-table">
-        <thead><tr><th>فیش</th><th>سفارش</th><th>چاپگر / مقصد</th><th>وضعیت</th><th>تلاش</th><th>زمان</th><th>خطا</th><th>اقدام</th></tr></thead>
-        <tbody>
-        {{range .PrintJobs}}
+      <table class="data-table">
+        <thead>
           <tr>
-            <td><strong>{{.DocTypeLabel}}</strong><br><small class="row-sub" dir="ltr">{{.ID}}</small></td>
-            <td>{{if .OrderID}}<a href="/?page=receipt&id={{.OrderID}}" hx-get="/?page=receipt&id={{.OrderID}}" hx-target="#main-view" hx-push-url="true">{{if .OrderNumber}}{{ordno .OrderNumber}}{{else}}{{.OrderID}}{{end}}</a>{{else}}—{{end}}</td>
-            <td>{{.PrinterTitle}}{{if .Target}}<br><small class="row-sub" dir="ltr">{{.Target}}</small>{{else if .Connection}}<br><small class="row-sub" dir="ltr">{{.Connection}}</small>{{end}}</td>
-            <td><span class="badge {{.StatusClass}}">{{.StatusLabel}}</span>{{if .Uncertain}}<br><span class="badge status-warn">نتیجه نامشخص</span>{{end}}</td>
-            <td>{{faInt .Attempts}}</td>
-            <td class="row-sub">{{jalaliISO .CreatedAt}}</td>
-            <td class="print-job-error">{{.LastError}}</td>
+            <th>چاپگر / ایستگاه</th>
+            <th>مقصد اتصال</th>
+            <th>نوع سند</th>
+            <th>سفارش</th>
+            <th>وضعیت</th>
+            <th>تلاش</th>
+            <th>جزئیات / خطا</th>
+            <th>زمان ثبت</th>
+            <th>عملیات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .PrintJobs}}
+          <tr>
+            <td><strong>{{.PrinterTitle}}</strong></td>
+            <td class="ltr">{{if .Target}}{{.Target}}{{else if .Connection}}{{.Connection}}{{else}}{{.Queue}}{{end}}</td>
+            <td>{{.DocTypeLabel}} ({{.PaperWidth}})</td>
+            <td class="ltr">{{if .OrderNumber}}{{ordno .OrderNumber}}{{else if .OrderID}}{{.OrderID}}{{else}}آزمایشی{{end}}</td>
             <td>
-              <div class="queue-actions">
-              {{if .Retryable}}
-              <form method="post" action="/local/print-queue-retry" hx-post="/local/print-queue-retry" hx-target="#main-view" class="inline-form">
-                <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                <input type="hidden" name="job_id" value="{{.ID}}">
-                <input type="hidden" name="status_filter" value="{{$.PrintJobFilter}}">
-                <button type="submit" class="btn btn-subtle btn-sm">تلاش دوباره</button>
-              </form>
-              {{else if eq .Status "failed"}}<span class="row-sub" title="{{.RetryBlockReason}}">بدون تلاش خودکار</span>{{end}}
-              {{if eq .Status "pending"}}
-              <form method="post" action="/local/print-queue-cancel" hx-post="/local/print-queue-cancel" hx-target="#main-view" class="inline-form">
-                <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                <input type="hidden" name="job_id" value="{{.ID}}">
-                <button type="submit" class="btn btn-danger btn-sm">لغو</button>
-              </form>
-              {{end}}
-              </div>
+              <span class="badge {{.StatusClass}}">{{.StatusLabel}}</span>
+              {{if .Uncertain}}<span class="badge status-warn">نتیجه نامشخص</span>{{end}}
+            </td>
+            <td>{{faInt .Attempts}} / ۵</td>
+            <td class="row-sub">{{if .LastError}}{{.LastError}}{{else}}—{{end}}</td>
+            <td class="ltr">{{jalaliISO .CreatedAt}}</td>
+            <td>
+              <span class="row-actions">
+                {{if .Retryable}}
+                <form method="post" action="/local/print-queue-retry" hx-post="/local/print-queue-retry" hx-target="#main-view" class="inline-form">
+                  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                  <input type="hidden" name="job_id" value="{{.ID}}">
+                  <input type="hidden" name="return_page" value="print-queue">
+                  <button type="submit" class="btn btn-subtle btn-sm">تلاش مجدد</button>
+                </form>
+                {{end}}
+                {{if or (eq .Status "pending") (eq .Status "printing") (eq .Status "failed")}}
+                <form method="post" action="/local/print-queue-cancel" hx-post="/local/print-queue-cancel" hx-target="#main-view" class="inline-form">
+                  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                  <input type="hidden" name="job_id" value="{{.ID}}">
+                  <input type="hidden" name="return_page" value="print-queue">
+                  <button type="submit" class="btn btn-danger-outline btn-sm">لغو</button>
+                </form>
+                {{end}}
+              </span>
             </td>
           </tr>
-        {{end}}
+          {{end}}
         </tbody>
       </table>
     </div>
     {{else}}
-    <p class="empty-text">با این فیلتر Jobی وجود ندارد. Jobها هنگام چاپ سفارش یا «چاپ آزمایشی» ساخته می‌شوند.</p>
+    <div class="printer-empty-state">
+      <div class="printer-empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      </div>
+      <h4>صف چاپ خالی است</h4>
+      <p>هیچ فیشی در صف انتظار وجود ندارد.</p>
+    </div>
     {{end}}
   </section>
 {{end}}
 {{end}}
-
-{{define "scanResults"}}{{with .PrinterScan}}
-<div id="scan-results" class="panel-card scan-panel"
-  {{if .Running}}hx-get="/local/printer-scan-status?scan={{.ID}}" hx-trigger="every 1s" hx-swap="outerHTML"{{end}}>
-  <div class="panel-header">
-    <div>
-      <h2>نتیجهٔ جستجو در <bdi dir="ltr">{{.CIDR}}</bdi></h2>
-      <p>{{if .Running}}در حال بررسی میزبان‌ها…{{else if .Cancelled}}جستجو توسط کاربر متوقف شد.{{else if .Error}}{{.Error}}{{else}}جستجو کامل شد.{{end}}</p>
-    </div>
-    {{if .Running}}
-    <form method="post" action="/local/printer-scan-cancel" hx-post="/local/printer-scan-cancel" hx-target="#main-view">
-      <input type="hidden" name="csrf" value="{{$.CSRF}}">
-      <input type="hidden" name="scan" value="{{.ID}}">
-      <button type="submit" class="btn btn-outline btn-sm">توقف جستجو</button>
-    </form>
-    {{end}}
-  </div>
-
-  <div class="scan-progress" role="progressbar" aria-valuenow="{{.Percent}}" aria-valuemin="0" aria-valuemax="100">
-    <div class="scan-progress-bar" style="width: {{.Percent}}%"></div>
-  </div>
-  <p class="row-sub">{{faInt .Done}} از {{faInt .Total}} میزبان بررسی شد • {{faInt .Open}} پورت باز • پورت {{faInt .Port}}</p>
-
-  {{if .Results}}
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead><tr><th>میزبان</th><th>پورت</th><th>وضعیت</th><th>اقدام</th></tr></thead>
-      <tbody>
-      {{range .Results}}
-        <tr>
-          <td dir="ltr"><strong>{{.Host}}</strong></td>
-          <td>{{faInt .Port}}</td>
-          <td><span class="badge status-warn">پورت باز است</span></td>
-          <td><a class="btn btn-subtle btn-sm" href="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}&name={{urlquery .Host}}" hx-get="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}&name={{urlquery .Host}}" hx-target="#main-view" hx-push-url="true">انتخاب پرینتر</a></td>
-        </tr>
-      {{end}}
-      </tbody>
-    </table>
-  </div>
-  <p class="field-hint">باز بودن پورت فقط یعنی سرویسی روی آن گوش می‌دهد؛ پیش از استفاده، «بررسی اتصال» و «چاپ آزمایشی» را در صفحهٔ چاپگر اجرا کنید. این جستجو هیچ چاپگری را خودکار اضافه نمی‌کند.</p>
-  {{else if not .Running}}
-    <p class="empty-text">در این محدوده پورت باز پیدا نشد. نشانی چاپگر را دستی اضافه کنید یا پورت دستگاه را بررسی کنید.</p>
-  {{end}}
-</div>
-{{end}}{{end}}

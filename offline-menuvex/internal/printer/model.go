@@ -105,6 +105,8 @@ type Profile struct {
 	PaperMM    int    `json:"paperMm"`
 	WidthDots  int    `json:"widthDots"`
 	Copies     int    `json:"copies"`
+	FontFamily string `json:"fontFamily,omitempty"`
+	FontSize   int    `json:"fontSize,omitempty"`
 	Cut        bool   `json:"cut"`
 	Active     bool   `json:"active"`
 	CreatedAt  string `json:"createdAt,omitempty"`
@@ -118,6 +120,35 @@ type Profile struct {
 	LastCheckStages []ProbeStage `json:"lastCheckStages,omitempty"`
 }
 
+// DiscoveredPrinter is a unified representation of a discovered printer
+// candidate (whether USB direct, OS print queue, or LAN network printer) with
+// complete specifications for rendering as a card in the UI.
+type DiscoveredPrinter struct {
+	Kind             string    `json:"kind"`     // usb | spooler | network
+	Category         string    `json:"category"` // usb | lan
+	TypeBadge        string    `json:"typeBadge"`
+	Name             string    `json:"name"`
+	Model            string    `json:"model"`
+	Manufacturer     string    `json:"manufacturer"`
+	ConnectionDetail string    `json:"connectionDetail"`
+	PortInfo         string    `json:"portInfo"`
+	Protocol         string    `json:"protocol"`
+	SystemInfo       string    `json:"systemInfo"`
+	PaperMM          int       `json:"paperMm"`
+	WidthDots        int       `json:"widthDots"`
+	Host             string    `json:"host,omitempty"`
+	Port             int       `json:"port,omitempty"`
+	QueueName        string    `json:"queueName,omitempty"`
+	USB              USBDevice `json:"usb,omitempty"`
+	Accessible       bool      `json:"accessible"`
+	StatusLabel      string    `json:"statusLabel"`
+	StatusClass      string    `json:"statusClass"`
+	AccessNote       string    `json:"accessNote,omitempty"`
+	AlreadySaved     bool      `json:"alreadySaved"`
+	SavedPrinterID   string    `json:"savedPrinterId,omitempty"`
+	SavedStation     string    `json:"savedStation,omitempty"`
+}
+
 // Normalize applies safe defaults without hiding invalid values. It is used
 // before validation and before writing a profile.
 func (p Profile) Normalize() Profile {
@@ -129,6 +160,7 @@ func (p Profile) Normalize() Profile {
 	p.Kind = strings.ToLower(strings.TrimSpace(p.Kind))
 	p.Host = strings.TrimSpace(p.Host)
 	p.QueueName = strings.TrimSpace(p.QueueName)
+	p.FontFamily = strings.TrimSpace(p.FontFamily)
 	p.USB.DevicePath = strings.TrimSpace(p.USB.DevicePath)
 	p.USB.VendorID = strings.TrimSpace(p.USB.VendorID)
 	p.USB.ProductID = strings.TrimSpace(p.USB.ProductID)
@@ -145,6 +177,12 @@ func (p Profile) Normalize() Profile {
 	}
 	if p.Copies == 0 {
 		p.Copies = 1
+	}
+	if p.FontFamily == "" {
+		p.FontFamily = "Noto Sans Arabic"
+	}
+	if p.FontSize < 12 || p.FontSize > 48 {
+		p.FontSize = 24
 	}
 	if p.Kind == KindNetwork && p.Port == 0 {
 		p.Port = DefaultNetworkPort
@@ -363,6 +401,91 @@ func StationLabel(station string) string {
 	}
 	return station
 }
+
+// RoleLabel returns the Persian station/role label for a printer profile.
+func (p Profile) RoleLabel() string {
+	switch strings.ToLower(strings.TrimSpace(p.Role)) {
+	case "cashier":
+		return "صندوق (فیش مشتری)"
+	case "kitchen":
+		return "آشپزخانه و بار"
+	case "all":
+		return "همه (صندوق و آشپزخانه)"
+	}
+	return StationLabel(p.Station)
+}
+
+// DestinationLabel returns the human-readable connection endpoint.
+func (p Profile) DestinationLabel() string {
+	if d := p.ConnectionDetail(); d != "" {
+		return d
+	}
+	return "بدون مقصد اتصال"
+}
+
+// IsActive returns whether the printer is enabled for automatic printing.
+func (p Profile) IsActive() bool {
+	return p.Active
+}
+
+// PaperWidth returns "58mm" or "80mm".
+func (p Profile) PaperWidth() string {
+	if p.Normalize().PaperMM == Paper58 {
+		return "58mm"
+	}
+	return "80mm"
+}
+
+// USBPath returns the USB device node path.
+func (p Profile) USBPath() string { return p.USB.DevicePath }
+
+// USBVID returns the USB vendor ID.
+func (p Profile) USBVID() string { return p.USB.VendorID }
+
+// USBPID returns the USB product ID.
+func (p Profile) USBPID() string { return p.USB.ProductID }
+
+// USBSerial returns the USB serial number.
+func (p Profile) USBSerial() string { return p.USB.Serial }
+
+// USBBus returns the USB bus number.
+func (p Profile) USBBus() string { return p.USB.Bus }
+
+// USBPort returns the USB port path.
+func (p Profile) USBPort() string { return p.USB.PortPath }
+
+// USBProduct returns the USB product string.
+func (p Profile) USBProduct() string { return p.USB.Product }
+
+// USBManufacturer returns the USB manufacturer string.
+func (p Profile) USBManufacturer() string { return p.USB.Manufacturer }
+
+// TypeLabel returns the connection badge label for a discovered printer.
+func (d DiscoveredPrinter) TypeLabel() string { return d.TypeBadge }
+
+// Selectable returns whether the discovered printer can be selected directly.
+func (d DiscoveredPrinter) Selectable() bool { return d.Accessible }
+
+// StatusNote returns any access/driver note for a discovered printer.
+func (d DiscoveredPrinter) StatusNote() string { return d.AccessNote }
+
+// USBPath returns the USB device path of a discovered printer.
+func (d DiscoveredPrinter) USBPath() string { return d.USB.DevicePath }
+
+// USBVID returns the USB vendor ID of a discovered printer.
+func (d DiscoveredPrinter) USBVID() string { return d.USB.VendorID }
+
+// USBPID returns the USB product ID of a discovered printer.
+func (d DiscoveredPrinter) USBPID() string { return d.USB.ProductID }
+
+// USBSerial returns the USB serial number of a discovered printer.
+func (d DiscoveredPrinter) USBSerial() string { return d.USB.Serial }
+
+// USBBus returns the USB bus of a discovered printer.
+func (d DiscoveredPrinter) USBBus() string { return d.USB.Bus }
+
+// USBPort returns the USB port path of a discovered printer.
+func (d DiscoveredPrinter) USBPort() string { return d.USB.PortPath }
 
 func hasControl(s string) bool {
 	for _, r := range s {

@@ -2223,70 +2223,158 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .sp-cost-hint{display:block;font-size:11px;line-height:1.7;color:#0369A1;margin-top:4px;min-height:0}
 .sp-table .sp-cost-hint:empty{display:none}
 
-/* ─── مرکز چاپگرها (پرترهٔ Offline از Printer Agent) ─────────────────── */
-.printer-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:16px;align-items:start;width:100%;min-width:0}
-.printer-layout > .panel-card{margin-bottom:0}
-.printer-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0 0 16px}
-.printer-stats article{background:#fff;border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px 14px;display:flex;flex-direction:column;gap:4px}
-.printer-stats article span{font-size:11.5px;color:var(--text-secondary)}
-.printer-stats article strong{font-size:20px;font-weight:800;color:var(--text-primary)}
-.printer-stats article.has-error{border-color:var(--danger-border,#FDA29B);background:var(--danger-bg,#FEF3F2)}
-.printer-center-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.printer-center-actions form{display:inline;margin:0}
-.printer-center-actions .btn{white-space:nowrap}
-.printer-discovery-results{margin-bottom:16px}
-.printer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin:0 0 16px}
-.printer-card{background:#fff;border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px}
-.printer-card.is-off{opacity:.78;background:#FAFBFC}
-.printer-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-.printer-card-head strong{display:block;font-size:15px;font-weight:800;color:var(--text-primary)}
-.printer-card-head small{display:block;font-size:11.5px;color:var(--text-secondary);margin-top:3px}
-.printer-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin:0}
-.printer-meta div{min-width:0}
-.printer-meta dt{font-size:11px;color:var(--text-tertiary,#98A2B3);margin:0 0 2px}
-.printer-meta dd{margin:0;font-size:12.5px;color:var(--text-primary);overflow-wrap:anywhere}
-.printer-check-note{font-size:11.5px;color:var(--text-secondary);margin:0;line-height:1.8}
-.printer-card-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--border-color);padding-top:12px}
-.printer-support-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.wizard-steps{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
-.wizard-step{font-size:12px;font-weight:700;color:var(--text-secondary);background:#fff;border:1px dashed var(--border-color);border-radius:999px;padding:6px 12px}
-.wizard-step.is-done{color:var(--primary);border-style:solid;border-color:var(--primary);background:var(--brand-50,#EFF6FF)}
-.wizard-section{border:1px solid var(--border-color);border-radius:var(--radius-md);padding:14px 16px;display:flex;flex-direction:column;gap:12px;background:#FCFDFE}
-.wizard-section h3{margin:0;font-size:14px;font-weight:800;color:var(--text-primary)}
-.wizard-section.wizard-submit{background:#fff}
-.printer-kind-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.printer-kind-option{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px;background:#fff;cursor:pointer}
-.printer-kind-option:has(input:checked){border-color:var(--primary);box-shadow:0 0 0 2px rgba(36,104,204,.12)}
-.printer-kind-option input{margin-top:3px}
-.printer-kind-option strong{display:block;font-size:13px;font-weight:800;color:var(--text-primary)}
-.printer-kind-option small{display:block;font-size:11.5px;color:var(--text-secondary);margin-top:4px;line-height:1.7}
-.printer-fields-group{border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:10px;background:#fff}
-.printer-fields-group legend{font-size:11.5px;font-weight:800;color:var(--text-secondary);padding:0 6px}
-.field-hint{font-size:11.5px;color:var(--text-secondary);margin:0;line-height:1.9}
-.field-hint.field-warn{color:var(--danger-fg)}
-.inline-check{flex-direction:row!important;align-items:center!important;gap:8px!important;font-weight:600!important}
-.inline-check input[type="checkbox"]{flex:none}
-.printer-discovery{display:flex;flex-direction:column;gap:10px}
-.printer-discovery .btn-block{margin:0}
-.usb-list{margin-top:4px;border-top:1px solid var(--border-color)}
-.printer-actions-stack{display:flex;flex-direction:column;gap:8px}
-.probe-panel{border-top:1px solid var(--border-color);margin-top:14px;padding-top:14px}
-.probe-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-.probe-stages{display:flex;flex-direction:column;gap:10px;margin:10px 0}
-.probe-stage{display:flex;gap:10px;align-items:flex-start}
-.probe-stage > .badge{flex:none}
-.probe-stage strong{display:block;font-size:12.5px;color:var(--text-primary)}
-.probe-stage small{display:block;font-size:11.5px;color:var(--text-secondary);line-height:1.8;margin-top:2px}
-.danger-zone{border-top:1px solid var(--border-color);margin-top:14px;padding-top:12px}
-.danger-zone summary{cursor:pointer;font-size:12.5px;font-weight:800;color:var(--danger-fg)}
-.danger-zone .form-grid{margin-top:10px}
-.queue-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-.queue-filter{font-size:12px;font-weight:700;border:1px solid var(--border-color);border-radius:999px;padding:5px 12px;color:var(--text-secondary);background:#fff}
-.queue-filter.is-active{border-color:var(--primary);color:var(--primary);background:var(--brand-50,#EFF6FF)}
-.queue-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.print-queue-table td{vertical-align:top}
-.scan-panel{margin-top:16px}
-.scan-progress{height:10px;border-radius:999px;background:#EEF2F6;overflow:hidden;margin:6px 0 4px}
-.scan-progress-bar{height:100%;background:linear-gradient(90deg,var(--primary),#14B8A6);transition:width .35s ease}
-@media (max-width:1100px){.printer-layout{grid-template-columns:minmax(0,1fr)}.printer-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.printer-kind-options{grid-template-columns:minmax(0,1fr)}}
-@media (max-width:640px){.printer-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.printer-meta{grid-template-columns:minmax(0,1fr)}}
+/* ─── مرکز چاپگرها (سیستم یکپارچه مدیریت پرینترهای USB و LAN) ───────── */
+.printer-subnav{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#fff;border:1px solid var(--border-color);border-radius:14px;padding:6px;margin:0 0 16px;box-shadow:0 1px 2px rgba(16,24,40,.03)}
+.printer-subnav-item{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;font-size:13px;font-weight:700;color:var(--text-secondary);text-decoration:none;transition:all .18s ease}
+.printer-subnav-item svg{width:17px;height:17px;flex:none}
+.printer-subnav-item:hover{background:#F8FAFC;color:var(--text-primary)}
+.printer-subnav-item.active{background:var(--brand-50,#EFF6FF);color:var(--primary,#2468CC);box-shadow:inset 0 0 0 1px rgba(36,104,204,.18)}
+.printer-subnav-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:800;background:#F2F4F7;color:#475467}
+.printer-subnav-item.active .printer-subnav-count{background:#DBEAFE;color:#1D4ED8}
+.printer-subnav-count.danger{background:#FEE4E2;color:#B42318}
+.printer-subnav-count.warn{background:#FEF0C7;color:#B54708}
+
+.printer-hero-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,#FFFFFF 0%,#F8FAFC 100%);border:1px solid var(--border-color);border-radius:16px;padding:18px 20px;margin:0 0 16px;box-shadow:0 2px 6px rgba(16,24,40,.03)}
+.printer-hero-info{display:flex;align-items:center;gap:14px;min-width:0}
+.printer-hero-icon{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);color:#1D4ED8;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid #BFDBFE}
+.printer-hero-icon svg{width:23px;height:23px}
+.printer-hero-info h2{margin:0;font-size:17px;font-weight:800;color:var(--text-primary)}
+.printer-hero-info p{margin:4px 0 0;font-size:12.5px;color:var(--text-secondary);line-height:1.7}
+.printer-hero-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn-icon-svg{width:16px;height:16px;flex:none;vertical-align:middle;margin-inline-end:6px}
+.text-ok{color:#027A48}
+.text-muted{color:#667085}
+
+.printer-kpi-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.printer-kpi-card{background:#fff;border:1px solid var(--border-color);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 2px rgba(16,24,40,.02)}
+.printer-kpi-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.printer-kpi-icon svg{width:20px;height:20px}
+.printer-kpi-icon.kpi-blue{background:#EFF6FF;color:#1D4ED8}
+.printer-kpi-icon.kpi-green{background:#ECFDF3;color:#027A48}
+.printer-kpi-icon.kpi-purple{background:#F4F3FF;color:#5925DC}
+.printer-kpi-icon.kpi-teal{background:#F0FDF9;color:#0E9384}
+.printer-kpi-icon.kpi-danger{background:#FEF3F2;color:#B42318}
+.printer-kpi-card small{display:block;font-size:11.5px;color:var(--text-secondary);margin-bottom:2px}
+.printer-kpi-card strong{display:block;font-size:16px;font-weight:800;color:var(--text-primary)}
+
+.printer-section-card{margin-bottom:18px;border-radius:16px}
+.section-head-with-icon{display:flex;align-items:center;gap:12px}
+.section-icon-badge{width:38px;height:38px;border-radius:10px;background:#F2F4F7;color:#344054;display:flex;align-items:center;justify-content:center;flex:none}
+.section-icon-badge.badge-accent{background:#EFF6FF;color:#1D4ED8}
+.section-icon-badge svg{width:19px;height:19px}
+
+/* ─── کارت‌های پرینترهای ثبت‌شده کافه ──────────────────────────────── */
+.printer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin:6px 0 4px}
+.printer-card{background:#fff;border:1px solid #E4E7EC;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 2px 6px rgba(16,24,40,.03);transition:border-color .18s ease,box-shadow .18s ease}
+.printer-card:hover{border-color:#B2DDFF;box-shadow:0 6px 18px rgba(16,24,40,.06)}
+.printer-card.printer-card-muted{opacity:.82;background:#FCFCFD}
+.printer-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.printer-card-identity{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.printer-kind-avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.printer-kind-avatar svg{width:22px;height:22px}
+.printer-kind-avatar.kind-network{background:#EFF8FF;color:#175CD3;border:1px solid #B2DDFF}
+.printer-kind-avatar.kind-usb{background:#F4F3FF;color:#5925DC;border:1px solid #D9D6FE}
+.printer-kind-avatar.kind-spooler{background:#ECFDF3;color:#027A48;border:1px solid #ABEFC6}
+.printer-kind-avatar.kind-legacy{background:#F2F4F7;color:#475467;border:1px solid #E4E7EC}
+.printer-card-title-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.printer-card-title-row h4{margin:0;font-size:15.5px;font-weight:800;color:var(--text-primary)}
+.printer-card-sub{margin:4px 0 0;font-size:12px;color:var(--text-secondary)}
+.printer-card-badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+
+.printer-spec-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;background:#F8FAFC;border:1px solid #EAECF0;border-radius:12px;padding:12px}
+.printer-spec-box{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.printer-spec-icon{width:28px;height:28px;border-radius:8px;background:#fff;border:1px solid #E4E7EC;color:#475467;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.printer-spec-icon svg{width:14px;height:14px}
+.printer-spec-box small{display:block;font-size:11px;color:#667085;margin-bottom:2px}
+.printer-spec-box strong{display:block;font-size:12.5px;font-weight:700;color:#101828;overflow-wrap:anywhere}
+.printer-probe-msg{margin:0;font-size:11.5px;color:#475467;background:#F9FAFB;padding:7px 10px;border-radius:8px;border:1px dashed #D0D5DD}
+.printer-card-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid #EAECF0;padding-top:12px;margin-top:auto}
+
+/* ─── کارت‌های پرینترهای شناسایی‌شده (USB / LAN / OS) ──────────────── */
+.discovered-printer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;margin-top:12px}
+.discovered-printer-card{background:#fff;border:1.5px solid #E4E7EC;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:all .18s ease;position:relative}
+.discovered-printer-card:hover{border-color:#2468CC;box-shadow:0 8px 22px rgba(36,104,204,.08)}
+.discovered-printer-card.kind-usb{border-top:3px solid #7A5AF8}
+.discovered-printer-card.kind-network{border-top:3px solid #2E90FA}
+.discovered-printer-card.kind-spooler{border-top:3px solid #12B76A}
+.discovered-card-head{display:flex;align-items:flex-start;gap:12px}
+.discovered-card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.discovered-card-icon svg{width:22px;height:22px}
+.discovered-card-icon.kind-usb{background:#F4F3FF;color:#6938EF;border:1px solid #D9D6FE}
+.discovered-card-icon.kind-network{background:#EFF8FF;color:#175CD3;border:1px solid #B2DDFF}
+.discovered-card-icon.kind-spooler{background:#ECFDF3;color:#027A48;border:1px solid #ABEFC6}
+.discovered-card-title{flex:1;min-width:0}
+.discovered-card-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px}
+.discovered-type-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800}
+.discovered-type-pill.kind-usb{background:#F4F3FF;color:#5925DC}
+.discovered-type-pill.kind-network{background:#EFF8FF;color:#175CD3}
+.discovered-type-pill.kind-spooler{background:#ECFDF3;color:#027A48}
+.discovered-card-title h4{margin:0;font-size:15px;font-weight:800;color:#101828;line-height:1.4}
+.discovered-card-title p{margin:3px 0 0;font-size:12px;color:#667085}
+
+.discovered-specs-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;background:#F8FAFC;border:1px solid #EAECF0;border-radius:12px;padding:12px}
+.discovered-spec-item{min-width:0}
+.discovered-spec-item .spec-label{display:flex;align-items:center;gap:5px;font-size:11px;color:#667085;margin-bottom:3px}
+.discovered-spec-item .spec-label svg{width:13px;height:13px;flex:none;color:#98A2B3}
+.discovered-spec-item strong{display:block;font-size:12.5px;font-weight:700;color:#1D2939;overflow-wrap:anywhere}
+.discovered-card-note{margin:0;font-size:11.5px;color:#B54708;background:#FFFAEB;border:1px solid #FEDF89;border-radius:8px;padding:7px 10px}
+.discovered-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #EAECF0;padding-top:12px;margin-top:auto}
+.btn-select-printer{width:100%;justify-content:center;height:40px;font-weight:800;border-radius:10px}
+
+/* ─── وضعیت اسکن شبکه LAN ──────────────────────────────────────────── */
+.scan-progress-banner{background:#EFF8FF;border:1px solid #B2DDFF;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
+.scan-progress-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:#175CD3}
+.scan-spinner-title{display:flex;align-items:center;gap:8px}
+.scan-pulse-dot{width:10px;height:10px;border-radius:999px;background:#2E90FA;box-shadow:0 0 0 4px rgba(46,144,250,.22);animation:printerPulse 1.2s infinite ease-in-out}
+@keyframes printerPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.65}}
+.scan-progress-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.scan-done-banner{display:flex;align-items:center;gap:8px;background:#ECFDF3;border:1px solid #ABEFC6;color:#027A48;border-radius:10px;padding:10px 14px;font-size:12.5px;font-weight:700;margin-bottom:12px}
+.scan-done-banner svg{width:18px;height:18px;flex:none}
+.scan-found-grid{margin-bottom:14px}
+
+.printer-empty-state{text-align:center;padding:32px 20px;background:#F9FAFB;border:1.5px dashed #D0D5DD;border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.printer-empty-icon{width:48px;height:48px;border-radius:14px;background:#fff;border:1px solid #E4E7EC;color:#475467;display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.printer-empty-icon svg{width:24px;height:24px}
+.printer-empty-state h4{margin:0;font-size:15px;font-weight:800;color:#101828}
+.printer-empty-state p{margin:0 0 8px;font-size:12.5px;color:#667085;max-width:520px;line-height:1.8}
+
+/* ─── دیالوگ «تنظیم پرینتر» (مشابه طراحی استاندارد انتخاب ایستگاه و کاغذ) ─ */
+.dlg-printer-modal{max-width:560px;width:95vw;border-radius:18px;overflow:hidden}
+.dlg-title-group{display:flex;align-items:center;gap:12px}
+.dlg-title-icon{width:40px;height:40px;border-radius:11px;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;flex:none}
+.dlg-title-icon svg{width:20px;height:20px}
+.dlg-subtitle{margin:2px 0 0;font-size:12px;color:#667085;font-weight:500}
+.dlg-close-pill{border:1px solid #D0D5DD;background:#fff;color:#344054;border-radius:10px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.dlg-close-pill:hover{background:#F9FAFB}
+
+.dlg-printer-hw-banner{display:flex;align-items:center;gap:12px;background:#F8FAFC;border:1px solid #E4E7EC;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.dlg-printer-hw-icon{width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #D0D5DD;color:#1D4ED8;display:flex;align-items:center;justify-content:center;flex:none}
+.dlg-printer-hw-icon svg{width:19px;height:19px}
+.dlg-printer-hw-meta{flex:1;min-width:0}
+.dlg-printer-hw-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.dlg-printer-hw-top strong{font-size:13.5px;font-weight:800;color:#101828}
+.dlg-printer-hw-sub{display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:#667085;margin-top:4px}
+
+.station-preset-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
+.station-preset-hint{font-size:11.5px;color:#667085;margin-inline-end:2px}
+.station-preset-chip{border:1px solid #D0D5DD;background:#fff;color:#344054;border-radius:999px;padding:4px 11px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s ease}
+.station-preset-chip:hover,.station-preset-chip.active{border-color:#2468CC;background:#EFF6FF;color:#1D4ED8}
+
+.paper-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
+.paper-choice-card{display:flex;align-items:flex-start;gap:10px;text-align: right;border:1.5px solid #D0D5DD;background:#fff;border-radius:12px;padding:12px;font:inherit;cursor:pointer;transition:all .15s ease}
+.paper-choice-card svg{width:22px;height:22px;flex:none;color:#667085;margin-top:2px}
+.paper-choice-card strong{display:block;font-size:13.5px;font-weight:800;color:#101828}
+.paper-choice-card small{display:block;font-size:11px;color:#667085;margin-top:3px;line-height:1.6}
+.paper-choice-card.active{border-color:#2468CC;background:#EFF8FF;box-shadow:0 0 0 2px rgba(36,104,204,.12)}
+.paper-choice-card.active svg{color:#1D4ED8}
+
+.dlg-checks-stack{display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:10px 12px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:10px}
+.dlg-check-row{display:flex!important;flex-direction:row!important;align-items:center!important;gap:9px!important;font-size:13px!important;font-weight:700!important;color:#1D2939!important;cursor:pointer;margin:0!important}
+.dlg-check-row input[type="checkbox"]{width:17px;height:17px;margin:0;flex:none}
+.dlg-printer-foot{padding-top:12px}
+.btn-block-lg{width:100%;height:44px;font-size:14px;font-weight:800;justify-content:center;border-radius:11px}
+.dlg-printer-delete-bar{padding:0 20px 16px;display:flex;justify-content:flex-end}
+
+@media (max-width:1100px){.printer-kpi-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.printer-kpi-strip,.printer-spec-grid,.discovered-specs-grid,.paper-choice-grid{grid-template-columns:minmax(0,1fr)}}
+

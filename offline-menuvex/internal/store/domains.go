@@ -1781,8 +1781,8 @@ func (s *Store) SeedIranianCafeData(ctx context.Context) error {
 		})
 
 		// 10. Thermal Printers & Category Print Routes
-		put("printer", "99999999-9999-4999-8999-000000000091", map[string]any{"title": "چاپگر حرارتی صندوق (فیش مشتری)", "model": "Epson TM-T20III (80mm)", "connection": "USB / LAN 192.168.1.201:9100", "paper_width": "80mm", "station": "صندوق فروش", "is_active": "true"})
-		put("printer", "99999999-9999-4999-8999-000000000092", map[string]any{"title": "چاپگر حرارتی بار گرم و سرد", "model": "Bixolon SRP-330II (80mm)", "connection": "LAN 192.168.1.202:9100", "paper_width": "80mm", "station": "بار گرم و سرد", "is_active": "true"})
+		put("printer", "99999999-9999-4999-8999-000000000091", map[string]any{"title": "چاپگر حرارتی صندوق (فیش مشتری)", "name": "چاپگر حرارتی صندوق (فیش مشتری)", "model": "Epson TM-T20III (80mm)", "kind": "network", "host": "192.168.1.201", "port": "9100", "connection": "192.168.1.201:9100", "paper_width": "80mm", "width_dots": "576", "copies": "1", "cut": true, "role": "cashier", "station": "صندوق فروش", "is_active": "true"})
+		put("printer", "99999999-9999-4999-8999-000000000092", map[string]any{"title": "چاپگر حرارتی بار گرم و سرد", "name": "چاپگر حرارتی بار گرم و سرد", "model": "Bixolon SRP-330II (80mm)", "kind": "network", "host": "192.168.1.202", "port": "9100", "connection": "192.168.1.202:9100", "paper_width": "80mm", "width_dots": "576", "copies": "1", "cut": true, "role": "kitchen", "station": "بار گرم و سرد", "is_active": "true"})
 
 		put("printer_route", "99999999-9999-4999-8999-000000000095", map[string]any{"title": "بار گرم و اسپرسو ← چاپگر حرارتی بار گرم و سرد", "category_name": "بار گرم و اسپرسو تخصصی", "printer_name": "چاپگر حرارتی بار گرم و سرد (Bixolon)", "copies": "1", "receipt_type": "حواله آماده‌سازی باریستا"})
 		put("printer_route", "99999999-9999-4999-8999-000000000096", map[string]any{"title": "کلیه فاکتورهای تسویه ← چاپگر حرارتی صندوق", "category_name": "همه دسته‌بندی‌ها", "printer_name": "چاپگر حرارتی صندوق (Epson TM-T20III)", "copies": "1", "receipt_type": "فیش تسویه مشتری + باشگاه مشتریان"})

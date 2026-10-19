@@ -137,10 +137,14 @@
         </a>
 
         <div class="nav-section-title">مدیریت کافه</div>
-        <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="nav-item {{if or (eq .Page "printers") (eq .Page "printer") (eq .Page "printer-new") (eq .Page "printer-scan") (eq .Page "print-queue")}}active{{end}}">
+        <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="nav-item {{if or (eq .Page "printers") (eq .Page "printer") (eq .Page "printer-new") (eq .Page "printer-scan")}}active{{end}}">
           <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><path d="M17 12h.01"/></svg>
           <span>چاپگرها و صف چاپ</span>
-          {{if gt .PrintJobCounts.Failed 0}}<span class="nav-badge danger">{{faInt .PrintJobCounts.Failed}}</span>{{end}}
+        </a>
+        <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="nav-item {{if eq .Page "print-queue"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+          <span>صف چاپ</span>
+          {{if gt .PrintJobCounts.Failed 0}}<span class="nav-badge danger">{{faInt .PrintJobCounts.Failed}}</span>{{else if gt .PrintJobCounts.Pending 0}}<span class="nav-badge">{{faInt .PrintJobCounts.Pending}}</span>{{end}}
         </a>
         <a href="/?page=settings" class="nav-item {{if eq .Page "settings"}}active{{end}}">
           <svg class="nav-icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -713,16 +717,16 @@ document.addEventListener('htmx:afterSwap', function (e) {
     return out;
   }
   function apply(scope){
-    var els = (scope||document).querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]');
+    var els = (scope||document).querySelectorAll('input[inputmode="numeric"]:not([data-no-group]), input[inputmode="decimal"]:not([data-no-group])');
     for (var i=0;i<els.length;i++){ var el=els[i]; if (el.value) el.value = grouped(el.value); el.setAttribute('dir','ltr'); }
   }
   document.addEventListener('input', function(e){
     var el = e.target;
-    if (el && el.matches && el.matches('input[inputmode="numeric"], input[inputmode="decimal"]')) el.value = grouped(el.value);
+    if (el && el.matches && el.matches('input[inputmode="numeric"]:not([data-no-group]), input[inputmode="decimal"]:not([data-no-group])')) el.value = grouped(el.value);
   });
   document.addEventListener('submit', function(e){
     var form = e.target;
-    var els = form.querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]');
+    var els = form.querySelectorAll('input[inputmode="numeric"]:not([data-no-group]), input[inputmode="decimal"]:not([data-no-group])');
     for (var i=0;i<els.length;i++) els[i].value = rawOf(els[i].value);
   }, true);
   document.addEventListener('htmx:afterSwap', function(){ apply(document); });
@@ -759,6 +763,109 @@ document.addEventListener('htmx:afterSwap', function (e) {
   window.openDlg = function(id){ closeAllMenus(); var o=document.getElementById(id); if (o) o.classList.add('open'); };
   window.closeDlg = function(btn){ var o=btn.closest('.dlg-overlay'); if (o) o.classList.remove('open'); };
   document.addEventListener('click', function(e){ if (e.target.classList && e.target.classList.contains('dlg-overlay')) e.target.classList.remove('open'); });
+
+  // ── دیالوگ تنظیم پرینتر و انتخاب عرض کاغذ (58mm / 80mm) ──
+  window.setPrinterPaperMM = function(mm, formEl){
+    var root = formEl || document.getElementById('dlg-printer-form') || document;
+    var paperNum = parseInt(String(mm), 10) === 58 ? 58 : 80;
+    var dots = paperNum === 58 ? 384 : 576;
+    var paperSel = root.querySelector('[name="paper"]');
+    if (paperSel) paperSel.value = paperNum === 58 ? '58mm' : '80mm';
+    var paperMmInput = root.querySelector('[name="paper_mm"]');
+    if (paperMmInput) paperMmInput.value = String(paperNum);
+    var dotsInput = root.querySelector('[name="width_dots"]');
+    if (dotsInput) dotsInput.value = String(dots);
+    var cards = root.querySelectorAll('[data-paper-choice]');
+    for (var i = 0; i < cards.length; i++) {
+      var cmm = parseInt(cards[i].getAttribute('data-paper-choice') || '80', 10);
+      cards[i].classList.toggle('active', cmm === paperNum);
+    }
+  };
+
+  window.selectStationPreset = function(stationLabel, roleVal, btnEl){
+    var root = (btnEl && btnEl.closest('form')) || document.getElementById('dlg-printer-form') || document;
+    var nameInp = root.querySelector('[name="name"]');
+    if (nameInp) { nameInp.value = stationLabel; nameInp.focus(); }
+    var stationInp = root.querySelector('[name="station"]');
+    if (stationInp) stationInp.value = stationLabel;
+    var roleSel = root.querySelector('[name="role"]');
+    if (roleSel && roleVal) roleSel.value = roleVal;
+    var chips = root.querySelectorAll('.station-preset-chip');
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].classList.toggle('active', chips[i] === btnEl);
+    }
+  };
+
+  window.openPrinterSetupDialog = function(btn){
+    var dlg = document.getElementById('dlg-printer-setup');
+    var form = document.getElementById('dlg-printer-form');
+    if (!dlg || !form || !btn) return false;
+    var ds = btn.dataset || {};
+    function setVal(name, val){
+      var el = form.querySelector('[name="' + name + '"]');
+      if (el) el.value = val != null ? String(val) : '';
+    }
+    setVal('id', ds.id || '');
+    var stationName = ds.stationName || ds.name || 'صندوق فروش';
+    setVal('name', stationName);
+    setVal('station', ds.station || stationName);
+    setVal('model', ds.model || 'ESC/POS Thermal');
+    setVal('role', ds.role || 'cashier');
+    setVal('connection_kind', ds.connectionKind || 'network');
+    setVal('host', ds.host || '');
+    setVal('port', ds.port || '9100');
+    setVal('queue_name', ds.queueName || '');
+    setVal('usb_path', ds.usbPath || '');
+    setVal('usb_vid', ds.usbVid || '');
+    setVal('usb_pid', ds.usbPid || '');
+    setVal('usb_serial', ds.usbSerial || '');
+    setVal('usb_bus', ds.usbBus || '0');
+    setVal('usb_port', ds.usbPort || '0');
+    setVal('usb_product', ds.usbProduct || '');
+    setVal('usb_manufacturer', ds.usbManufacturer || '');
+    setVal('copies', ds.copies || '1');
+    setVal('font_size', ds.fontSize || '24');
+    setVal('font_family', ds.fontFamily || 'Noto Sans Arabic');
+
+    var paperMM = parseInt(ds.paperMm || '80', 10) === 58 ? 58 : 80;
+    window.setPrinterPaperMM(paperMM, form);
+    if (ds.widthDots && parseInt(ds.widthDots, 10) > 0) {
+      setVal('width_dots', ds.widthDots);
+    }
+
+    var cutChk = form.querySelector('input[type="checkbox"][name="cut"]');
+    if (cutChk) cutChk.checked = (ds.cut !== 'false' && ds.cut !== '0');
+    var activeChk = form.querySelector('input[type="checkbox"][name="is_active"]');
+    if (activeChk) activeChk.checked = (ds.isActive !== 'false' && ds.isActive !== '0');
+
+    // نمایش مشخصات فنی پرینتر انتخاب‌شده در بالای دیالوگ
+    var badgeEl = document.getElementById('dlg-printer-kind-badge');
+    if (badgeEl) badgeEl.textContent = ds.typeLabel || (ds.connectionKind === 'usb' ? 'پرینتر USB' : (ds.connectionKind === 'spooler' ? 'صف چاپ سیستم‌عامل' : 'پرینتر شبکه (LAN)'));
+    var hwTitle = document.getElementById('dlg-printer-hw-title');
+    if (hwTitle) hwTitle.textContent = (ds.manufacturer ? ds.manufacturer + ' • ' : '') + (ds.model || ds.name || 'چاپگر حرارتی');
+    var hwConn = document.getElementById('dlg-printer-hw-conn');
+    if (hwConn) hwConn.textContent = ds.connectionDetail || ds.host || ds.queueName || ds.usbPath || 'متصل';
+    var hwPort = document.getElementById('dlg-printer-hw-port');
+    if (hwPort) hwPort.textContent = (ds.portInfo || '') + (ds.protocol ? ' • ' + ds.protocol : '');
+
+    // دکمه حذف فقط برای پرینترهای ذخیره‌شده نمایش داده شود
+    var delWrap = document.getElementById('dlg-printer-delete-wrap');
+    var delId = document.getElementById('dlg-printer-delete-id');
+    if (delWrap && delId) {
+      if (ds.id) {
+        delId.value = ds.id;
+        delWrap.hidden = false;
+      } else {
+        delId.value = '';
+        delWrap.hidden = true;
+      }
+    }
+
+    openDlg('dlg-printer-setup');
+    var nameInput = form.querySelector('[name="name"]');
+    if (nameInput) setTimeout(function(){ nameInput.focus(); nameInput.select(); }, 60);
+    return true;
+  };
 
   // ── لغو سفارش ──
   window.ordOpenCancel = function(btn){

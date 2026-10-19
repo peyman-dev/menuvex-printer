@@ -21,3 +21,7 @@ func ListQueues(ctx context.Context) ([]string, error) {
 func sendSpoolerRaw(ctx context.Context, queue string, payload []byte) error {
 	return NewOpError("SPOOLER_UNAVAILABLE", ErrSpoolerUnsupported.Error())
 }
+
+func platformQueueDetails(ctx context.Context) map[string]QueueDetail {
+	return map[string]QueueDetail{}
+}

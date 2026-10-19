@@ -783,9 +783,9 @@ func (s *Store) printJobsAll(ctx context.Context) ([]PrintJobView, error) {
 	return out, nil
 }
 
-// CancelPrintJob removes a job only while it is still queued. A job that is
-// printing, sent or printed is never cancelled, matching the Agent's rule that
-// cancellation is allowed only in the queued state.
+// CancelPrintJob cancels a job as long as it has not already been delivered to
+// the printer (pending, failed, or stuck printing). Jobs that are already sent
+// or printed cannot be cancelled.
 func (s *Store) CancelPrintJob(ctx context.Context, jobID string) (PrintJobView, error) {
 	var result PrintJobView
 	err := s.withTx(ctx, func(st *persistedDB) error {
@@ -798,10 +798,15 @@ func (s *Store) CancelPrintJob(ctx context.Context, jobID string) (PrintJobView,
 		if !decOK {
 			return errors.New("Job چاپ نامعتبر است")
 		}
-		if p.Status != PrintStatusPending {
-			return errors.New("فقط Job در صف را می‌توان لغو کرد؛ این Job قبلاً ارسال شده است")
+		if p.Status == PrintStatusPrinted || p.Status == PrintStatusSent {
+			return errors.New("فقط Job در صف یا خطادار را می‌توان لغو کرد؛ این Job قبلاً ارسال شده است")
+		}
+		if p.Status == PrintStatusCancelled {
+			result = printJobView(p)
+			return nil
 		}
 		p.Status = PrintStatusCancelled
+		p.Uncertain = false
 		p.LastError = "توسط کاربر لغو شد"
 		p.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 		p.Version++
@@ -816,6 +821,62 @@ func (s *Store) CancelPrintJob(ctx context.Context, jobID string) (PrintJobView,
 		return nil
 	})
 	return result, err
+}
+
+// CancelAllPrintJobs cancels all pending, printing, and failed jobs in the
+// queue so the operator can stop/clear active and errored queue items at once.
+func (s *Store) CancelAllPrintJobs(ctx context.Context) (int, error) {
+	cancelled := 0
+	err := s.withTx(ctx, func(st *persistedDB) error {
+		now := time.Now().UTC().Format(time.RFC3339)
+		for key, e := range st.Entities {
+			if e.Type != "print_job" || e.Deleted {
+				continue
+			}
+			p, ok := decodePrintJob(e)
+			if !ok {
+				continue
+			}
+			if p.Status != PrintStatusPending && p.Status != PrintStatusFailed && p.Status != PrintStatusPrinting {
+				continue
+			}
+			p.Status = PrintStatusCancelled
+			p.Uncertain = false
+			p.LastError = "توسط کاربر لغو شد"
+			p.UpdatedAt = now
+			p.Version++
+			raw, mErr := json.Marshal(p)
+			if mErr != nil {
+				return mErr
+			}
+			e.Version = p.Version
+			e.Payload = raw
+			st.Entities[key] = e
+			cancelled++
+		}
+		return nil
+	})
+	return cancelled, err
+}
+
+// ClearPrintQueue deletes all print jobs from the queue (except any in-flight
+// job currently mid-write, which is marked cancelled) so the operator can start
+// with a clean queue.
+func (s *Store) ClearPrintQueue(ctx context.Context) (int, error) {
+	cleared := 0
+	err := s.withTx(ctx, func(st *persistedDB) error {
+		for key, e := range st.Entities {
+			if e.Type != "print_job" || e.Deleted {
+				continue
+			}
+			e.Deleted = true
+			e.Version++
+			st.Entities[key] = e
+			cleared++
+		}
+		return nil
+	})
+	return cleared, err
 }
 
 // RecoverInterruptedPrintJobs closes jobs that were mid-send when the process

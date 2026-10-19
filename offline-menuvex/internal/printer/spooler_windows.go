@@ -111,6 +111,105 @@ type printerInfo4W struct {
 	attributes  uint32
 }
 
+type printerInfo2W struct {
+	serverName         *uint16
+	printerName        *uint16
+	shareName          *uint16
+	portName           *uint16
+	driverName         *uint16
+	comment            *uint16
+	location           *uint16
+	devMode            uintptr
+	sepFile            *uint16
+	printProcessor     *uint16
+	datatype           *uint16
+	parameters         *uint16
+	securityDescriptor uintptr
+	attributes         uint32
+	priority           uint32
+	defaultPriority    uint32
+	startTime          uint32
+	untilTime          uint32
+	status             uint32
+	cJobs              uint32
+	averagePPM         uint32
+}
+
+func readUTF16Bounded(ptr *uint16, base, end uintptr) string {
+	if ptr == nil {
+		return ""
+	}
+	addr := uintptr(unsafe.Pointer(ptr))
+	if addr < base || addr >= end {
+		return ""
+	}
+	maxUnits := (end - addr) / unsafe.Sizeof(uint16(0))
+	var units []uint16
+	for i := uintptr(0); i < maxUnits; i++ {
+		unit := *(*uint16)(unsafe.Add(unsafe.Pointer(ptr), i*unsafe.Sizeof(uint16(0))))
+		if unit == 0 {
+			break
+		}
+		units = append(units, unit)
+	}
+	if len(units) == 0 {
+		return ""
+	}
+	return syscall.UTF16ToString(units)
+}
+
+func platformQueueDetails(ctx context.Context) map[string]QueueDetail {
+	details := map[string]QueueDetail{}
+	select {
+	case <-ctx.Done():
+		return details
+	default:
+	}
+	const flags = printerEnumLocal | printerEnumConnections
+	var needed, count uint32
+	procEnumPrintersW.Call(
+		uintptr(flags), 0, 2, 0, 0,
+		uintptr(unsafe.Pointer(&needed)), uintptr(unsafe.Pointer(&count)),
+	)
+	if needed == 0 || needed > maxPrinterEnumBytes {
+		return details
+	}
+	buffer := make([]byte, int(needed))
+	ok, _, _ := procEnumPrintersW.Call(
+		uintptr(flags), 0, 2, uintptr(unsafe.Pointer(&buffer[0])), uintptr(needed),
+		uintptr(unsafe.Pointer(&needed)), uintptr(unsafe.Pointer(&count)),
+	)
+	runtime.KeepAlive(buffer)
+	if ok == 0 {
+		return details
+	}
+	infoSize := unsafe.Sizeof(printerInfo2W{})
+	if infoSize == 0 || uint64(count)*uint64(infoSize) > uint64(len(buffer)) {
+		return details
+	}
+	infos := unsafe.Slice((*printerInfo2W)(unsafe.Pointer(&buffer[0])), int(count))
+	base := uintptr(unsafe.Pointer(&buffer[0]))
+	end := base + uintptr(len(buffer))
+	for _, info := range infos {
+		name := strings.TrimSpace(readUTF16Bounded(info.printerName, base, end))
+		if name == "" || ValidateQueueName(name) != nil {
+			continue
+		}
+		port := strings.TrimSpace(readUTF16Bounded(info.portName, base, end))
+		driver := strings.TrimSpace(readUTF16Bounded(info.driverName, base, end))
+		mfg, model, cat, portInfo, paper := InferPrinterSpecs(name, "", driver, port)
+		details[name] = QueueDetail{
+			QueueName:    name,
+			DriverModel:  model,
+			Manufacturer: mfg,
+			PortName:     portInfo,
+			Category:     cat,
+			PaperMM:      paper,
+		}
+	}
+	return details
+}
+
 type docInfo1 struct {
 	pDocName    *uint16
 	pOutputFile *uint16
