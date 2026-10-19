@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/sinaqaffari/coffish/desktop/internal/store"
@@ -81,5 +82,21 @@ func TestOrderDialogActions(t *testing.T) {
 	})
 	if _, eErr := a.store.Entity(ctx, "order", doneID); eErr != nil {
 		t.Fatal("completed order must not be deletable")
+	}
+}
+
+// TestRecentOrdersDialogStaysOpen دیالوگ «سفارش‌های صندوق» بعد از اقدام‌های
+// داخل خودش (تغییر مرحله، چاپ فاکتور/آشپزخانه، لغو) نباید بسته شود؛ فقط
+// بستن/Esc/پس‌زمینه و لینک «ویرایش» (data-dlg-close) آن را می‌بندند.
+func TestRecentOrdersDialogStaysOpen(t *testing.T) {
+	a := testApp(t)
+	pos := ordersGet(t, a, "/?page=pos")
+	for _, s := range []string{
+		`id="dlg-recent"`, "__keepRecentDlg", "htmx:beforeRequest", "htmx:afterSwap",
+		"posRecentCounts", "data-dlg-close",
+	} {
+		if !strings.Contains(pos, s) {
+			t.Fatalf("POS recent dialog keep-open missing %q", s)
+		}
 	}
 }

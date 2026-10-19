@@ -859,6 +859,44 @@ document.addEventListener('htmx:afterSwap', function (e) {
   window.printerFoundOpen = function(btn){ pfFill(btn.dataset || {}, false); };
   window.printerEditOpen = function(btn){ pfFill(btn.dataset || {}, true); };
 
+  // ── دیالوگ «سفارش‌های صندوق» بعد از هر اقدام داخل خودش باز می‌ماند ──
+  // تغییر مرحله، چاپ فاکتور/آشپزخانه، لغو و ثبت بدهکار همگی #main-view را
+  // دوباره رندر می‌کنند؛ نسخهٔ تازهٔ دیالوگ hidden است و صندوقدار مجبور بود
+  // مدام دیالوگ را از نو باز کند. پس قبل از درخواست، تب و جستجو را نگه
+  // می‌داریم و بعد از رندر، دیالوگ را با دادهٔ به‌روز باز می‌کنیم.
+  // فقط «بستن»، Esc و کلیک روی پس‌زمینه دیالوگ را می‌بندند (و لینک «ویرایش»
+  // که با data-dlg-close مشخص شده، چون صندوقدار باید سبد ویرایش را ببیند).
+  document.addEventListener('htmx:beforeRequest', function(e){
+    var elt = e.detail && e.detail.elt;
+    if (!elt || !elt.closest) return;
+    if (elt.closest('[data-dlg-close]')) return;
+    if (elt.closest('#dlg-recent') || elt.closest('#dlg-recent-defer')) {
+      window.__keepRecentDlg = {
+        grp: window.posRecentGrp || 'open',
+        q: (document.getElementById('pos-recent-q') || {}).value || ''
+      };
+    }
+  });
+  document.addEventListener('htmx:afterSwap', function(e){
+    var keep = window.__keepRecentDlg;
+    if (!keep) return;
+    if (e.detail && e.detail.target && e.detail.target.id !== 'main-view') return;
+    window.__keepRecentDlg = null;
+    setTimeout(function(){
+      var d = document.getElementById('dlg-recent');
+      if (!d) return;
+      var defer = document.getElementById('dlg-recent-defer');
+      if (defer) { defer.hidden = true; defer.classList.remove('open'); }
+      d.hidden = false;
+      d.classList.add('open');
+      if (typeof window.posRecentCounts === 'function') window.posRecentCounts();
+      var q = document.getElementById('pos-recent-q');
+      if (q) q.value = keep.q || '';
+      if (typeof window.posRecentTab === 'function') window.posRecentTab(keep.grp || 'open');
+      else if (typeof window.posRecentFilter === 'function') window.posRecentFilter();
+    }, 30);
+  });
+
   // ── لغو سفارش ──
   window.ordOpenCancel = function(btn){
     document.getElementById('dlg-cancel-title').textContent = 'لغو سفارش ' + btn.dataset.orderNumber;

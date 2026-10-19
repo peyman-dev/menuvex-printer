@@ -482,7 +482,7 @@
             </form>
             {{end}}
             {{if .IsOpen}}
-            <a href="/?page=pos&amp;edit={{.ID}}" hx-get="/?page=pos&amp;edit={{.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">ویرایش</a>
+            <a href="/?page=pos&amp;edit={{.ID}}" hx-get="/?page=pos&amp;edit={{.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm" data-dlg-close>ویرایش</a>
             <button type="button" class="btn btn-outline btn-sm" onclick="posRecentDefer('{{.ID}}', '{{.CustomerName}}', '{{.TotalFa}}')">بعداً پرداخت می‌کند</button>
             <button type="button" class="btn btn-outline btn-sm danger" onclick="posRecentToggle('cancel-{{.ID}}')">لغو</button>
             {{end}}
