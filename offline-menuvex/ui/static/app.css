@@ -2323,3 +2323,8 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pf-dlg .dlg-field input,.pf-dlg .dlg-field select{height:40px}
 .pf-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:560px){.pf-grid-2{grid-template-columns:1fr}}
+
+/* سلکت‌های دیالوگ پرینتر عمداً بومی‌اند (data-native-select): اسکریپت ui-select
+   در بعضی WebViewها سلکت بومی را زیر تریگر پنهان نمی‌کرد و هر فیلد دو بار دیده می‌شد. */
+.pf-dlg select{height:40px;width:100%;border:1px solid #E3EDF7;border-radius:10px;padding:0 10px;font:inherit;font-size:12.5px;background:#fff;color:#1F2328}
+.pf-dlg .ui-select-native{display:none !important}

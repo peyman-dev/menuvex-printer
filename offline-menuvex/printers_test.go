@@ -775,6 +775,7 @@ func TestFoundPrinterSelectionOpensDialog(t *testing.T) {
 	for _, s := range []string{
 		`id="dlg-printer-found"`, `onclick="printerFoundOpen(this)"`, "POS-80",
 		`name="return_page" value="printers"`, "فونت چاپ همان فونت برنامه است",
+		`id="pf-role" data-native-select`, `id="pf-paper" data-native-select`,
 	} {
 		if !strings.Contains(page, s) {
 			t.Fatalf("printers page missing dialog selection %q", s)
