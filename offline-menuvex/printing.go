@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sinaqaffari/coffish/desktop/internal/printer"
 	"github.com/sinaqaffari/coffish/desktop/internal/store"
 )
 
@@ -132,6 +133,16 @@ func cafeReceiptTexts(cafe store.Entity) (header, footer string) {
 // انتخاب صریح کاربر در پروفایل کافه ذخیره می‌شود (printer_enabled)؛ تا وقتی
 // انتخابی ثبت نشده، داشتنِ حداقل یک چاپگر تعریف‌شده به‌معنای فعال است تا
 // نصب‌های فعلی بدون تغییر رفتار ادامه دهند و صندوقِ بدون چاپگر دکمه چاپ نبیند.
+// printSender is the injectable transport used by the new printer subsystem.
+// Tests replace Application.sender with a fake; production falls back to the
+// audited network/spooler/USB transport.
+func (a *Application) printSender() *printer.Sender {
+	if a.sender != nil {
+		return a.sender
+	}
+	return printer.NewSender()
+}
+
 func (a *Application) printerEnabled(ctx context.Context) bool {
 	if prof, err := a.store.Entity(ctx, "cafe_profile", "cafe-main-profile"); err == nil {
 		switch strings.TrimSpace(prof.Field("printer_enabled")) {
@@ -142,7 +153,15 @@ func (a *Application) printerEnabled(ctx context.Context) bool {
 		}
 	}
 	printers, _ := a.store.Entities(ctx, "printer")
-	return len(printers) > 0
+	for _, p := range printers {
+		if strings.ToLower(strings.TrimSpace(p.Field("is_active"))) == "false" ||
+			strings.TrimSpace(p.Field("is_active")) == "0" ||
+			strings.Contains(p.Field("status"), "غیرفعال") {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // printerDisabledMsg پیام یکدست رد چاپ وقتی کاربر چاپگر را غیرفعال کرده است.
@@ -485,6 +504,13 @@ func buildReceiptLinesFiltered(order store.Entity, cafe store.Entity, docType st
 // روی تراز و برش اثر می‌گذارد: پایان هر فیش Feed + برش جزئی (GS V)
 // فقط همین‌جا و فقط برای Job واقعی فرستاده می‌شود.
 func buildESCPos(lines []receiptLine, paperWidth string) []byte {
+	return buildESCPosCut(lines, paperWidth, true)
+}
+
+// buildESCPosCut is the same renderer with an explicit cutter setting. Turning
+// the cutter off is a real per-printer option, so the GS V command is omitted
+// entirely instead of being disabled by device configuration.
+func buildESCPosCut(lines []receiptLine, paperWidth string, cut bool) []byte {
 	var b strings.Builder
 	buf := make([]byte, 0, 4096)
 	buf = append(buf, 0x1B, 0x40) // ESC @ — مقداردهی اولیه
@@ -583,9 +609,8 @@ func sendToPrinter(job store.PrintJobView, payload []byte) error {
 // dispatchPrintJob یک Job را واقعاً چاپ می‌کند و وضعیتش را پایدار می‌نویسد.
 // خطا برمی‌گرداند تا لایه UI پیام دقیق نشان دهد؛ سفارش هرگز دست نمی‌خورد.
 func (a *Application) dispatchPrintJob(ctx context.Context, job store.PrintJobView) store.PrintJobView {
-	job, err := a.store.UpdatePrintJobStatus(ctx, job.ID, store.PrintStatusPrinting, "")
+	job, err := a.store.ClaimPrintJob(ctx, job.ID)
 	if err != nil {
-		job.Status = store.PrintStatusFailed
 		job.LastError = err.Error()
 		return job
 	}
@@ -611,13 +636,30 @@ func (a *Application) dispatchPrintJob(ctx context.Context, job store.PrintJobVi
 			return catSet[prodCat[productID]]
 		})
 	}
-	payload := buildESCPos(lines, job.PaperWidth)
+	payload := buildESCPosCut(lines, job.PaperWidth, job.Cut)
 	copies := job.Copies
 	if copies < 1 {
 		copies = 1
 	}
 	if copies > 5 {
 		copies = 5
+	}
+	// New-style printers use the audited transport layer; jobs created before
+	// the printer centre (and all rows written by legacy code paths) keep the
+	// original sender so upgrading never changes their behaviour.
+	if job.PrinterKind != "" {
+		profile := a.printerProfileForJob(ctx, job)
+		sender := a.printSender()
+		for i := 0; i < copies; i++ {
+			sendErr := sender.Send(ctx, profile, payload)
+			if sendErr != nil {
+				uncertain := printer.IsUncertain(sendErr) || i > 0
+				updated, _ := a.store.FailPrintJob(ctx, job.ID, sendErr.Error(), uncertain)
+				return updated
+			}
+		}
+		updated, _ := a.store.UpdatePrintJobStatus(ctx, job.ID, store.PrintStatusSent, "")
+		return updated
 	}
 	for i := 0; i < copies; i++ {
 		if sendErr := sendToPrinter(job, payload); sendErr != nil {
@@ -627,6 +669,42 @@ func (a *Application) dispatchPrintJob(ctx context.Context, job store.PrintJobVi
 	}
 	updated, _ := a.store.UpdatePrintJobStatus(ctx, job.ID, store.PrintStatusPrinted, "")
 	return updated
+}
+
+// printerProfileForJob resolves the live printer configuration, falling back to
+// the job's own destination snapshot when the printer was deleted or renamed.
+func (a *Application) printerProfileForJob(ctx context.Context, job store.PrintJobView) printer.Profile {
+	if job.PrinterID != "" {
+		if p, err := a.store.Printer(ctx, job.PrinterID); err == nil {
+			if p.Kind != "" {
+				return p
+			}
+		}
+	}
+	profile := printer.Profile{
+		ID: job.PrinterID, Name: job.PrinterTitle, Kind: job.PrinterKind, Cut: job.Cut,
+	}
+	if strings.HasSuffix(job.PaperWidth, "58mm") {
+		profile.PaperMM = printer.Paper58
+	} else {
+		profile.PaperMM = printer.Paper80
+	}
+	target := job.Target
+	switch job.PrinterKind {
+	case printer.KindNetwork:
+		raw := strings.TrimPrefix(target, "network:")
+		if h, p, ok := strings.Cut(raw, ":"); ok {
+			profile.Host = h
+			if n, err := strconv.Atoi(p); err == nil {
+				profile.Port = n
+			}
+		}
+	case printer.KindSpooler:
+		profile.QueueName = strings.TrimPrefix(target, "queue:")
+	case printer.KindUSB:
+		profile.USB.DevicePath = strings.TrimPrefix(target, "usb:")
+	}
+	return profile.Normalize()
 }
 
 // enqueueAndDispatchPrintJobs چاپ کامل پیش‌فرض (مشتری + آشپزخانه) برای
@@ -642,10 +720,14 @@ func (a *Application) enqueueAndDispatchPrintJobsDocs(ctx context.Context, order
 	if err != nil {
 		return nil, "خطای ساخت Job چاپ: " + err.Error()
 	}
-	var printed, failed int
+	var printed, sent, failed int
 	for _, j := range jobs {
-		if j.Status == store.PrintStatusPrinted {
-			printed++
+		if j.Status == store.PrintStatusPrinted || j.Status == store.PrintStatusSent {
+			if j.Status == store.PrintStatusSent {
+				sent++
+			} else {
+				printed++
+			}
 			continue
 		}
 		if j.Status == store.PrintStatusFailed && j.Attempts > 0 && j.PrinterID == "" {
@@ -658,17 +740,23 @@ func (a *Application) enqueueAndDispatchPrintJobsDocs(ctx context.Context, order
 				jobs[i] = done
 			}
 		}
-		if done.Status == store.PrintStatusPrinted {
+		switch done.Status {
+		case store.PrintStatusPrinted:
 			printed++
-		} else {
+		case store.PrintStatusSent:
+			sent++
+		default:
 			failed++
 		}
 	}
+	delivered := printed + sent
 	switch {
-	case failed == 0 && printed > 0:
-		summary = "فیش‌ها به‌صورت خودکار چاپ شدند (" + strconv.Itoa(printed) + " فیش)."
-	case printed > 0:
-		summary = "بخشی از فیش‌ها چاپ شد و " + strconv.Itoa(failed) + " فیش خطا دارد؛ از «کل سفارشات» تلاش مجدد بزنید."
+	case failed == 0 && sent > 0 && printed == 0:
+		summary = "فیش‌ها برای چاپ به چاپگر ارسال شدند (" + strconv.Itoa(sent) + " فیش)؛ دستگاه‌های RAW تأیید فیزیکی برنمی‌گردانند."
+	case failed == 0 && delivered > 0:
+		summary = "فیش‌ها به‌صورت خودکار چاپ شدند (" + strconv.Itoa(delivered) + " فیش)."
+	case delivered > 0:
+		summary = "بخشی از فیش‌ها ارسال شد و " + strconv.Itoa(failed) + " فیش خطا دارد؛ از «کل سفارشات» تلاش مجدد بزنید."
 	case failed > 0:
 		summary = "سفارش ثبت شد اما چاپ خودکار ناموفق بود (" + strconv.Itoa(failed) + " Job ناموفق)؛ سفارش سالم است و از «کل سفارشات» می‌توانید دوباره چاپ کنید."
 	default:

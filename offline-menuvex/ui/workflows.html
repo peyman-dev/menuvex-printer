@@ -1,4 +1,5 @@
 {{define "workflow"}}
+{{template "printerPages" .}}
 
 {{if eq .Page "pos"}}
   <form method="post" action="{{if .POSEdit}}/local/order-edit{{else}}/local/pos-order{{end}}" hx-post="{{if .POSEdit}}/local/order-edit{{else}}/local/pos-order{{end}}" hx-target="#main-view" id="pos-checkout-form" class="pos-shell">

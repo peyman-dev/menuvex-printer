@@ -31,6 +31,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sinaqaffari/coffish/desktop/internal/printer"
 	"github.com/sinaqaffari/coffish/desktop/internal/store"
 	"github.com/sinaqaffari/coffish/desktop/internal/syncclient"
 )
@@ -62,6 +63,20 @@ type Application struct {
 	templates    *template.Template
 	endpoints    []Endpoint
 	allowed      map[string]bool
+
+	// Printer subsystem (all fields are safe zero values; New initializes them
+	// and tests may replace them with fakes).
+	sender    *printer.Sender
+	scanSvc   *printer.Scanner
+	probeSvc  *printer.Prober
+	usbScan   func() ([]printer.USBDevice, error)
+	queueScan func(context.Context) ([]string, error)
+	netScan   func() ([]printer.NetworkRange, error)
+
+	usbCacheMu  sync.Mutex
+	usbCache    []printer.USBDevice
+	usbCacheErr string
+	usbCacheAt  time.Time
 }
 
 type View struct {
@@ -97,36 +112,53 @@ type View struct {
 	Printers                    []store.Entity
 	PrinterRoutes               []store.Entity
 	PrintJobs                   []store.PrintJobView
-	POSFormToken                string
-	POSGroups                   []POSGroup
-	POSTables                   []POSTableRow
-	POSRecent                   []POSRecentRow
-	POSLastOrderID              string
-	POSLastOrderTotalFa         string
-	POSEdit                     *POSEditState
-	POSStages                   []POSStageOpt
-	POSStageCount               int
-	PrintPolicy                 PrintPolicy
-	CategoryRoutes              []CategoryRouteRow
-	POSOpenSplit                string
-	POSSplitJSON                template.JS
-	ClubTab                     string
-	ClubSubTab                  string
-	ClubRows                    []ClubCustomerRow
-	ClubPayments                []ClubPaymentRow
-	ClubStatMembers             int
-	ClubStatPending             int
-	ClubStatPaid                int
-	ClubSearch                  string
-	ClubGroups                  []ClubGroupRow
-	ClubGroupOpts               []store.Entity
-	ClubOnlyValid               bool
-	ClubGroupDetail             *ClubGroupDetail
-	ClubGroupsTotal             int
-	ClubGroupsValid             int
-	ClubGroupsMembers           int
-	Pricing                     []PricingRow
-	SmartQuotes                 []store.Entity
+	// مرکز چاپگرها: پروفایل‌های جدید، وضعیت بررسی، اسکن و صف چاپ
+	PrinterProfiles     []printer.Profile
+	PrinterProfile      printer.Profile
+	PrinterDraft        printer.Profile
+	PrinterStats        store.PrinterStats
+	PrinterUSBDevices   []printer.USBDevice
+	PrinterUSBError     string
+	PrinterQueues       []string
+	PrinterQueueError   string
+	PrinterNetworks     []printer.NetworkRange
+	PrinterNetworkError string
+	PrinterCheck        *printer.ProbeResult
+	PrinterScan         *printer.ScanStatus
+	PrintJobCounts      store.PrintJobCounts
+	PrintJobFilter      string
+	PrintQueuePrinter   string
+	PrinterRecentJobs   []store.PrintJobView
+	POSFormToken        string
+	POSGroups           []POSGroup
+	POSTables           []POSTableRow
+	POSRecent           []POSRecentRow
+	POSLastOrderID      string
+	POSLastOrderTotalFa string
+	POSEdit             *POSEditState
+	POSStages           []POSStageOpt
+	POSStageCount       int
+	PrintPolicy         PrintPolicy
+	CategoryRoutes      []CategoryRouteRow
+	POSOpenSplit        string
+	POSSplitJSON        template.JS
+	ClubTab             string
+	ClubSubTab          string
+	ClubRows            []ClubCustomerRow
+	ClubPayments        []ClubPaymentRow
+	ClubStatMembers     int
+	ClubStatPending     int
+	ClubStatPaid        int
+	ClubSearch          string
+	ClubGroups          []ClubGroupRow
+	ClubGroupOpts       []store.Entity
+	ClubOnlyValid       bool
+	ClubGroupDetail     *ClubGroupDetail
+	ClubGroupsTotal     int
+	ClubGroupsValid     int
+	ClubGroupsMembers   int
+	Pricing             []PricingRow
+	SmartQuotes         []store.Entity
 	// حساب و گزارش (accounting وب): تب فعال و ارقام نمای کلی/سود و زیان
 	FinTab           string
 	FinCashFa        string
@@ -1723,6 +1755,14 @@ func New(dataDir string) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = s.MigratePrinterSchema(context.Background()); err != nil {
+		s.Close()
+		return nil, err
+	}
+	if _, err = s.RecoverInterruptedPrintJobs(context.Background()); err != nil {
+		s.Close()
+		return nil, err
+	}
 	b := make([]byte, 32)
 	if _, err = rand.Read(b); err != nil {
 		s.Close()
@@ -1767,6 +1807,9 @@ func New(dataDir string) (*Application, error) {
 		sessions:     loadSessionsFile(filepath.Join(dataDir, "sessions.json")),
 		csrf:         hex.EncodeToString(b),
 		templates:    t,
+		sender:       printer.NewSender(),
+		scanSvc:      printer.NewScanner(printer.DefaultScanPolicy(), nil),
+		probeSvc:     printer.NewProber(nil),
 		allowed: map[string]bool{
 			"localhost":       true,
 			"127.0.0.1":       true,
@@ -1865,6 +1908,17 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /local/print-order", a.handlePrintOrder)
 	mux.HandleFunc("POST /local/print-retry", a.handlePrintRetry)
 	mux.HandleFunc("POST /local/print-test", a.handlePrintTest)
+	mux.HandleFunc("POST /local/printer-save", a.handlePrinterSave)
+	mux.HandleFunc("POST /local/printer-active", a.handlePrinterActive)
+	mux.HandleFunc("POST /local/printer-probe", a.handlePrinterProbe)
+	mux.HandleFunc("POST /local/printer-delete", a.handlePrinterDelete)
+	mux.HandleFunc("POST /local/printer-usb-scan", a.handlePrinterUSBScan)
+	mux.HandleFunc("POST /local/printer-scan", a.handlePrinterScanStart)
+	mux.HandleFunc("GET /local/printer-scan-status", a.handlePrinterScanStatus)
+	mux.HandleFunc("POST /local/printer-scan-cancel", a.handlePrinterScanCancel)
+	mux.HandleFunc("POST /local/print-queue-retry", a.handlePrintQueueRetry)
+	mux.HandleFunc("POST /local/print-queue-retry-all", a.handlePrintQueueRetryAll)
+	mux.HandleFunc("POST /local/print-queue-cancel", a.handlePrintQueueCancel)
 	mux.HandleFunc("POST /local/export-backup", a.handleExportBackup)
 	mux.HandleFunc("GET /local/products-export", a.handleProductsExport)
 	mux.HandleFunc("GET /local/inventory-export", a.handleInventoryExport)
@@ -1890,6 +1944,9 @@ func (a *Application) Handler() http.Handler {
 			http.Error(w, "host not allowed", http.StatusForbidden)
 			return
 		}
+		// Marker header used by the desktop launcher to recognise its own
+		// already-running backend instead of starting a second database writer.
+		w.Header().Set("X-MenuVex-App", "offline")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
@@ -3796,6 +3853,97 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				v.CategoryRoutes = append(v.CategoryRoutes, row)
 			}
 		}
+	case "printers":
+		v.PrinterProfiles, _ = a.store.Printers(ctx)
+		v.PrinterStats = a.store.PrinterStats(ctx)
+		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
+		v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", "", 8)
+		v.Printers, _ = a.store.Entities(ctx, "printer")
+	case "printer":
+		id := strings.TrimSpace(r.URL.Query().Get("id"))
+		p, pErr := a.store.Printer(ctx, id)
+		if pErr != nil {
+			v.Page = "printers"
+			v.PrinterProfiles, _ = a.store.Printers(ctx)
+			v.PrinterStats = a.store.PrinterStats(ctx)
+			v.PrintJobCounts = a.store.PrintJobCounts(ctx)
+			v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", "", 8)
+			v.Message = "چاپگر مورد نظر یافت نشد؛ فهرست چاپگرها نمایش داده می‌شود."
+		} else {
+			v.PrinterProfile = p
+			v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", p.ID, 12)
+			if p.LastCheckAt != "" {
+				v.PrinterCheck = &printer.ProbeResult{
+					Host: p.Host, Port: p.Port, State: p.LastCheckState,
+					Summary: p.LastCheckDetail, Stages: p.LastCheckStages,
+					CheckedAt: p.LastCheckAt,
+					Reachable: p.LastCheckState != printer.ProbeOffline,
+				}
+			}
+			v.PrinterProfiles, _ = a.store.Printers(ctx)
+			v.PrinterStats = a.store.PrinterStats(ctx)
+			queues, qErr := a.listQueues(ctx)
+			v.PrinterQueues = queues
+			if qErr != nil {
+				v.PrinterQueueError = qErr.Error()
+			}
+		}
+	case "printer-new":
+		draft := printer.Profile{PaperMM: printer.Paper80, WidthDots: 576, Copies: 1, Cut: true, Active: true}
+		q := r.URL.Query()
+		if kind := strings.ToLower(strings.TrimSpace(q.Get("kind"))); kind == printer.KindNetwork || kind == printer.KindSpooler || kind == printer.KindUSB {
+			draft.Kind = kind
+		}
+		draft.Host = strings.TrimSpace(q.Get("host"))
+		draft.Port, _ = strconv.Atoi(strings.TrimSpace(q.Get("port")))
+		draft.QueueName = strings.TrimSpace(q.Get("queue_name"))
+		draft.USB = printer.USBDevice{
+			DevicePath:   strings.TrimSpace(q.Get("usb_path")),
+			VendorID:     strings.TrimSpace(q.Get("usb_vid")),
+			ProductID:    strings.TrimSpace(q.Get("usb_pid")),
+			Serial:       strings.TrimSpace(q.Get("usb_serial")),
+			Product:      strings.TrimSpace(q.Get("usb_product")),
+			Manufacturer: strings.TrimSpace(q.Get("usb_manufacturer")),
+			Bus:          strings.TrimSpace(q.Get("usb_bus")),
+			PortPath:     strings.TrimSpace(q.Get("usb_port")),
+		}
+		v.PrinterDraft = draft
+		queues, qErr := a.listQueues(ctx)
+		v.PrinterQueues = queues
+		if qErr != nil {
+			v.PrinterQueueError = qErr.Error()
+		}
+		a.usbCacheMu.Lock()
+		if time.Since(a.usbCacheAt) < 2*time.Minute {
+			v.PrinterUSBDevices = append([]printer.USBDevice(nil), a.usbCache...)
+			v.PrinterUSBError = a.usbCacheErr
+		}
+		a.usbCacheMu.Unlock()
+		v.PrinterProfiles, _ = a.store.Printers(ctx)
+	case "printer-scan":
+		networks, nErr := a.listNetworks()
+		v.PrinterNetworks = networks
+		if nErr != nil {
+			v.PrinterNetworkError = nErr.Error()
+		}
+		if id := strings.TrimSpace(r.URL.Query().Get("scan")); id != "" {
+			if snap, ok := a.scanner().Status(id); ok {
+				v.PrinterScan = &snap
+			}
+		}
+		v.PrinterProfiles, _ = a.store.Printers(ctx)
+	case "print-queue":
+		v.PrintJobFilter = strings.TrimSpace(r.URL.Query().Get("status"))
+		switch v.PrintJobFilter {
+		case store.PrintStatusPending, store.PrintStatusPrinting, store.PrintStatusPrinted,
+			store.PrintStatusSent, store.PrintStatusFailed, store.PrintStatusCancelled:
+		default:
+			v.PrintJobFilter = ""
+		}
+		v.PrintQueuePrinter = strings.TrimSpace(r.URL.Query().Get("printer"))
+		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
+		v.PrintJobs, _ = a.store.PrintJobsFilter(ctx, v.PrintJobFilter, v.PrintQueuePrinter, 100)
+		v.PrinterProfiles, _ = a.store.Printers(ctx)
 	case "editor":
 		v.Kind = r.URL.Query().Get("kind")
 		v.EntityID = r.URL.Query().Get("id")
@@ -5049,11 +5197,15 @@ func (a *Application) handlePrinterToggle(w http.ResponseWriter, r *http.Request
 		a.navigatePage(w, r, "settings", "خطا در ذخیره تنظیم چاپگر: "+err.Error())
 		return
 	}
+	retPage := strings.TrimSpace(r.Form.Get("return_page"))
+	if retPage == "" {
+		retPage = "settings"
+	}
 	if enabled {
-		a.navigatePage(w, r, "settings", "چاپگر حرارتی فعال شد؛ حالا چاپگرها را تعریف کنید تا فیش‌ها مستقیم چاپ شوند.")
+		a.navigatePage(w, r, retPage, "چاپگر حرارتی فعال شد؛ حالا چاپگرها را تعریف کنید تا فیش‌ها مستقیم چاپ شوند.")
 		return
 	}
-	a.navigatePage(w, r, "settings", "چاپگر حرارتی غیرفعال شد؛ دکمه‌های چاپ پنهان می‌شوند و هیچ فیشی ارسال نمی‌شود.")
+	a.navigatePage(w, r, retPage, "چاپگر حرارتی غیرفعال شد؛ دکمه‌های چاپ پنهان می‌شوند و هیچ فیشی ارسال نمی‌شود.")
 }
 
 // handlePrintPolicy ذخیره سیاست چاپ خودکار (PrintWorkflowPolicy وب) در
@@ -5210,39 +5362,51 @@ func (a *Application) handlePrintOrder(w http.ResponseWriter, r *http.Request) {
 		if doc == "kitchen" {
 			label = "بلیت آشپزخانه"
 		}
-		printed, failed, found := 0, 0, false
+		printed, sent, failed, found := 0, 0, 0, false
 		for _, j := range jobs {
 			if j.DocType != doc {
 				continue
 			}
 			found = true
-			if j.Status == store.PrintStatusPrinted {
+			if j.Uncertain {
+				failed++
+				continue
+			}
+			if j.Status == store.PrintStatusPrinted || j.Status == store.PrintStatusSent {
 				_, _ = a.store.UpdatePrintJobStatus(r.Context(), j.ID, store.PrintStatusPending, "")
 				j.Status = store.PrintStatusPending
+				j.Uncertain = false
 			}
 			if j.Status == store.PrintStatusFailed && j.PrinterID == "" {
 				failed++
 				continue
 			}
 			done := a.dispatchPrintJob(r.Context(), j)
-			if done.Status == store.PrintStatusPrinted {
+			switch done.Status {
+			case store.PrintStatusPrinted:
 				printed++
-			} else {
+			case store.PrintStatusSent:
+				sent++
+			default:
 				failed++
 			}
 		}
+		delivered := printed + sent
 		msg := label + " چاپ شد."
+		if sent > 0 && printed == 0 {
+			msg = label + " به چاپگر ارسال شد؛ چاپگرهای RAW تأیید فیزیکی برنمی‌گردانند."
+		}
 		switch {
 		case !found:
 			msg = "برای «" + label + "» چاپگر مقصدی تعریف نشده است؛ از تنظیمات چاپگرها بررسی کنید."
-		case printed == 0 && failed > 0:
+		case delivered == 0 && failed > 0:
 			msg = "چاپ " + label + " ناموفق بود؛ از «فیش‌ها» تلاش مجدد بزنید."
 		case failed > 0:
-			msg = label + " چاپ شد و یک مسیر چاپ خطا دارد."
+			msg = label + " ارسال شد و یک مسیر چاپ خطا دارد."
 		}
 		if r.Form.Get("ajax") == "1" {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			ok := found && printed > 0
+			ok := found && (printed+sent) > 0
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": ok, "message": msg})
 			return
 		}
@@ -5260,7 +5424,9 @@ func (a *Application) handlePrintOrder(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, summary)
 }
 
-// handlePrintRetry تلاش دوباره یک Job ناموفق؛ Job چاپ‌شده دوباره چاپ نمی‌شود.
+// handlePrintRetry تلاش دوباره یک Job ناموفق؛ Job تحویل‌شده دوباره چاپ نمی‌شود.
+// نتیجهٔ نامشخص (مثلاً timeout وسط نوشتن) عمداً قابل تلاش دوباره نیست تا فیش
+// دوبار چاپ نشود؛ کاربر باید ابتدا کاغذ را بررسی کند.
 func (a *Application) handlePrintRetry(w http.ResponseWriter, r *http.Request) {
 	if !a.printerEnabled(r.Context()) {
 		a.navigatePage(w, r, "receipts", printerDisabledMsg)
@@ -5272,13 +5438,13 @@ func (a *Application) handlePrintRetry(w http.ResponseWriter, r *http.Request) {
 		a.navigatePage(w, r, "receipts", err.Error())
 		return
 	}
-	if job.Status == store.PrintStatusPrinted {
-		a.navigatePage(w, r, "receipts", "این فیش قبلاً با موفقیت چاپ شده است و برای جلوگیری از چاپ تکراری دوباره ارسال نشد.")
+	if !job.Retryable() {
+		a.navigatePage(w, r, "receipts", "این Job قابل ارسال دوباره نیست: "+job.RetryBlockReason())
 		return
 	}
 	done := a.dispatchPrintJob(r.Context(), job)
-	if done.Status == store.PrintStatusPrinted {
-		a.navigatePage(w, r, "receipts", "فیش «"+done.DocTypeLabel()+"» برای سفارش "+done.OrderNumber+" چاپ شد.")
+	if done.Status == store.PrintStatusPrinted || done.Status == store.PrintStatusSent {
+		a.navigatePage(w, r, "receipts", printOutcomeMessage(done))
 		return
 	}
 	a.navigatePage(w, r, "receipts", "چاپ دوباره ناموفق بود: "+done.LastError)
@@ -5298,17 +5464,19 @@ func (a *Application) handlePrintTest(w http.ResponseWriter, r *http.Request) {
 	if retPage == "" {
 		retPage = "settings"
 	}
-	job, err := a.store.EnqueueTestPrintJob(r.Context(), strings.TrimSpace(r.Form.Get("printer_id")))
+	printerID := strings.TrimSpace(r.Form.Get("printer_id"))
+	job, err := a.store.EnqueueTestPrintJob(r.Context(), printerID)
 	if err != nil {
 		a.navigatePage(w, r, retPage, err.Error())
 		return
 	}
 	done := a.dispatchPrintJob(r.Context(), job)
-	if done.Status == store.PrintStatusPrinted {
-		a.navigatePage(w, r, retPage, "فیش آزمایشی برای «"+done.PrinterTitle+"» چاپ شد.")
+	message := printOutcomeMessage(done)
+	if retPage == "printer" && printerID != "" {
+		a.navigatePrinter(w, r, printerID, message)
 		return
 	}
-	a.navigatePage(w, r, retPage, "چاپ آزمایشی ناموفق بود: "+done.LastError)
+	a.navigatePage(w, r, retPage, message)
 }
 
 func (a *Application) handleDebtorPay(w http.ResponseWriter, r *http.Request) {

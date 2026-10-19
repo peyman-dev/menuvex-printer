@@ -21,11 +21,18 @@ import (
 // خطای چاپ هرگز سفارش ثبت‌شده را حذف یا دوباره ثبت نمی‌کند.
 
 const (
-	PrintStatusPending  = "pending"
-	PrintStatusPrinting = "printing"
-	PrintStatusPrinted  = "printed"
-	PrintStatusFailed   = "failed"
+	PrintStatusPending   = "pending"
+	PrintStatusPrinting  = "printing"
+	PrintStatusPrinted   = "printed"
+	PrintStatusSent      = "sent"
+	PrintStatusFailed    = "failed"
+	PrintStatusCancelled = "cancelled"
 )
+
+// MaxPrintAttempts bounds automatic/manual retries for one job. Once reached,
+// the operator must create a new job deliberately instead of hammering the
+// device (the Agent caps active jobs; this caps retries of a single job).
+const MaxPrintAttempts = 5
 
 // PrintJobView نمای خواندنی یک Job چاپ برای قالب‌ها و API محلی است.
 type PrintJobView struct {
@@ -43,8 +50,15 @@ type PrintJobView struct {
 	Attempts     int
 	Copies       int      // تعداد نسخه چاپ همین Job (پیش‌فرض ۱)
 	Categories   []string // فقط بلیت آشپزخانه: شناسه دسته‌هایی که این بلیت پوشش می‌دهد (خالی = همه)
-	CreatedAt    string
-	UpdatedAt    string
+	// PrinterKind/Target snapshot the destination so a queued job remains
+	// diagnosable after the printer is edited or deleted. Empty Kind means the
+	// job was created by the pre-printer-centre code path (legacy transport).
+	PrinterKind string
+	Target      string
+	Cut         bool
+	Uncertain   bool
+	CreatedAt   string
+	UpdatedAt   string
 }
 
 // StatusLabel برچسب فارسی وضعیت Job برای نمایش در UI.
@@ -54,6 +68,10 @@ func (j PrintJobView) StatusLabel() string {
 		return "چاپ شد"
 	case PrintStatusPrinting:
 		return "در حال چاپ"
+	case PrintStatusSent:
+		return "ارسال شد (بدون تأیید چاپ)"
+	case PrintStatusCancelled:
+		return "لغو شد"
 	case PrintStatusFailed:
 		return "خطای چاپ"
 	default:
@@ -68,6 +86,10 @@ func (j PrintJobView) StatusClass() string {
 		return "status-ok"
 	case PrintStatusPrinting:
 		return "status-info"
+	case PrintStatusSent:
+		return "status-info"
+	case PrintStatusCancelled:
+		return "status-muted"
 	case PrintStatusFailed:
 		return "status-danger"
 	default:
@@ -75,11 +97,38 @@ func (j PrintJobView) StatusClass() string {
 	}
 }
 
+// Retryable reports whether the operator can safely resend this job. A printed
+// job is terminal. A failed job is retryable only when the transport confirmed
+// that zero bytes were handed over; an uncertain failure may already be on
+// paper.
+func (j PrintJobView) Retryable() bool {
+	return j.Status == PrintStatusFailed && !j.Uncertain && j.Attempts < MaxPrintAttempts
+}
+
+// RetryBlockReason explains a disabled retry button.
+func (j PrintJobView) RetryBlockReason() string {
+	switch {
+	case j.Status == PrintStatusPrinted || j.Status == PrintStatusSent:
+		return "این Job قبلاً به چاپگر تحویل داده شده است"
+	case j.Status == PrintStatusCancelled:
+		return "این Job لغو شده است"
+	case j.Status == PrintStatusPrinting:
+		return "این Job همین حالا در حال چاپ است"
+	case j.Uncertain:
+		return "نتیجهٔ ارسال نامشخص است؛ پیش از تلاش دوباره، کاغذ چاپگر را بررسی کنید"
+	case j.Attempts >= MaxPrintAttempts:
+		return "حداکثر تلاش مجاز برای این Job تمام شده است"
+	case j.Status != PrintStatusFailed:
+		return "این Job در صف است و نیازی به تلاش دوباره ندارد"
+	}
+	return ""
+}
+
 // DocTypeLabel برچسب فارسی نوع فیش.
 func (j PrintJobView) DocTypeLabel() string {
 	switch j.DocType {
 	case "kitchen":
-		return "حواله آماده‌سازی (بار/آشپزخانه)"
+		return "بلیت آشپزخانه (بار)"
 	case "test":
 		return "فیش آزمایشی چاپگر"
 	default:
@@ -88,24 +137,28 @@ func (j PrintJobView) DocTypeLabel() string {
 }
 
 type printJobPayload struct {
-	ID           string `json:"id"`
-	OrderID      string `json:"order_id"`
-	OrderNumber  string `json:"order_number"`
-	DocType      string `json:"doc_type"`
-	PrinterID    string `json:"printer_id"`
-	PrinterTitle string `json:"printer_title"`
-	Connection   string `json:"connection"`
-	Queue        string `json:"queue"`
-	PaperWidth   string `json:"paper_width"`
-	Status       string `json:"status"`
+	ID           string   `json:"id"`
+	OrderID      string   `json:"order_id"`
+	OrderNumber  string   `json:"order_number"`
+	DocType      string   `json:"doc_type"`
+	PrinterID    string   `json:"printer_id"`
+	PrinterTitle string   `json:"printer_title"`
+	Connection   string   `json:"connection"`
+	Queue        string   `json:"queue"`
+	PaperWidth   string   `json:"paper_width"`
+	Status       string   `json:"status"`
 	LastError    string   `json:"last_error"`
 	Attempts     int      `json:"attempts"`
 	Copies       int      `json:"copies,omitempty"`
 	Categories   []string `json:"categories,omitempty"`
+	PrinterKind  string   `json:"printer_kind,omitempty"`
+	Target       string   `json:"target,omitempty"`
+	Cut          *bool    `json:"cut,omitempty"`
+	Uncertain    bool     `json:"uncertain,omitempty"`
 	DedupeKey    string   `json:"dedupe_key"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
-	Version      int64  `json:"version"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
+	Version      int64    `json:"version"`
 }
 
 func printJobView(p printJobPayload) PrintJobView {
@@ -113,11 +166,16 @@ func printJobView(p printJobPayload) PrintJobView {
 	if copies < 1 {
 		copies = 1
 	}
+	cut := true
+	if p.Cut != nil {
+		cut = *p.Cut
+	}
 	return PrintJobView{
 		ID: p.ID, OrderID: p.OrderID, OrderNumber: p.OrderNumber, DocType: p.DocType,
 		PrinterID: p.PrinterID, PrinterTitle: p.PrinterTitle, Connection: p.Connection,
 		Queue: p.Queue, PaperWidth: p.PaperWidth, Status: p.Status, LastError: p.LastError,
 		Attempts: p.Attempts, Copies: copies, Categories: p.Categories,
+		PrinterKind: p.PrinterKind, Target: p.Target, Cut: cut, Uncertain: p.Uncertain,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 }
@@ -192,6 +250,20 @@ func (s *Store) EnqueueOrderPrintJobsDocs(ctx context.Context, orderID string, d
 		}
 		return nil
 	}
+	hasRole := func(printer Entity, role string) bool {
+		r := strings.ToLower(strings.TrimSpace(printer.Field("role")))
+		if r == role || r == "all" || r == "both" {
+			return true
+		}
+		text := printer.Field("station") + " " + printer.Label()
+		switch role {
+		case "cashier":
+			return strings.Contains(text, "صندوق") || strings.Contains(strings.ToLower(text), "cashier")
+		case "kitchen":
+			return strings.Contains(text, "بار") || strings.Contains(text, "آشپزخانه") || strings.Contains(strings.ToLower(text), "kitchen")
+		}
+		return false
+	}
 	nameMatches := func(printer Entity, name string) bool {
 		name = strings.TrimSpace(name)
 		if name == "" {
@@ -218,18 +290,12 @@ func (s *Store) EnqueueOrderPrintJobsDocs(ctx context.Context, orderID string, d
 	}
 
 	// فیش مشتری ← چاپگر صندوق (ایستگاه صندوق/کشیر) یا اولین چاپگر فعال
-	cashier := findPrinter(func(p Entity) bool {
-		st := p.Field("station") + p.Label()
-		return strings.Contains(st, "صندوق") || strings.Contains(strings.ToLower(st), "cashier")
-	})
+	cashier := findPrinter(func(p Entity) bool { return hasRole(p, "cashier") })
 	if cashier == nil {
 		cashier = &active[0]
 	}
 	kitchenStation := func() *Entity {
-		return findPrinter(func(p Entity) bool {
-			st := p.Field("station") + p.Label()
-			return strings.Contains(st, "بار") || strings.Contains(st, "آشپزخانه") || strings.Contains(strings.ToLower(st), "kitchen")
-		})
+		return findPrinter(func(p Entity) bool { return hasRole(p, "kitchen") })
 	}
 
 	type wanted struct {
@@ -375,12 +441,20 @@ func (s *Store) EnqueueOrderPrintJobsDocs(ctx context.Context, orderID string, d
 			sort.Strings(sorted)
 			cats = sorted
 		}
+		profile := ProfileFromEntity(*wn.Printer)
+		kind := strings.ToLower(strings.TrimSpace(wn.Printer.Field("kind")))
+		target := ""
+		if kind != "" {
+			target = profile.TargetLabel()
+		}
+		cut := profile.Cut
 		payloads = append(payloads, printJobPayload{
 			OrderID: orderID, OrderNumber: orderNumber, DocType: wn.DocType,
 			PrinterID: wn.Printer.ID, PrinterTitle: wn.Printer.Label(),
 			Connection: wn.Printer.Field("connection"), Queue: wn.Printer.Field("queue"),
 			PaperWidth: paper, Status: PrintStatusPending, CreatedAt: now, UpdatedAt: now,
 			Copies: wn.Copies, Categories: cats,
+			PrinterKind: kind, Target: target, Cut: &cut,
 			DedupeKey: orderID + "|" + wn.DocType + "|" + wn.Printer.ID + "|" + strconv.Itoa(wn.Copies) + "|" + catSig(cats),
 		})
 	}
@@ -402,10 +476,18 @@ func (s *Store) EnqueueTestPrintJob(ctx context.Context, printerID string) (Prin
 	if err != nil {
 		return PrintJobView{}, err
 	}
+	profile := ProfileFromEntity(printer)
+	kind := strings.ToLower(strings.TrimSpace(printer.Field("kind")))
+	target := ""
+	if kind != "" {
+		target = profile.TargetLabel()
+	}
+	cut := profile.Cut
 	p := printJobPayload{
 		ID: id, DocType: "test", PrinterID: printer.ID, PrinterTitle: printer.Label(),
 		Connection: printer.Field("connection"), Queue: printer.Field("queue"),
 		PaperWidth: paper, Status: PrintStatusPending, CreatedAt: now, UpdatedAt: now,
+		PrinterKind: kind, Target: target, Cut: &cut,
 		DedupeKey: "test|" + id,
 	}
 	if err := s.savePrintJob(ctx, p); err != nil {
@@ -431,7 +513,8 @@ func (s *Store) createPrintJobs(ctx context.Context, orderID, orderNumber string
 	for _, p := range payloads {
 		if p.DedupeKey != "" {
 			if old, ok := byDedupe[p.DedupeKey]; ok &&
-				(old.Status == PrintStatusPending || old.Status == PrintStatusPrinting || old.Status == PrintStatusPrinted) {
+				(old.Status == PrintStatusPending || old.Status == PrintStatusPrinting ||
+					old.Status == PrintStatusPrinted || old.Status == PrintStatusSent) {
 				out = append(out, old)
 				continue
 			}
@@ -541,4 +624,230 @@ func (s *Store) UpdatePrintJobStatus(ctx context.Context, jobID, status, lastErr
 		return nil
 	})
 	return result, err
+}
+
+// ClaimPrintJob atomically moves a job to "printing" before any byte is sent.
+// This is the concurrency guard that makes repeated HTTP retries safe: the
+// second request sees "printing"/"sent"/"printed" and is refused instead of
+// printing the same receipt again.
+func (s *Store) ClaimPrintJob(ctx context.Context, jobID string) (PrintJobView, error) {
+	var result PrintJobView
+	err := s.withTx(ctx, func(st *persistedDB) error {
+		key := entityKey("print_job", jobID)
+		e, ok := st.Entities[key]
+		if !ok || e.Deleted {
+			return errors.New("Job چاپ یافت نشد")
+		}
+		p, decOK := decodePrintJob(e)
+		if !decOK {
+			return errors.New("Job چاپ نامعتبر است")
+		}
+		switch p.Status {
+		case PrintStatusPrinting:
+			return errors.New("این Job همین حالا در حال چاپ است؛ درخواست تکراری ارسال نشد")
+		case PrintStatusPrinted, PrintStatusSent:
+			return errors.New("این Job قبلاً به چاپگر تحویل داده شده است و دوباره ارسال نمی‌شود")
+		case PrintStatusCancelled:
+			return errors.New("این Job لغو شده است و دوباره ارسال نمی‌شود")
+		}
+		if p.Uncertain {
+			return errors.New("نتیجهٔ ارسال قبلی نامشخص است؛ برای جلوگیری از چاپ تکراری، ابتدا کاغذ چاپگر را بررسی کنید")
+		}
+		if p.Attempts >= MaxPrintAttempts {
+			return errors.New("حداکثر تلاش مجاز برای این Job تمام شده است")
+		}
+		p.Status = PrintStatusPrinting
+		p.Attempts++
+		p.LastError = ""
+		p.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		p.Version++
+		raw, mErr := json.Marshal(p)
+		if mErr != nil {
+			return mErr
+		}
+		e.Version = p.Version
+		e.Payload = raw
+		st.Entities[key] = e
+		result = printJobView(p)
+		return nil
+	})
+	return result, err
+}
+
+// FailPrintJob records a failed delivery. uncertain means bytes may already
+// have reached the device, so the UI must not offer a one-click retry.
+func (s *Store) FailPrintJob(ctx context.Context, jobID, message string, uncertain bool) (PrintJobView, error) {
+	var result PrintJobView
+	err := s.withTx(ctx, func(st *persistedDB) error {
+		key := entityKey("print_job", jobID)
+		e, ok := st.Entities[key]
+		if !ok || e.Deleted {
+			return errors.New("Job چاپ یافت نشد")
+		}
+		p, decOK := decodePrintJob(e)
+		if !decOK {
+			return errors.New("Job چاپ نامعتبر است")
+		}
+		p.Status = PrintStatusFailed
+		p.LastError = message
+		p.Uncertain = uncertain
+		p.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		p.Version++
+		raw, mErr := json.Marshal(p)
+		if mErr != nil {
+			return mErr
+		}
+		e.Version = p.Version
+		e.Payload = raw
+		st.Entities[key] = e
+		result = printJobView(p)
+		return nil
+	})
+	return result, err
+}
+
+// PrintJobsFilter lists jobs by optional status and printer, newest first.
+func (s *Store) PrintJobsFilter(ctx context.Context, status, printerID string, limit int) ([]PrintJobView, error) {
+	all, err := s.printJobsAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PrintJobView, 0, len(all))
+	for _, j := range all {
+		if status != "" && j.Status != status {
+			continue
+		}
+		if printerID != "" && j.PrinterID != printerID {
+			continue
+		}
+		out = append(out, j)
+		if limit > 0 && len(out) >= limit {
+			break
+		}
+	}
+	return out, nil
+}
+
+// PrintJobCounts summarizes the queue for the management dashboard.
+type PrintJobCounts struct {
+	Total, Pending, Printing, Printed, Sent, Failed, Cancelled, Retryable int
+}
+
+// PrintJobCounts computes counters from every stored job (not only the latest
+// 100 returned by PrintJobs).
+func (s *Store) PrintJobCounts(ctx context.Context) PrintJobCounts {
+	all, _ := s.printJobsAll(ctx)
+	var c PrintJobCounts
+	for _, j := range all {
+		c.Total++
+		switch j.Status {
+		case PrintStatusPending:
+			c.Pending++
+		case PrintStatusPrinting:
+			c.Printing++
+		case PrintStatusPrinted:
+			c.Printed++
+		case PrintStatusSent:
+			c.Sent++
+		case PrintStatusFailed:
+			c.Failed++
+		case PrintStatusCancelled:
+			c.Cancelled++
+		}
+		if j.Retryable() {
+			c.Retryable++
+		}
+	}
+	return c
+}
+
+func (s *Store) printJobsAll(ctx context.Context) ([]PrintJobView, error) {
+	ents, err := s.Entities(ctx, "print_job")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PrintJobView, 0, len(ents))
+	for _, e := range ents {
+		p, ok := decodePrintJob(storedEntity{ID: e.ID, Type: e.Type, Version: e.Version, Payload: e.Payload})
+		if !ok {
+			continue
+		}
+		out = append(out, printJobView(p))
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt == out[j].CreatedAt {
+			return out[i].ID > out[j].ID
+		}
+		return out[i].CreatedAt > out[j].CreatedAt
+	})
+	return out, nil
+}
+
+// CancelPrintJob removes a job only while it is still queued. A job that is
+// printing, sent or printed is never cancelled, matching the Agent's rule that
+// cancellation is allowed only in the queued state.
+func (s *Store) CancelPrintJob(ctx context.Context, jobID string) (PrintJobView, error) {
+	var result PrintJobView
+	err := s.withTx(ctx, func(st *persistedDB) error {
+		key := entityKey("print_job", jobID)
+		e, ok := st.Entities[key]
+		if !ok || e.Deleted {
+			return errors.New("Job چاپ یافت نشد")
+		}
+		p, decOK := decodePrintJob(e)
+		if !decOK {
+			return errors.New("Job چاپ نامعتبر است")
+		}
+		if p.Status != PrintStatusPending {
+			return errors.New("فقط Job در صف را می‌توان لغو کرد؛ این Job قبلاً ارسال شده است")
+		}
+		p.Status = PrintStatusCancelled
+		p.LastError = "توسط کاربر لغو شد"
+		p.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		p.Version++
+		raw, mErr := json.Marshal(p)
+		if mErr != nil {
+			return mErr
+		}
+		e.Version = p.Version
+		e.Payload = raw
+		st.Entities[key] = e
+		result = printJobView(p)
+		return nil
+	})
+	return result, err
+}
+
+// RecoverInterruptedPrintJobs closes jobs that were mid-send when the process
+// stopped. Bytes may or may not have reached the printer, so the recovered job
+// is marked uncertain and is never offered for automatic/one-click retry.
+func (s *Store) RecoverInterruptedPrintJobs(ctx context.Context) (int, error) {
+	recovered := 0
+	err := s.withTx(ctx, func(st *persistedDB) error {
+		now := time.Now().UTC().Format(time.RFC3339)
+		for key, e := range st.Entities {
+			if e.Type != "print_job" || e.Deleted {
+				continue
+			}
+			p, ok := decodePrintJob(e)
+			if !ok || p.Status != PrintStatusPrinting {
+				continue
+			}
+			p.Status = PrintStatusFailed
+			p.Uncertain = true
+			p.LastError = "برنامه پیش از پایان ارسال بسته شد؛ ممکن است بخشی از فیش چاپ شده باشد. پیش از هر اقدامی کاغذ چاپگر را بررسی کنید."
+			p.UpdatedAt = now
+			p.Version++
+			raw, err := json.Marshal(p)
+			if err != nil {
+				return err
+			}
+			e.Payload = raw
+			e.Version = p.Version
+			st.Entities[key] = e
+			recovered++
+		}
+		return nil
+	})
+	return recovered, err
 }

@@ -2222,3 +2222,67 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pf-unit-badge{position:absolute;inset-inline-end:10px;font-size:11px;font-weight:700;color:#98A2B3;pointer-events:none}
 .sp-cost-hint{display:block;font-size:11px;line-height:1.7;color:#0369A1;margin-top:4px;min-height:0}
 .sp-table .sp-cost-hint:empty{display:none}
+
+/* ─── مرکز چاپگرها (پرترهٔ Offline از Printer Agent) ─────────────────── */
+.printer-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:16px;align-items:start;width:100%;min-width:0}
+.printer-layout > .panel-card{margin-bottom:0}
+.printer-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0 0 16px}
+.printer-stats article{background:#fff;border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.printer-stats article span{font-size:11.5px;color:var(--text-secondary)}
+.printer-stats article strong{font-size:20px;font-weight:800;color:var(--text-primary)}
+.printer-stats article.has-error{border-color:var(--danger-border,#FDA29B);background:var(--danger-bg,#FEF3F2)}
+.printer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin:0 0 16px}
+.printer-card{background:#fff;border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px}
+.printer-card.is-off{opacity:.78;background:#FAFBFC}
+.printer-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.printer-card-head strong{display:block;font-size:15px;font-weight:800;color:var(--text-primary)}
+.printer-card-head small{display:block;font-size:11.5px;color:var(--text-secondary);margin-top:3px}
+.printer-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin:0}
+.printer-meta div{min-width:0}
+.printer-meta dt{font-size:11px;color:var(--text-tertiary,#98A2B3);margin:0 0 2px}
+.printer-meta dd{margin:0;font-size:12.5px;color:var(--text-primary);overflow-wrap:anywhere}
+.printer-check-note{font-size:11.5px;color:var(--text-secondary);margin:0;line-height:1.8}
+.printer-card-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--border-color);padding-top:12px}
+.printer-support-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.wizard-steps{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.wizard-step{font-size:12px;font-weight:700;color:var(--text-secondary);background:#fff;border:1px dashed var(--border-color);border-radius:999px;padding:6px 12px}
+.wizard-step.is-done{color:var(--primary);border-style:solid;border-color:var(--primary);background:var(--brand-50,#EFF6FF)}
+.wizard-section{border:1px solid var(--border-color);border-radius:var(--radius-md);padding:14px 16px;display:flex;flex-direction:column;gap:12px;background:#FCFDFE}
+.wizard-section h3{margin:0;font-size:14px;font-weight:800;color:var(--text-primary)}
+.wizard-section.wizard-submit{background:#fff}
+.printer-kind-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.printer-kind-option{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px;background:#fff;cursor:pointer}
+.printer-kind-option:has(input:checked){border-color:var(--primary);box-shadow:0 0 0 2px rgba(36,104,204,.12)}
+.printer-kind-option input{margin-top:3px}
+.printer-kind-option strong{display:block;font-size:13px;font-weight:800;color:var(--text-primary)}
+.printer-kind-option small{display:block;font-size:11.5px;color:var(--text-secondary);margin-top:4px;line-height:1.7}
+.printer-fields-group{border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.printer-fields-group legend{font-size:11.5px;font-weight:800;color:var(--text-secondary);padding:0 6px}
+.field-hint{font-size:11.5px;color:var(--text-secondary);margin:0;line-height:1.9}
+.field-hint.field-warn{color:var(--danger-fg)}
+.inline-check{flex-direction:row!important;align-items:center!important;gap:8px!important;font-weight:600!important}
+.inline-check input[type="checkbox"]{flex:none}
+.printer-discovery{display:flex;flex-direction:column;gap:10px}
+.printer-discovery .btn-block{margin:0}
+.usb-list{margin-top:4px;border-top:1px solid var(--border-color)}
+.printer-actions-stack{display:flex;flex-direction:column;gap:8px}
+.probe-panel{border-top:1px solid var(--border-color);margin-top:14px;padding-top:14px}
+.probe-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.probe-stages{display:flex;flex-direction:column;gap:10px;margin:10px 0}
+.probe-stage{display:flex;gap:10px;align-items:flex-start}
+.probe-stage > .badge{flex:none}
+.probe-stage strong{display:block;font-size:12.5px;color:var(--text-primary)}
+.probe-stage small{display:block;font-size:11.5px;color:var(--text-secondary);line-height:1.8;margin-top:2px}
+.danger-zone{border-top:1px solid var(--border-color);margin-top:14px;padding-top:12px}
+.danger-zone summary{cursor:pointer;font-size:12.5px;font-weight:800;color:var(--danger-fg)}
+.danger-zone .form-grid{margin-top:10px}
+.queue-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.queue-filter{font-size:12px;font-weight:700;border:1px solid var(--border-color);border-radius:999px;padding:5px 12px;color:var(--text-secondary);background:#fff}
+.queue-filter.is-active{border-color:var(--primary);color:var(--primary);background:var(--brand-50,#EFF6FF)}
+.queue-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.print-queue-table td{vertical-align:top}
+.scan-panel{margin-top:16px}
+.scan-progress{height:10px;border-radius:999px;background:#EEF2F6;overflow:hidden;margin:6px 0 4px}
+.scan-progress-bar{height:100%;background:linear-gradient(90deg,var(--primary),#14B8A6);transition:width .35s ease}
+@media (max-width:1100px){.printer-layout{grid-template-columns:minmax(0,1fr)}.printer-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.printer-kind-options{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.printer-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.printer-meta{grid-template-columns:minmax(0,1fr)}}
