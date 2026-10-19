@@ -23,9 +23,12 @@ The script **checks its invariants before rendering** and exits non-zero if one 
   adapter-supplied currency word only) and the planner labels/sizes/emphasis of the app-template
   design (slip row, four column table on 80mm, stacked items on 58mm, dashed note frame, brand
   line) against the real `layout.rs` (both must not drift apart),
-- every planned character has a glyph in the bundled font — the previous design's `─` (U+2500)
-  separator did not, which is why it printed as boxes, and the missing-glyph case is asserted,
+- free-form receipt hints (`[center]`, two-to-four `|` columns and separator runs) map to centered text, bounded cells and pixel rules, and every planned character has a glyph in the bundled font,
 - every sample stays inside the 4096 row protocol limit.
+
+A free-form receipt can use `----------------` for a pixel rule, `[center] text` for a centered line,
+`item | quantity | amount` for right-to-left columns, and an empty line for spacing. Test tickets
+also print the configured paper millimeters/dots; this is a profile check, not physical-width sensing.
 
 This is a review tool, not a hardware test: it proves the layout rules are consistent, not that a
 specific printer produced good paper. Physical acceptance (alignment, darkness, cutter, paper

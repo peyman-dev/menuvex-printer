@@ -3,6 +3,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <utility>
 #include <vector>
 #include <bcrypt.h>
 #include <cstring>
@@ -302,12 +303,15 @@ static bool rtl(const std::wstring &text) {
     }
     return false;
 }
-// A line of dashes is a separator rule, drawn as pixels so the design never depends on a glyph.
+// A line made only of separator marks is a rule drawn as pixels, never as a font glyph.
 static bool separator(const std::wstring &text) {
-    if (text.size() < 2)
+    if (text.size() < 3)
         return false;
     for (wchar_t c : text)
-        if (c != L'-' && c != L'=' && c != L'*')
+        if (c != L'-' && c != L'_' && c != L'=' && c != L'*' && c != 0x2010 &&
+            c != 0x2011 && c != 0x2012 && c != 0x2013 && c != 0x2014 && c != 0x2015 &&
+            c != 0xfe58 && c != 0xfe63 && c != 0xff0d && c != 0x2500 && c != 0x2501 &&
+            c != 0x2550)
             return false;
     return true;
 }
@@ -357,61 +361,158 @@ std::vector<unsigned char> render(const Json &p, const Json &doc) {
     if (!canvas.dc || !canvas.font)
         throw Error("ESC_POS_ERROR", "Cannot create text renderer");
     canvas.old_font = SelectObject(canvas.dc, canvas.font);
-    std::vector<std::wstring> wrapped;
-    for (const auto &logical : lines(doc)) {
+    enum class Align { left, center, right };
+    struct DrawCell {
+        std::wstring text;
+        Align align;
+        int left, right;
+    };
+    struct DrawRow {
+        bool rule = false;
+        bool dashed = false;
+        std::vector<DrawCell> cells;
+    };
+    std::vector<DrawRow> rows;
+    auto trim = [](std::wstring value) {
+        auto whitespace = [](wchar_t c) { return c == L' ' || c == L'\t' || c == L'\r'; };
+        while (!value.empty() && whitespace(value.front()))
+            value.erase(value.begin());
+        while (!value.empty() && whitespace(value.back()))
+            value.pop_back();
+        return value;
+    };
+    auto wrap = [&](std::wstring part, int max_width) {
+        std::vector<std::wstring> out;
+        max_width = std::max(1, max_width);
+        if (part.empty()) {
+            out.push_back(L"");
+            return out;
+        }
+        while (!part.empty()) {
+            Analysis a;
+            if (measure(canvas.dc, part, a) <= max_width) {
+                out.push_back(part);
+                break;
+            }
+            std::size_t low = 1, high = part.size(), best = 0;
+            while (low <= high) {
+                auto mid = (low + high) / 2;
+                if (mid < part.size() && part[mid] >= 0xdc00 && part[mid] <= 0xdfff)
+                    --mid;
+                if (mid == 0) {
+                    low = 2;
+                    continue;
+                }
+                Analysis test;
+                if (measure(canvas.dc, part.substr(0, mid), test) <= max_width) {
+                    best = mid;
+                    low = mid + 1;
+                    if (low < part.size() && part[low] >= 0xdc00 && part[low] <= 0xdfff)
+                        ++low;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            if (!best)
+                throw Error("ESC_POS_ERROR", "A glyph exceeds printer width");
+            auto space = part.rfind(L' ', best - 1);
+            if (space != std::wstring::npos && space > 0)
+                best = space;
+            out.push_back(part.substr(0, best));
+            part.erase(0, best);
+            while (!part.empty() && part.front() == L' ')
+                part.erase(part.begin());
+        }
+        return out;
+    };
+    auto append_segment = [&](std::wstring text, bool centered) {
+        text = trim(std::move(text));
+        if (text.empty()) {
+            rows.push_back({});
+            return;
+        }
+        if (text == L"[dashed]") {
+            rows.push_back({true, true, {}});
+            return;
+        }
+        if (separator(text)) {
+            rows.push_back({true, false, {}});
+            return;
+        }
+        if (!centered) {
+            std::vector<std::wstring> cells;
+            std::size_t start = 0;
+            for (;;) {
+                auto delimiter = text.find(L'|', start);
+                cells.push_back(trim(text.substr(start, delimiter == std::wstring::npos
+                                                           ? std::wstring::npos
+                                                           : delimiter - start)));
+                if (delimiter == std::wstring::npos)
+                    break;
+                start = delimiter + 1;
+            }
+            if (cells.size() >= 2 && cells.size() <= 4) {
+                static const int weights[][4] = {{3, 2, 0, 0}, {45, 15, 40, 0},
+                                                  {34, 12, 27, 27}};
+                const int *row_weights = weights[cells.size() - 2];
+                const int gutter = std::max(4, font_size / 3);
+                const int usable = std::max(static_cast<int>(cells.size()), limit -
+                    gutter * static_cast<int>(cells.size() - 1));
+                int right = width - margin;
+                std::vector<std::vector<std::wstring>> wrapped_cells;
+                std::vector<std::pair<int, int>> bounds;
+                std::size_t row_count = 1;
+                const int sum_weights = cells.size() == 2 ? 5 : 100;
+                for (std::size_t i = 0; i < cells.size(); ++i) {
+                    const int cell_width = std::max(1, usable * row_weights[i] / sum_weights);
+                    const int left = right - cell_width;
+                    auto parts = wrap(cells[i], cell_width);
+                    row_count = std::max(row_count, parts.size());
+                    wrapped_cells.push_back(std::move(parts));
+                    bounds.emplace_back(left, right);
+                    right = left - gutter;
+                }
+                for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+                    DrawRow row;
+                    for (std::size_t i = 0; i < cells.size(); ++i) {
+                        const auto &parts = wrapped_cells[i];
+                        row.cells.push_back({row_index < parts.size() ? parts[row_index] : L"",
+                                             i == 0 ? Align::right :
+                                                 i + 1 == cells.size() ? Align::left : Align::center,
+                                             bounds[i].first, bounds[i].second});
+                    }
+                    rows.push_back(std::move(row));
+                }
+                return;
+            }
+        }
+        const auto align = centered ? Align::center : (rtl(text) ? Align::right : Align::left);
+        for (const auto &part : wrap(text, limit))
+            rows.push_back({false, false, {{part, align, margin, width - margin}}});
+    };
+    for (const auto &logical : printable_lines(doc, static_cast<unsigned>(width))) {
         auto text = wide(logical);
+        bool centered = false;
+        if (text.rfind(L"[center]", 0) == 0) {
+            centered = true;
+            text = trim(text.substr(8));
+            if (!text.empty() && text.front() == L':')
+                text = trim(text.substr(1));
+        }
         std::size_t start = 0;
         do {
-            auto end = text.find(L'\n', start);
+            const auto end = text.find(L'\n', start);
+            append_segment(text.substr(start, end == std::wstring::npos ? std::wstring::npos
+                                                                          : end - start),
+                           centered);
             if (end == std::wstring::npos)
-                end = text.size();
-            auto part = text.substr(start, end - start);
-            if (part.empty())
-                wrapped.push_back(L"");
-            while (!part.empty()) {
-                Analysis a;
-                int pixels = measure(canvas.dc, part, a);
-                if (pixels <= limit) {
-                    wrapped.push_back(part);
-                    break;
-                }
-                std::size_t low = 1, high = part.size(), best = 0;
-                while (low <= high) {
-                    auto mid = (low + high) / 2;
-                    if (mid < part.size() && part[mid] >= 0xdc00 && part[mid] <= 0xdfff)
-                        --mid;
-                    if (mid == 0) {
-                        low = 2;
-                        continue;
-                    }
-                    Analysis test;
-                    int size = measure(canvas.dc, part.substr(0, mid), test);
-                    if (size <= limit) {
-                        best = mid;
-                        low = mid + 1;
-                        if (low < part.size() && part[low] >= 0xdc00 && part[low] <= 0xdfff)
-                            ++low;
-                    } else
-                        high = mid - 1;
-                }
-                if (!best)
-                    throw Error("ESC_POS_ERROR", "A glyph exceeds printer width");
-                auto space = part.rfind(L' ', best - 1);
-                if (space != std::wstring::npos && space > 0)
-                    best = space;
-                wrapped.push_back(part.substr(0, best));
-                part.erase(0, best);
-                while (!part.empty() && part.front() == L' ')
-                    part.erase(part.begin());
-                if (wrapped.size() * static_cast<std::size_t>(step) > 4096)
-                    throw Error("INVALID_JOB", "Receipt too tall; split into stable part IDs");
-            }
-            if (end == text.size())
                 break;
             start = end + 1;
         } while (start <= text.size());
+        if (rows.size() * static_cast<std::size_t>(step) > 4096)
+            throw Error("INVALID_JOB", "Receipt too tall; split into stable part IDs");
     }
-    int height = std::max(step, static_cast<int>(wrapped.size()) * step);
+    int height = std::max(step, static_cast<int>(rows.size()) * step);
     if (height > 4096)
         throw Error("INVALID_JOB", "Receipt too tall");
     BITMAPINFO info{};
@@ -430,16 +531,33 @@ std::vector<unsigned char> render(const Json &p, const Json &doc) {
     SetBkMode(canvas.dc, TRANSPARENT);
     SetTextColor(canvas.dc, RGB(0, 0, 0));
     int y = 0;
-    for (const auto &text : wrapped) {
-        if (separator(text)) {
-            RECT rule{margin, y + step / 2, width - margin, y + step / 2 + 2};
-            FillRect(canvas.dc, &rule, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
-        } else if (!text.empty()) {
-            Analysis a;
-            int pixels = measure(canvas.dc, text, a);
-            int x = rtl(text) ? std::max(margin, width - margin - pixels) : margin;
-            if (FAILED(ScriptStringOut(a.a, x, y, 0, nullptr, 0, 0, FALSE)))
-                throw Error("ESC_POS_ERROR", "Cannot draw shaped text");
+    for (const auto &row : rows) {
+        if (row.rule) {
+            auto brush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+            const int top = y + step / 2;
+            if (row.dashed) {
+                for (int x = margin; x < width - margin; x += 13) {
+                    RECT dash{x, top, std::min(x + 8, width - margin), top + 2};
+                    FillRect(canvas.dc, &dash, brush);
+                }
+            } else {
+                RECT rule{margin, top, width - margin, top + 2};
+                FillRect(canvas.dc, &rule, brush);
+            }
+        } else {
+            for (const auto &cell : row.cells) {
+                if (cell.text.empty())
+                    continue;
+                Analysis a;
+                int pixels = measure(canvas.dc, cell.text, a);
+                int x = cell.left;
+                if (cell.align == Align::right)
+                    x = std::max(cell.left, cell.right - pixels);
+                else if (cell.align == Align::center)
+                    x = cell.left + std::max(0, (cell.right - cell.left - pixels) / 2);
+                if (FAILED(ScriptStringOut(a.a, x, y, 0, nullptr, 0, 0, FALSE)))
+                    throw Error("ESC_POS_ERROR", "Cannot draw shaped text");
+            }
         }
         y += step;
     }

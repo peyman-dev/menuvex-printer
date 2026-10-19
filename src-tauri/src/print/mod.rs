@@ -1,8 +1,17 @@
-//! Semantic document → monochrome raster → ESC/POS bytes.
+//! Document → ESC/POS bytes.
 //!
-//! Persian text is shaped with cosmic-text (rustybuzz BiDi/Arabic shaping + Swash rasterization)
-//! and the *design* comes from [`layout`]: right margin for Persian, left margin for amounts,
-//! emphasised header/total and pixel separators. Font selection is local-only.
+//! Two clearly separated paths, because *who owns the printed design* differs between them:
+//!
+//! * `invoice` / `receipt` — semantic input. Persian text is shaped with cosmic-text (rustybuzz
+//!   BiDi/Arabic shaping + Swash rasterization) and the *design* comes from [`layout`]: right
+//!   margin for Persian, left margin for amounts, emphasised header/total and pixel separators.
+//!   Font selection is local-only. **The agent decides the layout here.**
+//! * `escpos` — the frontend already produced the final bytes. They are forwarded verbatim and
+//!   nothing in this module runs. **The frontend decides the layout.**
+//!
+//! A frontend that must keep its own receipt template pixel-for-pixel uses `escpos` (enabled per
+//! printer by the operator through `rawPassthrough`); a frontend that sends order data uses
+//! `invoice` and accepts the agent template documented in `docs/escpos.md`.
 use cosmic_text::{Attrs, Buffer, Color, Family, FontSystem, Metrics, Shaping, SwashCache, Wrap};
 use crate::{ error::{ AgentError, Result }, printers::Printer, protocol::Document };
 use layout::{ Align, Cell, Item, Line };
@@ -114,6 +123,12 @@ impl Renderer {
     pub fn encode(&mut self, p: &Printer, doc: &Document) -> Result<Vec<u8>> {
         p.validate()?;
         doc.validate()?;
+        // Frontend-authored ESC/POS is forwarded byte-for-byte. The agent must not re-render it,
+        // must not substitute a font and must not append its own initialize/feed/cut: for this
+        // document type the frontend is the sole source of truth for the printed design.
+        if matches!(doc, Document::Escpos { .. }) {
+            return doc.escpos_bytes();
+        }
         if
             !self.fonts
                 .db()

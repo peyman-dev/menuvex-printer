@@ -543,11 +543,16 @@ struct App {
         if (worker_failed)
             throw Error("AGENT_NOT_READY", "Worker stopped; restart first");
         auto id = "test:" + std::to_string(now()) + ":" + std::to_string(GetTickCount());
-        auto j = store->enqueue(id, selected,
-                                {{"type", "receipt"},
-                                 {"lines",
-                                  {u8"آزمون چاپ فارسی — سلام دنیا", "MenuVex Legacy",
-                                   u8"۱۲۳۴۵۶۷۸۹۰ / 0123456789"}}});
+        Json profile;
+        const auto config = store->config();
+        for (const auto &candidate : config["printers"])
+            if (candidate["id"] == selected) {
+                profile = candidate;
+                break;
+            }
+        if (profile.is_null())
+            throw Error("PRINTER_NOT_FOUND", "Selected printer profile no longer exists");
+        auto j = store->enqueue(id, selected, printer_test_document(profile));
         server->event({{"type", "print.queued"}, {"version", 1}, {"job", j}});
         wake.notify_one();
         refresh();

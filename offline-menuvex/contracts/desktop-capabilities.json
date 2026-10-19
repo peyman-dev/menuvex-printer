@@ -1,0 +1,4490 @@
+[
+  {
+    "method": "GET",
+    "path": "/",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/register",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/cafe/notifications",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/cafe/printing",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/cafe/profile",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cafe/profile",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/cafe/profile/logo",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/cafe/profile/username",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cafe/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/cafe/working-hours/status",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/addresses",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/addresses",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/online/addresses/{address_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/cafe-plans",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/cafe-plans",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/online/cafe-plans/{plan_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/cafe-plans/{plan_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/online/cafe-plans/{plan_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/cafe-plans/{plan_id}/features",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/online/cafe-plans/{plan_id}/features/{feature_key}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/online/cafe-plans/{plan_id}/features/{feature_key}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/cafes/{username}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/cafes/{username}/club",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/cafes/{username}/club",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/cafes/{username}/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/cafes/{username}/plans",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/cafes/{username}/plans/{plan_id}/checkout",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/cafes/{username}/subscribe",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/cards",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/cards",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/online/cards/{card_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/online/cards/{card_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/online/cart",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/cart",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/online/cart",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/customers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/customers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/customers/gym",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/online/customers/gym/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/customers/gym/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/login",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/login-otp",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/me",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/online/me",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/membership-payments",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/membership-payments/{payment_id}/confirm",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/orders/realtime/docs",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/orders/stream",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/orders/stream/",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/orders/{order_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/otp/request",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/otp/verify",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/refresh",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/register",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/reset-password",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/reset-password/request",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/signup",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/stream",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/stream/",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/subscribers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/tickets",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/tickets",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/tickets/{ticket_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/tickets/{ticket_id}/messages",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/online/wishlist",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/online/wishlist",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/online/wishlist/{item_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printer-configs",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/category-routes",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printer-configs/category-routes",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/policy",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/printer-configs/policy",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/printer-configs/policy",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/receipts/orders/{order_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/receipts/{order_id}/club",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printer-configs/receipts/{order_id}/club/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/receipts/{order_id}/order-completion",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printer-configs/receipts/{order_id}/order-completion/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/receipts/{order_id}/settlement",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printer-configs/receipts/{order_id}/settlement/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/target/club",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/target/order-completion",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/target/settlement",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printer-configs/{printer_id}/test",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printers",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printers",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printers/receipts/{order_id}/order-completion",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printers/receipts/{order_id}/order-completion/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printers/receipts/{order_id}/settlement",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/printers/receipts/{order_id}/settlement/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/printers/{id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/printers/{id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/printers/{role}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/printers/{role}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/register/direct",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/accounts",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/accounting/accounts",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/accounting/accounts/{account_id}",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/expenses",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/accounting/expenses",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/expenses/{expense_id}",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/accounting/expenses/{expense_id}/void",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/inventory-valuation",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/journal",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/accounting/journal",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/accounting/journal/from-inventory/{transaction_id}",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/journal/{entry_id}",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/accounting/journal/{entry_id}/void",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/overview",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/accounting/profit-loss",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/accounts/{account_id}/role",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/alerts",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/alerts",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/alerts/{alert_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/alerts/{alert_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/analytics/articles",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/analytics/content",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/analytics/landing-views",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/analytics/registrations",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/analytics/revenue-by-day",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/analytics/revenue-by-month",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/article-categories",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/article-categories",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/article-categories/{category_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/article-categories/{category_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/articles",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/articles",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/articles/{article_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/articles/{article_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/articles/{article_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/articles/{article_id}/preview",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/articles/{article_id}/publish",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/audit-logs",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/authors",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/authors",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/authors/{author_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/authors/{author_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/cafes",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/cafes",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/cafes/{cafe_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/cafes/{cafe_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/cafes/{cafe_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/cafes/{cafe_id}/permissions",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/cafes/{cafe_id}/permissions",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/cafes/{cafe_id}/revenue",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/cafes/{cafe_id}/status",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/cafes/{cafe_id}/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/cafes/{cafe_id}/subscription/cancel",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/cafes/{cafe_id}/subscription/extend",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/cafes/{cafe_id}/subscription/grant",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/cafes/{cafe_id}/subscription/trial/reset",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/chats",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/chats/{chat_id}/messages",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/chats/{chat_id}/messages",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/dashboard",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/jobs",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/jobs/reports",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/jobs/reports/{report_id}/resolve",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/jobs/{job_id}/moderate",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/leads",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/leads",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/leads/{lead_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/leads/{lead_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/login",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/media",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/media",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/media/{media_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/media/{media_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/notifications",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/notifications",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/permissions",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/push/broadcast",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/push/stats",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/revenue",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/revenue",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/roles",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/roles",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/roles/{role_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/roles/{role_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/settings",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/settings/{key}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscription-campaigns",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscription-orders",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscription-orders/{order_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscription-orders/{order_id}/mark-paid",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscription-orders/{order_id}/refund",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscription-plans",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscription-plans",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscription-plans/reorder",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}/activate",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}/campaign",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}/campaign",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}/campaign",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}/campaign/reset-usage",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}/deactivate",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscription-plans/{plan_id}/recommend",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscription-settings/trial",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/subscription-settings/trial",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscriptions",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscriptions",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscriptions/catalog/features",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscriptions/catalog/features",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/subscriptions/catalog/features/{feature_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/subscriptions/catalog/features/{feature_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscriptions/stats",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/subscriptions/{sub_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscriptions/{sub_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscriptions/{subscription_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tags",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tags",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tags/{tag_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tags/{tag_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tenants",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tenants/{tenant_id}/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tenants/{tenant_id}/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tenants/{tenant_id}/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tenants/{tenant_id}/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tenants/{tenant_id}/subscription/status",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tenants/{tenant_id}/subscription/status",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tenants/{tenant_id}/subscription/status",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/themes",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/themes",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/themes/{theme_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tickets",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tickets/{ticket_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tickets/{ticket_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tickets/{ticket_id}/messages",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/updates",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/updates",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/updates/{update_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/updates/{update_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/updates/{update_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/updates/{update_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/users/{user_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/users/{user_id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/alerts",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/analytics/track",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/register",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/banners",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/banners",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/banners/{banner_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/banners/{banner_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/banners/{banner_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/business-types",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/business-types",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/business-types/{code}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/notifications",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/cafe/printing",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/profile",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/cafe/profile",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/cafe/profile/logo",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/profile/username",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/sidebar",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/cafe/subscription",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/subscription/invoices/{order_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/subscription/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/cafe/subscription/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/subscription/orders/{order_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/cafe/subscription/orders/{order_id}/cancel",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/cafe/subscription/orders/{order_id}/receipt",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/cafe/subscription/trial",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/cafe/working-hours",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/cafe/working-hours/status",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/categories",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/categories",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/categories/bulk",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/categories/{category_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/categories/{category_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/categories/{category_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/change-password",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/companies/{slug}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-groups",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/loyalty-settings",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/customer-groups/loyalty-settings",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/customer-groups/{group_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/{group_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/customer-groups/{group_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/customer-groups/{group_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/{group_id}/activity",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/{group_id}/invoices",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-groups/{group_id}/invoices",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/customer-groups/{group_id}/invoices/{invoice_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/{group_id}/invoices/{invoice_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/customer-groups/{group_id}/invoices/{invoice_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/customer-groups/{group_id}/invoices/{invoice_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-groups/{group_id}/invoices/{invoice_id}/cancel",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-groups/{group_id}/invoices/{invoice_id}/payments",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/{group_id}/members",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-groups/{group_id}/members",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/customer-groups/{group_id}/members",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/customer-groups/{group_id}/members/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-groups/{group_id}/members/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/customer-groups/{group_id}/members/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/{group_id}/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-groups/{group_id}/statement",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/automations",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-retention/automations",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/customer-retention/automations/{automation_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/automations/{automation_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/customer-retention/automations/{automation_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/campaigns",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-retention/campaigns",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-retention/campaigns/audience-preview",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/customer-retention/campaigns/{campaign_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/campaigns/{campaign_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/customer-retention/campaigns/{campaign_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-retention/campaigns/{campaign_id}/launch",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/customers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/customers/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/customers/{customer_id}/timeline",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/dashboard",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/recovery",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/templates",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customer-retention/templates",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/customer-retention/templates/{template_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customer-retention/templates/{template_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/customer-retention/templates/{template_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customers/gym",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/customers/gym",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/customers/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/customers/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/customers/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/customers/{customer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/sidebar",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/debtors",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/debtors",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/debtors/group-report",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/debtors/overview",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/debtors/{debtor_id}",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/debtors/{debtor_id}",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/debtors/{debtor_id}",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/debtors/{debtor_id}/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/debtors/{debtor_id}/payments",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/debtors/{debtor_id}/payments",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/debtors/{debtor_id}/settle",
+    "mode": "debtors_credit_ledger",
+    "note": "دفتر حساب‌های دفتری، نسیه مشتریان و تسویه اقساطی یا کامل مطالبات."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/basket/affinity",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/controls",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/costs",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/customers/cohorts",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/customers/rfm",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/data-quality",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/digest",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/export/{dataset}.csv",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/forecast/products",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/forecast/sales",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/insights",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/deep-analytics/insights/read-all",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/deep-analytics/insights/{insight_id}",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/inventory/forecast",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/menu-engineering",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/overview",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/price-impact",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/products",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/deep-analytics/refresh",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/sales/heatmap",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deep-analytics/sales/trend",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/applications/{application_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/employer/applications/{application_id}/notes",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/applications/{application_id}/resume",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/employer/applications/{application_id}/resume-link",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/employer/applications/{application_id}/status",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/business",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/employer/business",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/jobs",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/employer/jobs",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/jobs/{job_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/employer/jobs/{job_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/jobs/{job_id}/applications",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/employer/jobs/{job_id}/status",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/overview",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/employer/resume-files/{token}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/guest-session",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/categories",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/categories",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/inventory/categories/{code}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/categories/{code}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/inventory/categories/{code}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/items",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/items",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/inventory/items/{ingredient_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/items/{ingredient_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/inventory/items/{ingredient_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/items/{ingredient_id}/archive",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/items/{ingredient_id}/restore",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/movements",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/movements",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/movements/bulk",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/movements/recent",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/movements/{transaction_id}/reverse",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/overview",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/purchases",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/purchases",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/purchases/{purchase_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/reasons",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/recipes",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/recipes",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/inventory/recipes/{product_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/recipes/{product_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/inventory/recipes/{product_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/recipes/{product_id}/cost-preview",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/summary",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/suppliers",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/suppliers",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/suppliers/{supplier_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/inventory/suppliers/{supplier_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/units",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/warehouses",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/waste",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/waste",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/waste/summary",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/inventory/waste/{waste_id}",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inventory/waste/{waste_id}/void",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/jobs",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/jobs/{slug}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/jobs/{slug}/applications",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/jobs/{slug}/reports",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/jobs/{slug}/similar",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/article-categories",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/article-categories",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/landing/admin/article-categories/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/article-categories/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/landing/admin/article-categories/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/articles",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/articles",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/landing/admin/articles/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/articles/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/landing/admin/articles/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/articles/{id}/publish",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/articles/{id}/unpublish",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/categories",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/categories",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/landing/admin/categories/{id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/categories/{id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/landing/admin/categories/{id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/leads",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/landing/admin/leads/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/leads/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/landing/admin/leads/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/me",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/pages",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/pages",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/pages/by-path",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/pages/by-slug/{slug}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/landing/admin/pages/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/pages/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/landing/admin/pages/{id}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/pages/{id}/publish",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/landing/admin/pages/{id}/sections/reorder",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/landing/admin/pages/{id}/unpublish",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/admin/site",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/landing/admin/site",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/bundle",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/pages",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/pages/by-path",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/pages/{slug}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/landing/site",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/leads",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legacy/admin/subscription-plans",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/legacy/admin/subscription-plans",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/legacy/admin/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legacy/admin/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/legacy/admin/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legacy/subscription-plans",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/legacy/subscription-plans",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/legacy/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legacy/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/legacy/subscription-plans/{plan_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/login",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/applications",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/applications/{application_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/applications/{application_id}/withdraw",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/candidate-profile",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/candidate-profile",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/job-data",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/job-notifications",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/job-notifications/read",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/resumes",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/resumes/uploads",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/resumes/uploads/{upload_id}/content",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/resumes/uploads/{upload_id}/finalize",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/resumes/{resume_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/resumes/{resume_id}/default",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/saved-jobs",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/saved-jobs/{slug}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/saved-jobs/{slug}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/menu/{username}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/menu/{username}/products/{product_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/modifier-groups",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/addresses",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/addresses",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/addresses/{address_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cafe-plans",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cafe-plans",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/online/cafe-plans/{plan_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cafe-plans/{plan_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/cafe-plans/{plan_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cafe-plans/{plan_id}/features",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/online/cafe-plans/{plan_id}/features/{feature_key}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/cafe-plans/{plan_id}/features/{feature_key}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cafe/tickets",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cafe/tickets/{ticket_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/cafe/tickets/{ticket_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cafe/tickets/{ticket_id}/messages",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cafes/{username}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cafes/{username}/club",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cafes/{username}/club",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cafes/{username}/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cafes/{username}/plans",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cafes/{username}/plans/{plan_id}/checkout",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cafes/{username}/subscribe",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cards",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/cards",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/online/cards/{card_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/cards/{card_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/online/cart",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/cart",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/cart",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/customers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/customers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/customers/gym",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/online/customers/gym/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/customers/gym/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/customers/{consumer_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/login",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/login-otp",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/me",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/online/me",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/membership-payments",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/membership-payments/{payment_id}/confirm",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/orders/realtime/docs",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/orders/stream",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/orders/stream/",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/orders/{order_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/otp/request",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/otp/verify",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/refresh",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/register",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/reset-password",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/reset-password/request",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/signup",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/stream",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/stream/",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/subscribers",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/tickets",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/tickets",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/tickets/{ticket_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/tickets/{ticket_id}/messages",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/online/wishlist",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/online/wishlist",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/online/wishlist/{item_id}",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/orders/close-day",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/history",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/online/stream",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/online/stream/",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/products",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/orders/start-day",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/stream",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/stream/",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/orders/{order_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/{order_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/orders/{order_id}/accept",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/orders/{order_id}/cancel",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/orders/{order_id}/complete",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/orders/{order_id}/complete",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/orders/{order_id}/items",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/orders/{order_id}/prepare",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/orders/{order_id}/ready",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/orders/{order_id}/receipt",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/orders/{order_id}/refund",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orders/{order_id}/split-bill",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/orders/{order_id}/split-payments",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/orders/{order_id}/split-payments/{payment_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/otp-login/request",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/otp-login/verify",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/otp/request",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/otp/verify",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/payments/callback/{gateway}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/pos",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/pos/checkout",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/pos/close-day",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/pos/orders",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/pos/orders/{order_id}/close",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/pos/print-jobs",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/pos/print-jobs",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/pos/quote",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/pos/start-day",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printer-configs",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/category-routes",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printer-configs/category-routes",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/printer-configs/category-routes/{route_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/policy",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/printer-configs/policy",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/printer-configs/policy",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/receipts/orders/{order_id}",
+    "mode": "pos_orders_splitbill",
+    "note": "صندوق فروش (POS)، مدیریت سفارش‌ها، تقسیم دنگ (Split Bill) و بستن شیفت روزانه در پایگاه داده محلی دسکتاپ."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/receipts/{order_id}/club",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printer-configs/receipts/{order_id}/club/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/receipts/{order_id}/order-completion",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printer-configs/receipts/{order_id}/order-completion/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/receipts/{order_id}/settlement",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printer-configs/receipts/{order_id}/settlement/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/target/club",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/target/order-completion",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/target/settlement",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/printer-configs/{printer_id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printer-configs/{printer_id}/test",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printers",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printers",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printers/receipts/{order_id}/order-completion",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printers/receipts/{order_id}/order-completion/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printers/receipts/{order_id}/settlement",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/printers/receipts/{order_id}/settlement/print",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/printers/{id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/printers/{id}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/printers/{role}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/printers/{role}",
+    "mode": "thermal_printers_routing",
+    "note": "چاپگرهای حرارتی ۸۰ میلی‌متری، مسیردهی دسته‌بندی به چاپگر و صدور فیش مشتری، حواله بار و فیش باشگاه مشتریان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/products",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/products",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/products/bulk",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/products/bulk",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/products/{product_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/products/{product_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/products/{product_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/products/{product_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/products/{product_id}/modifier-groups",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/products/{product_id}/variants",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/products/{product_id}/variants/{variant_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/products/{product_id}/variants/{variant_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/products/{product_id}/variants/{variant_id}/modifier-groups/{group_id}",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/article-categories",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/articles",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/articles/{slug}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/leads",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/marketing/bundle",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/marketing/pages",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/marketing/pages/by-path",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/marketing/pages/{slug}",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/marketing/site",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/quick-start/import",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/quick-start/import/status/{job_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/quick-start/packages",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/quick-start/packages/{package_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/refresh",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/register",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/register/direct",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports/cost-control-calculator",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/income",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/inventory-history",
+    "mode": "inventory_suppliers_bom",
+    "note": "انبارداری، مواد اولیه، رسپی (BOM)، تامین‌کنندگان، فاکتورهای خرید، ضایعات و برگه‌های شمارش انبارگردانی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/online-users",
+    "mode": "customers_loyalty_retention",
+    "note": "باشگاه مشتریان، سطوح وفاداری، کمپین‌های بازگشت مشتری (Retention)، پلن‌های اشتراک کافه و سفارش‌های آنلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/profit",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/profit/history",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/profit/history/{batch_id}",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reset-password",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reset-password/confirm",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reset-password/request",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reset-password/verify",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/settings/features",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/settings/features",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/staff",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/staff",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/staff/dashboard",
+    "mode": "accounting_finance_analytics",
+    "note": "حسابداری دوبل، اسناد مالی، ثبت هزینه‌ها، تراز آزمایشی، صورت سود و زیان و تحلیل عمیق فروش (Deep Analytics)."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/staff/login",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/staff/me",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/staff/{account_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/staff/{account_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/staff/{account_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/staff/{account_id}/advances",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/staff/{account_id}/advances",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/staff/{account_id}/advances/{advance_id}",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/staff/{account_id}/insurance",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/staff/{account_id}/salary",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/staff/{account_id}/shifts",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/staff/{account_id}/time-off",
+    "mode": "staff_shifts_jobs",
+    "note": "مدیریت پرسنل، شیفت‌ها، چک‌لیست اجرایی روزانه و سامانه استخدام و کاریابی باریستا/صندوقدار."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/subscription-plans",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/subscription-plans/offer",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/subscription-plans/{code}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/subscription-settings/trial",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tables",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tables",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tables/bulk",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tables/{source_table_id}/transfer",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tables/{table_id}",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tables/{table_id}",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/tables/{table_id}",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/tables/{table_id}",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tables/{table_id}/qr",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tables/{table_id}/release",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tables/{table_id}/reservation",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tables/{table_id}/reserve",
+    "mode": "tables_floor_reservations",
+    "note": "مدیریت سالن، نقشه میزها، انتقال میز و تقویم رزرواسیون مهمانان."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/themes",
+    "mode": "menu_catalog_modifiers",
+    "note": "مدیریت منو، محصولات، دسته‌بندی‌ها، افزودنی‌ها (Modifiers)، تم منوی دیجیتال و بنرها به‌صورت کاملاً آفلاین."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tickets",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tickets",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tickets/presence",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tickets/telegram/webhook",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tickets/{ticket_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/tickets/{ticket_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tickets/{ticket_id}/messages",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/updates",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/updates/{update_id}",
+    "mode": "cafe_profile_settings",
+    "note": "تنظیمات پروفایل کافه، ساعات کاری، راه‌اندازی سریع، اعلان‌ها، تیکت‌ها و پشتیبان‌گیری محلی."
+  },
+  {
+    "method": "GET",
+    "path": "/health",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  },
+  {
+    "method": "GET",
+    "path": "/ready",
+    "mode": "local_system_governance",
+    "note": "مدیریت حساب کاربری محلی، سطوح دسترسی، وضعیت سلامت هسته دسکتاپ و تنظیمات سیستمی."
+  }
+]

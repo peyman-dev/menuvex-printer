@@ -11,11 +11,13 @@ static void check(bool value, const char *reason) {
     if (!value)
         throw std::runtime_error(reason);
 }
-template <class F> void rejects(F f, const char *code = nullptr) {
+template <class F> void rejects(F f, const char *code = nullptr, const char *message = nullptr) {
     try {
         f();
     } catch (const Error &e) {
         check(!code || e.code == code, "Unexpected error code");
+        check(!message || std::string(e.what()).find(message) != std::string::npos,
+              "Error message does not name the rejected value");
         return;
     }
     throw std::runtime_error("Invalid input was accepted");
@@ -106,8 +108,11 @@ int main() {
             nc["port"] = 9100;
             validate_config(net);
         }
+        // The Legacy agent has no direct-USB transport; the rejection must name the type.
         nc["type"] = "usb";
-        rejects([&] { validate_config(net); }, "INVALID_CONFIG");
+        rejects([&] { validate_config(net); }, "UNSUPPORTED_CONNECTION_TYPE", "\"usb\"");
+        nc["type"] = "lan";
+        rejects([&] { validate_config(net); }, "UNSUPPORTED_CONNECTION_TYPE", "\"lan\"");
         nc["type"] = "network";
         nc["extra"] = 1;
         rejects([&] { validate_config(net); });
@@ -123,9 +128,35 @@ int main() {
         auto same = upsert_printer(two, renamed);
         check(same["printers"].size() == 2 && same["printers"][0]["name"] == "Renamed",
               "upsert replaces by id without duplicating");
+        Json spooler = profile();
+        spooler["connection"] = {{"type", "spooler"}, {"queueName", "Kitchen POS"}};
+        auto wire_printers = compatible_printers(Json::array({spooler}));
+        check(wire_printers[0]["connection"]["type"] == "usb" &&
+                  wire_printers[0]["connection"]["vendorId"] == 0 &&
+                  wire_printers[0]["connection"]["serial"] == "queue:Kitchen POS",
+              "spooler is exposed using the reserved USB-compatible queue descriptor");
+        Json client_wire = wire_printers[0];
+        client_wire["connection"]["productId"] = 73;
+        auto restored = upsert_printer(default_config(), client_wire);
+        check(restored["printers"][0]["connection"]["type"] == "spooler" &&
+                  restored["printers"][0]["connection"]["queueName"] == "Kitchen POS",
+              "USB-compatible printer.save input is normalized to the spooler transport");
+        Json test_profile = spooler;
+        test_profile["paperMm"] = 58;
+        test_profile["widthDots"] = 384;
+        auto test_ticket = printer_test_document(test_profile);
+        check(test_ticket["lines"][1] == "Paper profile | 58 mm | 384 dots",
+              "test ticket reports the configured profile width");
+        invoice["data"]["items"][0]["quantity"] = 2;
+        auto invoice_lines = printable_lines(invoice, 384);
+        check(invoice_lines.front() == std::string("[center] ") + u8"کافه" &&
+                  std::find(invoice_lines.begin(), invoice_lines.end(),
+                            std::string(u8"شرح کالا | جمع")) != invoice_lines.end(),
+              "legacy invoice lines use shared center/column markers and narrow-width layout");
         Json usb = profile();
         usb["connection"] = {{"type", "usb"}, {"vendorId", 1}};
-        rejects([&] { upsert_printer(default_config(), usb); }, "INVALID_CONFIG");
+        rejects([&] { upsert_printer(default_config(), usb); }, "UNSUPPORTED_CONNECTION_TYPE",
+                "\"usb\"");
         auto full = default_config();
         for (int i = 0; i < 16; ++i) {
             Json p = profile();

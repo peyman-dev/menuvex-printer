@@ -47,7 +47,70 @@ type Pending = {
   resolve: (v: unknown) => void;
   reject: (e: Error) => void;
   timer: ReturnType<typeof setTimeout>;
+  type: string;
 };
+/**
+ * Log the untouched `printers.list` data before the response envelope or printer schemas see it.
+ * This is intentionally limited to printer profiles: print documents, jobs and credentials must
+ * never be written to the browser console.
+ */
+function logRawPrinterPayload(payload: unknown): void {
+  const first = Array.isArray(payload) ? payload[0] : undefined;
+  const connection =
+    first !== null && typeof first === 'object'
+      ? (first as Record<PropertyKey, unknown>).connection
+      : undefined;
+  const connectionObject =
+    connection !== null && typeof connection === 'object'
+      ? (connection as Record<PropertyKey, unknown>)
+      : undefined;
+  const connectionType = connectionObject?.type;
+
+  // These logs intentionally run before printerSchema sees the value. Do not replace them with
+  // Zod's error object: an invalid_union issue omits the exact discriminator and raw wire shape.
+  console.log('RAW PRINTER PAYLOAD:', JSON.stringify(payload, null, 2));
+  console.log('CONNECTION DEBUG:', {
+    connection,
+    type: connectionType,
+    typeOf: typeof connectionType,
+    typeString: JSON.stringify(connectionType),
+    keys: Object.keys(connectionObject ?? {}),
+  });
+}
+
+/**
+ * Turn a rejected `connection` into a message that names the offending value.
+ *
+ * Zod's `invalid_union` issue only carries the discriminator name and the accepted options, so
+ * the operator used to see "Invalid input" with no idea what the agent actually sent. The raw
+ * response is still in scope here, so walk the issue path and read the real value back out.
+ */
+function connectionMismatch(error: z.ZodError, value: unknown): string {
+  const at = (path: PropertyKey[]): unknown =>
+    path.reduce<unknown>(
+      (node, key) =>
+        node !== null && typeof node === 'object'
+          ? (node as Record<PropertyKey, unknown>)[key]
+          : undefined,
+      value,
+    );
+  const issue =
+    error.issues.find((i) => i.path.at(-1) === 'type' && i.path.includes('connection')) ??
+    error.issues.find((i) => i.path.includes('connection'));
+  const received = issue ? at(issue.path) : undefined;
+  const shown =
+    typeof received === 'string' && received.length > 0
+      ? `"${received.slice(0, 64)}"`
+      : '<missing>';
+  const where = issue ? ` at ${issue.path.join('.')}` : '';
+  return (
+    `Unsupported printer connection type: ${shown}${where}. ` +
+    'Supported: "network", "usb", "spooler". ' +
+    'نوع اتصال پرینتر با SDK سازگار نیست؛ SDK و اعتبارسنجی سایت را هماهنگ کنید. ' +
+    'این خطا مربوط به مجوز USB نیست.'
+  );
+}
+
 export class PrinterAgentClient {
   private socket?: Socket;
   private credentials: CredentialStore;
@@ -228,9 +291,23 @@ export class PrinterAgentClient {
     }
   }
   private async message(raw: unknown) {
-    if (typeof raw !== 'string' || raw.length > 512 * 1024)
+    if (typeof raw !== 'string' || raw.length > 2 * 1024 * 1024)
       throw new AgentError('INVALID_RESPONSE', 'Unexpected message encoding/size');
-    const msg = serverMessageSchema.parse(JSON.parse(raw));
+    const decoded: unknown = JSON.parse(raw);
+    // Inspect the untouched response before *any* Zod validation. `serverMessageSchema` keeps
+    // response data unknown, but logging here makes that ordering explicit and future-proof.
+    if (decoded !== null && typeof decoded === 'object') {
+      const envelope = decoded as Record<PropertyKey, unknown>;
+      const requestId = envelope.requestId;
+      if (
+        envelope.type === 'response' &&
+        typeof requestId === 'string' &&
+        this.pending.get(requestId)?.type === 'printers.list'
+      ) {
+        logRawPrinterPayload(envelope.data);
+      }
+    }
+    const msg = serverMessageSchema.parse(decoded);
     if (msg.type === 'hello') {
       const sessionSocket = this.socket;
       if (this.authenticated) throw new AgentError('INVALID_RESPONSE', 'Repeated hello');
@@ -288,6 +365,8 @@ export class PrinterAgentClient {
         msg.error.message,
         msg.error.uncertain,
         msg.error.retryable,
+        msg.error.printer,
+        msg.error.actionRequired,
       );
     if (!this.authenticated) throw new AgentError('INVALID_RESPONSE', 'Unauthenticated response');
     if (msg.type === 'response' || msg.type === 'error') {
@@ -302,6 +381,8 @@ export class PrinterAgentClient {
             msg.error.message,
             msg.error.uncertain,
             msg.error.retryable,
+            msg.error.printer,
+            msg.error.actionRequired,
           ),
         );
       else p.resolve(msg.data);
@@ -334,7 +415,7 @@ export class PrinterAgentClient {
           ),
         );
       }, this.timeoutMs);
-      this.pending.set(requestId, { resolve, reject, timer });
+      this.pending.set(requestId, { resolve, reject, timer, type });
       try {
         this.socket!.send(JSON.stringify({ version: VERSION, requestId, type, ...fields }));
       } catch {
@@ -350,10 +431,7 @@ export class PrinterAgentClient {
           error instanceof z.ZodError &&
           error.issues.some((issue) => issue.path.includes('connection'))
         ) {
-          throw new AgentError(
-            'CONNECTION_SCHEMA_MISMATCH',
-            'نوع اتصال پرینتر با SDK سازگار نیست. SDK و اعتبارسنجی سایت را هماهنگ کنید: usb، network و spooler. نام lan در پروتکل معتبر نیست. این خطا مربوط به مجوز USB نیست.',
-          );
+          throw new AgentError('CONNECTION_SCHEMA_MISMATCH', connectionMismatch(error, value));
         }
         throw error;
       }

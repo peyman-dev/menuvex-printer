@@ -1,3 +1,4 @@
+import { spoolerQueueName } from '../../sdk/src/compat';
 import type { Printer } from '../../sdk/src/types';
 const labels = {
   online: 'در دسترس',
@@ -19,6 +20,7 @@ export function PrinterCard({
   onEdit: () => void;
   disabled: boolean;
 }) {
+  const queueName = spoolerQueueName(p.connection);
   return (
     <article className="printer-card">
       <div className="card-heading">
@@ -28,9 +30,11 @@ export function PrinterCard({
           <span className="mono muted">
             {p.connection.type === 'network'
               ? `${p.connection.host}:${p.connection.port}`
-              : p.connection.type === 'spooler'
-                ? `Windows · ${p.connection.queueName}`
-                : `USB · ${p.connection.vendorId.toString(16)}:${p.connection.productId.toString(16)}`}
+              : queueName !== undefined
+                ? `Windows · ${queueName}`
+                : p.connection.type === 'usb'
+                  ? `USB · ${p.connection.vendorId.toString(16)}:${p.connection.productId.toString(16)}`
+                  : `Windows · ${p.connection.queueName}`}
           </span>
         </div>
         <span className={`tag ${p.status}`}>

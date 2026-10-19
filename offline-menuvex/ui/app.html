@@ -1,0 +1,1151 @@
+{{define "layout"}}<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>منووکس — مدیریت کافه</title>
+  <link rel="icon" href="/static/logo.webp">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script>
+    // جلوگیری از ارسال تکراری فرم‌ها (دابل‌کلیک روی ثبت سفارش/تسویه)
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (!f || f.dataset.submitting === '1') { if (f && f.dataset.submitting === '1') e.preventDefault(); return; }
+      f.dataset.submitting = '1';
+      var b = f.querySelector('button[type="submit"]');
+      if (b) { b.classList.add('is-submitting'); }
+      setTimeout(function () { delete f.dataset.submitting; if (b) b.classList.remove('is-submitting'); }, 4000);
+    }, true);
+    document.addEventListener('htmx:afterRequest', function (e) {
+      var f = e.target && e.target.closest ? e.target.closest('form') : null;
+      if (f) { delete f.dataset.submitting; var b = f.querySelector('button[type="submit"]'); if (b) b.classList.remove('is-submitting'); }
+    });
+  </script>
+</head>
+<body>
+  <div class="app-shell" data-page="{{.Page}}" id="app-shell">
+    <div class="sidebar-rail no-print">
+    <aside class="sidebar">
+      <div class="brand-header">
+        <a href="/?page=home" hx-get="/?page=home" hx-target="#main-view" hx-push-url="true" class="brand">
+          <img src="/static/logo.webp" alt="لوگوی منووکس" class="brand-logo" width="34" height="34">
+          <span>
+            <strong class="brand-title">منووکس</strong>
+
+          </span>
+        </a>
+        <button type="button" class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="جمع‌کردن / بازکردن منو" aria-label="جمع‌کردن یا بازکردن منوی کناری">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <nav class="nav-groups" hx-boost="true" hx-target="#main-view" hx-push-url="true" aria-label="منوی پنل">
+        <a href="/?page=home" class="nav-item {{if eq .Page "home"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>داشبورد</span>
+        </a>
+
+        <div class="nav-section-title">فروش و سفارش‌ها</div>
+        <a href="/?page=pos" class="nav-item {{if eq .Page "pos"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="14" y1="8" x2="18" y2="8"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="6" y1="16" x2="12" y2="16"/></svg>
+          <span>صندوق</span>
+        </a>
+        <a href="/?page=orders" class="nav-item {{if eq .Page "orders"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>سفارش‌ها</span>
+          {{if gt .Analytics.OpenOrders 0}}<span class="nav-badge warn">{{faInt .Analytics.OpenOrders}}</span>{{end}}
+        </a>
+        <a href="/?page=tables" class="nav-item {{if eq .Page "tables"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="7" y1="16" x2="7" y2="20"/><line x1="17" y1="16" x2="17" y2="20"/></svg>
+          <span>میزها و سالن</span>
+        </a>
+        <a href="/?page=receipts" class="nav-item {{if or (eq .Page "receipts") (eq .Page "receipt")}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+          <span>کل سفارشات</span>
+        </a>
+
+        <div class="nav-section-title">منو و قیمت‌گذاری</div>
+        <a href="/?page=products" class="nav-item {{if or (eq .Page "products") (eq .Page "product-form")}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+          <span>محصولات</span>
+          <span class="nav-badge">{{faInt .Stats.ProductsCount}}</span>
+        </a>
+        <a href="/?page=categories" class="nav-item {{if eq .Page "categories"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>دسته‌بندی منو</span>
+        </a>
+        <a href="/?page=pricing" class="nav-item {{if eq .Page "pricing"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="12" x2="8.01" y2="12"/><line x1="12" y1="12" x2="12.01" y2="12"/><line x1="16" y1="12" x2="16.01" y2="12"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>
+          <span>قیمت‌گذاری و بهای تمام‌شده</span>
+        </a>
+        <div class="nav-section-title">گزارش و مالی</div>
+        <a href="/?page=reports" class="nav-item {{if eq .Page "reports"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>گزارشات روزانه</span>
+        </a>
+        <a href="/?page=finance" class="nav-item {{if eq .Page "finance"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>حساب و گزارش</span>
+        </a>
+
+        <div class="nav-section-title">انبار و آماده‌سازی</div>
+        <a href="/?page=ingredients" class="nav-item {{if or (eq .Page "ingredients") (eq .Page "ingredient-form")}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span>انبار و موجودی</span>
+          {{if gt .Stats.LowStockCount 0}}<span class="nav-badge danger">{{faInt .Stats.LowStockCount}}</span>{{end}}
+        </a>
+        <a href="/?page=inv-categories" class="nav-item {{if eq .Page "inv-categories"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>دسته‌بندی مواد اولیه</span>
+        </a>
+        <a href="/?page=inv-purchases" hx-get="/?page=inv-purchases" hx-target="#main-view" hx-push-url="true" class="nav-item {{if eq .Page "inv-purchases"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+          <span>فاکتورهای خرید</span>
+        </a>
+        <a href="/?page=suppliers" hx-get="/?page=suppliers" hx-target="#main-view" hx-push-url="true" class="nav-item {{if eq .Page "suppliers"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+          <span>تأمین‌کنندگان</span>
+        </a>
+        <a href="/?page=waste" class="nav-item {{if eq .Page "waste"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>ضایعات</span>
+        </a>
+        <a href="/?page=recipes" class="nav-item {{if eq .Page "recipes"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>دستورهای تهیه</span>
+        </a>
+        <div class="nav-section-title">مشتریان</div>
+        <a href="/?page=customers" class="nav-item {{if eq .Page "customers"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>باشگاه مشتریان</span>
+          <span class="nav-badge">{{faInt .Stats.CustomersCount}}</span>
+        </a>
+        <a href="/?page=debtors" class="nav-item {{if eq .Page "debtors"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          <span>بدهکاران و تسویه</span>
+        </a>
+
+        <div class="nav-section-title">پرسنل</div>
+        <a href="/?page=staff" class="nav-item {{if or (eq .Page "staff") (eq .Page "staff-form")}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+          <span>پرسنل</span>
+        </a>
+        <a href="/?page=staff-checklist" class="nav-item {{if eq .Page "staff-checklist"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="M9 14l2 2 4-4"/></svg>
+          <span>چک‌لیست روزانه و شیفت‌ها</span>
+        </a>
+
+        <div class="nav-section-title">مدیریت کافه</div>
+        <a href="/?page=settings" class="nav-item {{if eq .Page "settings"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>پرینترها و تنظیمات</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        {{if .SessionName}}
+        <div class="sidebar-user">
+          <span class="sidebar-user-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"/></svg></span>
+          <div class="sidebar-user-meta">
+            <strong>{{.SessionName}}</strong>
+            <small>{{if eq .SessionRole "manager"}}مدیر کافه{{else}}پرسنل کافه{{end}}</small>
+          </div>
+          <form method="post" action="/logout" class="inline-form">
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <button type="submit" class="icon-btn" title="خروج از حساب" aria-label="خروج از حساب"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 4h-7v16h7M10 12h11m0 0l-3.5-3.5M21 12l-3.5 3.5"/></svg></button>
+          </form>
+        </div>
+        {{end}}
+        <div class="sidebar-license">
+          <span>اشتراک آفلاین</span>
+          <strong>{{faInt .LicenseDaysLeft}} روز باقی‌مانده</strong>
+        </div>
+        <form method="post" action="/local/export-backup" hx-post="/local/export-backup" hx-target="#main-view">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="btn btn-outline btn-block btn-sm">پشتیبان‌گیری از داده‌ها</button>
+        </form>
+      </div>
+    </aside>
+    </div>
+
+    <main id="main-view" class="main-view {{if eq .Page "pos"}}pos-main{{end}}">
+
+      {{template "content" .}}
+    </main>
+  </div>
+  <div id="toast-stack" class="toast-stack no-print" aria-live="polite"></div>
+
+<script>
+(function(){
+  var shell = document.getElementById('app-shell');
+  if (!shell) return;
+  // سایدبار تاشو: فقط آیکون + تول‌تیپ عنوان؛ وضعیت در سیستم کاربر ذخیره می‌شود.
+  var stored = null;
+  try { stored = localStorage.getItem('menova-sidebar-collapsed'); } catch (e) {}
+  if (stored === '1' || (stored === null && shell.getAttribute('data-page') === 'pos')) {
+    shell.classList.add('sb-collapsed');
+  }
+  window.toggleSidebar = function() {
+    shell.classList.toggle('sb-collapsed');
+    try { localStorage.setItem('menova-sidebar-collapsed', shell.classList.contains('sb-collapsed') ? '1' : '0'); } catch (e) {}
+    hideTip();
+  };
+  // تول‌تیپ شناور فقط وقتی سایدبار جمع است
+  var tip = document.createElement('div');
+  tip.className = 'nav-tooltip';
+  document.body.appendChild(tip);
+  function hideTip() { tip.style.opacity = '0'; }
+  function showTip(el) {
+    if (!shell.classList.contains('sb-collapsed')) return;
+    var label = (el.getAttribute('data-title') || '').trim();
+    if (!label) {
+      label = el.textContent.replace(/\s+/g, ' ').trim();
+      el.setAttribute('data-title', label);
+    }
+    if (!label) return;
+    var r = el.getBoundingClientRect();
+    tip.textContent = label;
+    tip.style.top = (r.top + r.height / 2) + 'px';
+    tip.style.right = (window.innerWidth - r.left + 10) + 'px';
+    tip.style.opacity = '1';
+  }
+  var items = shell.querySelectorAll('.nav-item');
+  for (var i = 0; i < items.length; i++) {
+    items[i].addEventListener('mouseenter', function() { showTip(this); });
+    items[i].addEventListener('mouseleave', hideTip);
+    items[i].addEventListener('click', hideTip);
+  }
+  // لینک فعال سایدبار باید با صفحه فعلی یکی باشد؛ چون با HTMX فقط محتوای
+  // اصلی عوض می‌شود، کلاس active سمت سرور کهنه می‌ماند و اینجا با URL
+  // فعلی همگام می‌شود (صفحه‌های زیرمجموعه به آیتم والدشان نگاشت می‌شوند).
+  var NAV_ALIAS = {
+    'receipt': 'receipts',
+    'ingredient-form': 'ingredients',
+    'product-form': 'products',
+    'club-groups': 'customers',
+    'club-group': 'customers',
+    'club-group-form': 'customers',
+    'staff-form': 'staff'
+  };
+  function navPageOf(href) {
+    var m = /[?&]page=([^&]+)/.exec(href || '');
+    return m ? decodeURIComponent(m[1]) : 'home';
+  }
+  window.syncNavActive = function() {
+    var page = 'home';
+    try { page = new URLSearchParams(window.location.search).get('page') || 'home'; } catch (e) {}
+    var links = shell.querySelectorAll('.nav-item');
+    var hasExact = false;
+    for (var k = 0; k < links.length; k++) {
+      if (navPageOf(links[k].getAttribute('href')) === page) hasExact = true;
+    }
+    var target = hasExact ? page : (NAV_ALIAS[page] || page);
+    for (var j = 0; j < links.length; j++) {
+      links[j].classList.toggle('active', navPageOf(links[j].getAttribute('href')) === target);
+    }
+    shell.setAttribute('data-page', page);
+    // صفحه صندوق تمام‌عرض و بدون حاشیه عمومی است (pos-main)؛ در رندر کامل،
+    // سرور این کلاس را روی main می‌گذارد ولی در جابه‌جایی HTMX باید همگام شود
+    // تا بین ستون میزها و سایدبار فاصله اضافی نیفتد.
+    var main = document.getElementById('main-view');
+    if (main) main.classList.toggle('pos-main', page === 'pos');
+    // جمع‌شدن خودکار سایدبار در صندوق، فقط وقتی کاربر دستی انتخاب نکرده باشد.
+    var storedNow = null;
+    try { storedNow = localStorage.getItem('menova-sidebar-collapsed'); } catch (e) {}
+    if (storedNow === null) shell.classList.toggle('sb-collapsed', page === 'pos');
+  };
+  document.addEventListener('htmx:afterSwap', function(e) {
+    if (e.target && e.target.id === 'main-view') window.syncNavActive();
+  });
+  document.addEventListener('htmx:pushedIntoHistory', window.syncNavActive);
+  window.addEventListener('popstate', window.syncNavActive);
+  window.syncNavActive();
+})();
+</script>
+<script>
+(function () {
+  // ── Toastهای اعلان (جایگزین بنرهای قدیمی) — انیمیشن‌دار و قابل بستن ──
+  if (window.__toastInstalled) return;
+  window.__toastInstalled = true;
+  var ICON_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>';
+  var ICON_ERR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>';
+  window.showToast = function (msg, kind) {
+    var stack = document.getElementById('toast-stack');
+    if (!stack || !msg) return;
+    var isErr = kind === 'error' || /خطا|نامعتبر|یافت نشد|مجاز نیست|نمی‌تواند|نمی تواند/.test(msg);
+    var el = document.createElement('div');
+    el.className = 'toast ' + (isErr ? 'toast-error' : 'toast-success');
+    el.setAttribute('role', 'status');
+    el.innerHTML = '<span class="toast-ic"></span><span class="toast-msg"></span><button type="button" class="toast-x" aria-label="بستن اعلان">×</button>';
+    el.querySelector('.toast-ic').innerHTML = isErr ? ICON_ERR : ICON_OK;
+    el.querySelector('.toast-msg').textContent = msg;
+    var close = function () {
+      el.classList.add('toast-out');
+      setTimeout(function () { el.remove(); }, 240);
+    };
+    el.querySelector('.toast-x').addEventListener('click', close);
+    stack.appendChild(el);
+    setTimeout(close, 5600);
+  };
+  function collectSeeds() {
+    var seeds = document.querySelectorAll('#main-view .toast-seed');
+    for (var i = 0; i < seeds.length; i++) {
+      var msg = seeds[i].getAttribute('data-toast');
+      seeds[i].remove();
+      if (msg) window.showToast(msg);
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', collectSeeds);
+  else collectSeeds();
+  document.addEventListener('htmx:afterSwap', function () { setTimeout(collectSeeds, 10); });
+})();
+</script>
+<script>
+(function () {
+  // انتخاب‌گر تاریخ شمسی (جلالی) برای کل برنامه — جایگزین تقویم میلادی مرورگر.
+  // هر .jalali-picker سه سلکت روز/ماه/سال دارد و حاصل را به‌صورت «۱۴۰۵/۰۷/۲۷»
+  // در اینپوت مخفی همراهش می‌نویسد تا همان در سرور ذخیره و نمایش داده شود.
+  if (window.__jalaliPickerInstalled) return;
+  window.__jalaliPickerInstalled = true;
+  var MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+  var FA = '۰۱۲۳۴۵۶۷۸۹';
+  function faNum(n) { return String(n).replace(/[0-9]/g, function (d) { return FA[Number(d)]; }); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  // تبدیل میلادی به جلالی برای مقدار پیش‌فرض (الگوریتم استاندارد جلالی)
+  function toJalali(gy, gm, gd) {
+    var gdm = [0,31,59,90,120,151,181,212,243,273,304,334];
+    var gy2 = gm > 2 ? gy + 1 : gy;
+    var days = 355666 + 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) + gd + gdm[gm - 1];
+    var jy = -1595 + 33 * Math.floor(days / 12053);
+    days %= 12053;
+    jy += 4 * Math.floor(days / 1461);
+    days %= 1461;
+    if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+    var jm = days < 186 ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+    var jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+    return [jy, jm, jd];
+  }
+  function initOne(picker) {
+    if (picker.__jpInit) return;
+    picker.__jpInit = true;
+    var out = picker.querySelector('[data-jp-out]');
+    var dSel = picker.querySelector('[data-jp-d]');
+    var mSel = picker.querySelector('[data-jp-m]');
+    var ySel = picker.querySelector('[data-jp-y]');
+    if (!out || !dSel || !mSel || !ySel) return;
+    var now = new Date();
+    var def = toJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    var cur = (out.value || '').trim();
+    var m = cur.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    var init = m ? [Number(m[1]), Number(m[2]), Number(m[3])] : def;
+    var i, opt;
+    for (i = 1; i <= 31; i++) { opt = document.createElement('option'); opt.value = i; opt.textContent = faNum(i); dSel.appendChild(opt); }
+    for (i = 0; i < 12; i++) { opt = document.createElement('option'); opt.value = i + 1; opt.textContent = MONTHS[i]; mSel.appendChild(opt); }
+    for (i = def[0] - 2; i <= def[0] + 8; i++) { opt = document.createElement('option'); opt.value = i; opt.textContent = faNum(i); ySel.appendChild(opt); }
+    dSel.value = init[2]; mSel.value = init[1]; ySel.value = init[0];
+    function sync() { out.value = ySel.value + '/' + pad(Number(mSel.value)) + '/' + pad(Number(dSel.value)); }
+    dSel.addEventListener('change', sync);
+    mSel.addEventListener('change', sync);
+    ySel.addEventListener('change', sync);
+    sync();
+  }
+  window.initJalaliPickers = function (root) {
+    var list = (root || document).querySelectorAll('.jalali-picker');
+    for (var i = 0; i < list.length; i++) initOne(list[i]);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { window.initJalaliPickers(); });
+  else window.initJalaliPickers();
+  document.addEventListener('htmx:afterSwap', function () { setTimeout(function () { window.initJalaliPickers(); }, 10); });
+  // بعد از ثبت موفق سفارش از صندوق، سبد خرید باید خالی شود: آرایه سراسری
+  // همان لحظه پاک می‌شود و پرچم برای رندر تازه صندوق می‌ماند تا سبد قبلی
+  // برنگردد؛ بعد از تعویض DOM هم یک بار رندر خالی اجباری می‌شود.
+  document.addEventListener('htmx:afterRequest', function (evt) {
+    var d = evt.detail || {};
+    var path = (d.requestConfig && d.requestConfig.path) || (d.pathInfo && d.pathInfo.requestPath) || '';
+    if (d.successful && path.indexOf('/local/pos-order') > -1) {
+      window.__posJustOrdered = true;
+      if (Array.isArray(window.posCart)) window.posCart = [];
+      window.posDiscountPct = 0;
+      setTimeout(function () {
+        if (document.getElementById('pos-checkout-form') && typeof window.posClearCart === 'function') window.posClearCart();
+      }, 120);
+    }
+  });
+})();
+</script>
+<script>
+(function () {
+  // باز/بستن عمومی دراپ‌داون‌ها (.dd-toggle → .dd-menu) — مثلاً منوی «پرینترها»ی صندوق.
+  if (window.__ddToggleInstalled) return;
+  window.__ddToggleInstalled = true;
+  function closeAll(except) {
+    var menus = document.querySelectorAll('.dd-wrap .dd-menu.open');
+    for (var i = 0; i < menus.length; i++) {
+      if (menus[i] !== except) { menus[i].classList.remove('open'); menus[i].hidden = true; }
+    }
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('.dd-toggle') : null;
+    if (btn) {
+      var wrap = btn.closest('.dd-wrap');
+      var menu = wrap ? wrap.querySelector('.dd-menu') : null;
+      if (menu) {
+        var willOpen = !menu.classList.contains('open');
+        closeAll(menu);
+        menu.classList.toggle('open', willOpen);
+        menu.hidden = !willOpen;
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        e.preventDefault();
+      }
+      return;
+    }
+    if (!(e.target && e.target.closest && e.target.closest('.dd-wrap'))) closeAll(null);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(null); });
+  document.addEventListener('htmx:afterSwap', function () { closeAll(null); });
+})();
+</script>
+<script>
+(function() {
+  // Select محصولی آفلاین، هم‌رفتار با Select وب (@base-ui/react/select):
+  // سلکت بومی فقط حامل مقدار فرم می‌ماند و کاربر یک تریگر و منوی طراحی‌شده
+  // با صفحه‌کلید، وضعیت انتخاب، بستن با کلیک بیرون و جای‌گذاری شناور می‌بیند.
+  if (window.__uiSelectInstalled) return;
+  window.__uiSelectInstalled = true;
+  var CHEVRON = '<svg class="ui-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+  var counter = 0;
+  var openState = null;
+
+  function selectedOption(select) {
+    return select && select.options && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+  }
+  function syncSelect(select) {
+    var btn = select && select._uiTrigger;
+    if (!btn) return;
+    var opt = selectedOption(select);
+    var value = btn.querySelector('.ui-select-value');
+    if (value) value.textContent = opt ? opt.textContent.trim() : '';
+    btn.classList.toggle('is-placeholder', !opt || opt.value === '');
+    btn.classList.toggle('open', !!(openState && openState.select === select));
+    btn.disabled = !!select.disabled;
+    btn.setAttribute('aria-expanded', openState && openState.select === select ? 'true' : 'false');
+  }
+  function closeSelectMenu(restoreFocus) {
+    if (!openState) return;
+    var btn = openState.button;
+    var menu = openState.menu;
+    openState = null;
+    if (menu) menu.remove();
+    if (btn) {
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+      if (restoreFocus) btn.focus();
+    }
+  }
+  function chooseOption(select, option) {
+    if (!option || option.disabled) return;
+    select.value = option.value;
+    syncSelect(select);
+    closeSelectMenu(false);
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    if (select._uiTrigger) select._uiTrigger.focus();
+  }
+  function optionButtons(menu) {
+    return Array.prototype.slice.call(menu.querySelectorAll('.ui-select-option'));
+  }
+  function focusOption(menu, option) {
+    if (!option) return;
+    var buttons = optionButtons(menu);
+    for (var i = 0; i < buttons.length; i++) buttons[i].classList.toggle('is-focused', buttons[i] === option);
+    option.focus();
+  }
+  function positionMenu(menu, btn) {
+    var rect = btn.getBoundingClientRect();
+    var width = Math.max(rect.width, 144);
+    var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    menu.style.width = width + 'px';
+    menu.style.left = left + 'px';
+    var estimated = Math.min(menu.scrollHeight || 280, 288);
+    if (window.innerHeight - rect.bottom < estimated + 12 && rect.top > estimated + 12) {
+      menu.style.top = Math.max(8, rect.top - estimated - 6) + 'px';
+    } else {
+      menu.style.top = (rect.bottom + 6) + 'px';
+    }
+  }
+  function openSelectMenu(select) {
+    if (!select || select.disabled) return;
+    if (openState && openState.select === select) { closeSelectMenu(false); return; }
+    closeSelectMenu(false);
+    syncSelect(select);
+    var btn = select._uiTrigger;
+    var menu = document.createElement('div');
+    menu.className = 'ui-select-menu';
+    menu.setAttribute('role', 'listbox');
+    menu.setAttribute('aria-labelledby', btn.id);
+    var options = select.querySelectorAll('option');
+    for (var i = 0; i < options.length; i++) {
+      (function(option) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'ui-select-option';
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', option.selected ? 'true' : 'false');
+        item.classList.toggle('is-selected', !!option.selected);
+        item.disabled = !!option.disabled;
+        item.innerHTML = '<span class="ui-select-option-label"></span><span class="ui-select-option-check">' + (option.selected ? CHECK : '') + '</span>';
+        item.querySelector('.ui-select-option-label').textContent = option.textContent.trim();
+        item.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          chooseOption(select, option);
+        });
+        item.addEventListener('mouseenter', function() { focusOption(menu, item); });
+        menu.appendChild(item);
+      })(options[i]);
+    }
+    document.body.appendChild(menu);
+    openState = { select: select, button: btn, menu: menu };
+    btn.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    positionMenu(menu, btn);
+    var selected = menu.querySelector('.ui-select-option.is-selected:not(:disabled)') || menu.querySelector('.ui-select-option:not(:disabled)');
+    setTimeout(function() { focusOption(menu, selected); }, 0);
+  }
+  function moveOptionFocus(menu, delta) {
+    var buttons = optionButtons(menu).filter(function(item) { return !item.disabled; });
+    if (!buttons.length) return;
+    var index = buttons.indexOf(document.activeElement);
+    if (index < 0) index = buttons.findIndex(function(item) { return item.classList.contains('is-selected'); });
+    if (index < 0) index = 0;
+    var next = buttons[(index + delta + buttons.length) % buttons.length];
+    focusOption(menu, next);
+  }
+  function enhanceOne(select) {
+    if (!select || select.multiple || Number(select.size || 0) > 1 || select.hidden) return;
+    if (select.hasAttribute('data-native-select')) return;
+    if (select.closest && select.closest('.jalali-picker')) return;
+    if (select.dataset.uiSelectReady === 'true' || select._uiTrigger) { syncSelect(select); return; }
+    select.dataset.uiSelectReady = 'true';
+    var wrap = document.createElement('span');
+    wrap.className = 'ui-select';
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.classList.add('ui-select-native');
+    // مخفی‌سازی ضدگلولهٔ سلکت بومی: در بعضی WebViewها استایل شیت به‌تنهایی
+    // کافی نبود و سلکت بومی بالای تریگر دیده می‌شد؛ استایل درون‌خطی با
+    // اولویت important همیشه برنده است و فقط یک کنترل دیده می‌شود.
+    var hideProps = {
+      'position': 'absolute', 'inset': '0', 'width': '100%', 'height': '100%',
+      'min-height': '0', 'padding': '0', 'border': '0', 'margin': '0',
+      'opacity': '0', 'visibility': 'hidden', 'pointer-events': 'none',
+      'appearance': 'none', '-webkit-appearance': 'none'
+    };
+    for (var prop in hideProps) select.style.setProperty(prop, hideProps[prop], 'important');
+    select.setAttribute('tabindex', '-1');
+    select.setAttribute('aria-hidden', 'true');
+    if (!select.id) { counter++; select.id = 'ui-select-' + counter; }
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ui-select-trigger';
+    btn.id = select.id + '-trigger';
+    btn.setAttribute('aria-haspopup', 'listbox');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = '<span class="ui-select-value"></span>' + CHEVRON;
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openSelectMenu(select);
+    });
+    btn.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSelectMenu(select);
+      }
+    });
+    wrap.appendChild(btn);
+    select._uiTrigger = btn;
+    select.addEventListener('change', function() { syncSelect(select); });
+    select.addEventListener('input', function() { syncSelect(select); });
+    if (window.MutationObserver) {
+      new MutationObserver(function() { syncSelect(select); }).observe(select, {
+        childList: true, subtree: true, attributes: true, attributeFilter: ['selected', 'disabled']
+      });
+    }
+    syncSelect(select);
+  }
+  window.enhanceSelects = function(root) {
+    var scope = root || document;
+    if (scope.nodeType === 1 && scope.tagName === 'SELECT') enhanceOne(scope);
+    if (!scope.querySelectorAll) return;
+    var selects = scope.querySelectorAll('select');
+    for (var i = 0; i < selects.length; i++) enhanceOne(selects[i]);
+  };
+  window.syncUiSelects = window.enhanceSelects;
+
+  document.addEventListener('click', function(e) {
+    if (!openState) return;
+    if (e.target && e.target.closest && (e.target.closest('.ui-select-menu') || e.target.closest('.ui-select-trigger'))) return;
+    closeSelectMenu(false);
+  });
+  document.addEventListener('keydown', function(e) {
+    if (!openState) return;
+    if (e.key === 'Escape') { closeSelectMenu(true); return; }
+    if (e.key === 'Tab') { closeSelectMenu(false); return; }
+    if (!openState.menu.contains(document.activeElement)) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveOptionFocus(openState.menu, 1); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); moveOptionFocus(openState.menu, -1); }
+    if (e.key === 'Home') { e.preventDefault(); focusOption(openState.menu, optionButtons(openState.menu).filter(function(x) { return !x.disabled; })[0]); }
+    if (e.key === 'End') { e.preventDefault(); var enabled = optionButtons(openState.menu).filter(function(x) { return !x.disabled; }); focusOption(openState.menu, enabled[enabled.length - 1]); }
+    if (e.key && e.key.length === 1) {
+      var needle = e.key.toLocaleLowerCase();
+      var buttons = optionButtons(openState.menu);
+      for (var i = 0; i < buttons.length; i++) {
+        if (!buttons[i].disabled && buttons[i].textContent.trim().toLocaleLowerCase().indexOf(needle) === 0) {
+          e.preventDefault();
+          focusOption(openState.menu, buttons[i]);
+          break;
+        }
+      }
+    }
+  });
+  document.addEventListener('scroll', function(e) {
+    if (openState && !(e.target && e.target.closest && e.target.closest('.ui-select-menu'))) closeSelectMenu(false);
+  }, true);
+  window.addEventListener('resize', function() { closeSelectMenu(false); });
+  document.addEventListener('reset', function(e) {
+    setTimeout(function() { window.enhanceSelects(e.target); }, 0);
+  }, true);
+  document.addEventListener('htmx:beforeSwap', function() { closeSelectMenu(false); });
+  document.addEventListener('htmx:afterSwap', function() {
+    closeSelectMenu(false);
+    setTimeout(function() { window.enhanceSelects(document); }, 20);
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function() { window.enhanceSelects(document); });
+  else window.enhanceSelects(document);
+  if (document.body && window.MutationObserver) {
+    var pending = false;
+    new MutationObserver(function() {
+      if (pending) return;
+      pending = true;
+      setTimeout(function() { pending = false; window.enhanceSelects(document); }, 40);
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+})();
+</script>
+<script>
+(function() {
+  if (window.__chartTipInstalled) return; window.__chartTipInstalled = true;
+  // تول‌تیپ تیره نمودار داشبورد (ChartTooltipCard وب): نزدیک‌ترین نقطه به موس
+  // فعال می‌شود، کرسر عمودی و نقطه فعال روی هر دو سری نمایش داده می‌شوند.
+  var tip = document.createElement('div');
+  tip.className = 'chart-tooltip';
+  tip.hidden = true;
+  document.body.appendChild(tip);
+  function row(cls, label, value) {
+    return '<div class="chart-tip-row"><span class="chart-tip-dot ' + cls + '"></span><span class="chart-tip-label">' + label + '</span><strong>' + value + '</strong></div>';
+  }
+  function hideAll() {
+    tip.hidden = true;
+    var svg = document.querySelector('.dash-chart');
+    if (svg) {
+      var els = svg.querySelectorAll('.chart-cursor, .chart-adot');
+      for (var i = 0; i < els.length; i++) els[i].setAttribute('hidden', '');
+    }
+  }
+  document.addEventListener('mousemove', function(e) {
+    var zone = e.target && e.target.closest ? e.target.closest('.chart-hover-zone') : null;
+    if (!zone) { if (!tip.hidden) hideAll(); return; }
+    var svg = zone.ownerSVGElement;
+    if (!svg) return;
+    var cx = zone.getAttribute('data-cx');
+    var cursor = svg.querySelector('.chart-cursor');
+    if (cursor) { cursor.setAttribute('x1', cx); cursor.setAttribute('x2', cx); cursor.removeAttribute('hidden'); }
+    var dotI = svg.querySelector('.chart-adot.income');
+    if (dotI) { dotI.setAttribute('cx', cx); dotI.setAttribute('cy', zone.getAttribute('data-iy')); dotI.removeAttribute('hidden'); }
+    var dotE = svg.querySelector('.chart-adot.expense');
+    if (dotE) { dotE.setAttribute('cx', cx); dotE.setAttribute('cy', zone.getAttribute('data-ey')); dotE.removeAttribute('hidden'); }
+    tip.innerHTML = '<p class="chart-tip-title">' + zone.getAttribute('data-title') + '</p>'
+      + row('income', 'درآمد', zone.getAttribute('data-income'))
+      + row('expense', 'هزینه', zone.getAttribute('data-expense'));
+    tip.hidden = false;
+    var r = tip.getBoundingClientRect();
+    var left = e.clientX - r.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - r.width - 8));
+    var top = e.clientY - r.height - 14;
+    if (top < 8) top = e.clientY + 16;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+  document.addEventListener('mouseleave', hideAll);
+})();
+</script>
+<script>
+// با هر جابه‌جایی صفحه (HTMX)، ناحیه محتوای اصلی از بالا شروع شود؛ سایدبار ثابت می‌ماند.
+document.addEventListener('htmx:afterSwap', function (e) {
+  if (e.target && e.target.id === 'main-view') { e.target.scrollTop = 0; }
+});
+</script>
+<script>
+(function(){
+  if (window.__numFmtInstalled) return; window.__numFmtInstalled = true;
+  var faToEn = {'۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9','٫':'.'};
+  function rawOf(v){ return String(v||'').replace(/[۰-۹]/g,function(d){return faToEn[d]||d;}).replace(/[,٬\s]/g,''); }
+  function grouped(v){
+    var raw = rawOf(v); if (raw===''||raw==='-'||raw==='.') return raw;
+    var neg = raw.charAt(0)==='-'; if (neg) raw = raw.slice(1);
+    var parts = raw.split('.'); var intPart = parts[0].replace(/[^0-9]/g,'');
+    if (intPart==='') return v;
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    var out = (neg?'-':'') + intPart;
+    if (parts.length>1) out += '.' + parts[1].replace(/[^0-9]/g,'');
+    return out;
+  }
+  function apply(scope){
+    var els = (scope||document).querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]');
+    for (var i=0;i<els.length;i++){ var el=els[i]; if (el.value) el.value = grouped(el.value); el.setAttribute('dir','ltr'); }
+  }
+  document.addEventListener('input', function(e){
+    var el = e.target;
+    if (el && el.matches && el.matches('input[inputmode="numeric"], input[inputmode="decimal"]')) el.value = grouped(el.value);
+  });
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    var els = form.querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]');
+    for (var i=0;i<els.length;i++) els[i].value = rawOf(els[i].value);
+  }, true);
+  document.addEventListener('htmx:afterSwap', function(){ apply(document); });
+  apply(document);
+})();
+</script>
+<script>
+(function(){
+  if (window.__ordDlgInstalled) return; window.__ordDlgInstalled = true;
+  var FA='۰۱۲۳۴۵۶۷۸۹';
+  function toFa(v){ return String(v).replace(/[0-9]/g,function(d){return FA[Number(d)];}); }
+  function normNum(v){
+    return String(v||'').replace(/[۰-۹]/g,function(d){return String(FA.indexOf(d));})
+      .replace(/[٠-٩]/g,function(d){return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d));}).replace(/\s/g,'');
+  }
+  function faToman(irr){
+    var n = Math.round((parseInt(String(irr||'0'),10)||0)/10);
+    return toFa(String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'٬')) + ' تومان';
+  }
+  function closeAllMenus(except){
+    document.querySelectorAll('.dd-menu.open').forEach(function(m){ if (m!==except) m.classList.remove('open'); });
+  }
+  window.ordMenuToggle = function(btn, ev){
+    ev.stopPropagation();
+    var menu = btn.parentElement.querySelector('.dd-menu');
+    var willOpen = !menu.classList.contains('open');
+    closeAllMenus(menu);
+    menu.classList.toggle('open', willOpen);
+  };
+  document.addEventListener('click', function(e){ if (!e.target.closest('.dd-wrap')) closeAllMenus(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') { closeAllMenus(); document.querySelectorAll('.dlg-overlay.open').forEach(function(o){ o.classList.remove('open'); }); }
+  });
+  window.openDlg = function(id){ closeAllMenus(); var o=document.getElementById(id); if (o) o.classList.add('open'); };
+  window.closeDlg = function(btn){ var o=btn.closest('.dlg-overlay'); if (o) o.classList.remove('open'); };
+  document.addEventListener('click', function(e){ if (e.target.classList && e.target.classList.contains('dlg-overlay')) e.target.classList.remove('open'); });
+
+  // ── لغو سفارش ──
+  window.ordOpenCancel = function(btn){
+    document.getElementById('dlg-cancel-title').textContent = 'لغو سفارش ' + btn.dataset.orderNumber;
+    document.getElementById('dlg-cancel-id').value = btn.dataset.orderId;
+    var ta = document.getElementById('dlg-cancel-reason'); ta.value='';
+    document.getElementById('dlg-cancel-error').hidden = true;
+    document.getElementById('dlg-cancel-submit').disabled = true;
+    openDlg('dlg-cancel');
+  };
+  window.ordReasonChip = function(btn){
+    document.getElementById('dlg-cancel-reason').value = btn.textContent.trim();
+    ordCancelCheck();
+  };
+  window.ordCancelCheck = function(){
+    var ta = document.getElementById('dlg-cancel-reason');
+    var n = ta.value.trim().length;
+    document.getElementById('dlg-cancel-submit').disabled = !(n>=2 && n<=500);
+    document.getElementById('dlg-cancel-error').hidden = !(n>0 && (n<2 || n>500));
+  };
+  window.ordCancelValidate = function(){ ordCancelCheck(); return !document.getElementById('dlg-cancel-submit').disabled; };
+
+  // ── حذف سفارش ──
+  window.ordOpenDelete = function(btn){
+    var dlg = document.getElementById('dlg-delete');
+    dlg.dataset.expected = normNum(btn.dataset.orderNumberRaw || btn.dataset.orderNumber);
+    document.getElementById('dlg-delete-title').textContent = 'حذف سفارش ' + btn.dataset.orderNumber;
+    document.getElementById('dlg-delete-confirm-label').textContent = 'برای تأیید، شمارهٔ سفارش (' + btn.dataset.orderNumber + ') را دقیق وارد کنید:';
+    document.getElementById('dlg-delete-id').value = btn.dataset.orderId;
+    document.getElementById('dlg-delete-confirm').value='';
+    document.getElementById('dlg-delete-reason').value='';
+    document.getElementById('dlg-delete-submit').disabled = true;
+    openDlg('dlg-delete');
+  };
+  window.ordDeleteCheck = function(){
+    var dlg = document.getElementById('dlg-delete');
+    var okNum = normNum(document.getElementById('dlg-delete-confirm').value) === dlg.dataset.expected && dlg.dataset.expected !== '';
+    var n = document.getElementById('dlg-delete-reason').value.trim().length;
+    document.getElementById('dlg-delete-submit').disabled = !(okNum && n>=2 && n<=500);
+  };
+
+  // ── بدهکاران ──
+  window.ordOpenDefer = function(btn){
+    document.getElementById('dlg-defer-id').value = btn.dataset.orderId;
+    document.getElementById('dlg-defer-name').value = btn.dataset.customer || '';
+    document.getElementById('dlg-defer-phone').value = btn.dataset.phone || '';
+    document.getElementById('dlg-defer-note').value = '';
+    document.getElementById('dlg-defer-days').value = '0';
+    var jpw = document.getElementById('dlg-defer-date-wrap'); if (jpw) jpw.hidden = true;
+    document.querySelectorAll('#dlg-defer-dues .reason-chip').forEach(function(c,i){ c.classList.toggle('active', i===0); });
+    document.getElementById('dlg-defer-total').textContent = btn.dataset.total + ' تومان';
+    document.getElementById('dlg-defer-submit').textContent = 'ثبت در بدهکاران (' + btn.dataset.total + ' تومان)';
+    var box = document.getElementById('dlg-defer-items'); box.innerHTML='';
+    try {
+      JSON.parse(btn.dataset.items || '[]').forEach(function(it){
+        var row = document.createElement('div'); row.className='defer-item';
+        row.innerHTML = '<span></span><strong></strong>';
+        row.children[0].textContent = toFa(it.qty) + '× ' + it.title;
+        row.children[1].textContent = faToman((parseInt(it.unit,10)||0) * it.qty);
+        box.appendChild(row);
+      });
+    } catch(e) {}
+    openDlg('dlg-defer');
+  };
+  window.ordDeferDue = function(btn){
+    document.querySelectorAll('#dlg-defer-dues .reason-chip').forEach(function(c){ c.classList.remove('active'); });
+    btn.classList.add('active');
+    var date = document.getElementById('dlg-defer-date');
+    var wrap = document.getElementById('dlg-defer-date-wrap');
+    if (btn.dataset.days === 'date') { if (wrap) wrap.hidden = false; document.getElementById('dlg-defer-days').value='0'; }
+    else { if (wrap) wrap.hidden = true; if (date) date.value=''; document.getElementById('dlg-defer-days').value = btn.dataset.days; }
+  };
+  window.ordDeferValidate = function(){
+    var name = document.getElementById('dlg-defer-name');
+    if (name.value.trim().length < 2) { name.focus(); name.setAttribute('aria-invalid','true'); return false; }
+    return true;
+  };
+
+  // ── ویرایش سفارش ──
+  function editDlg(){ return document.getElementById('dlg-edit'); }
+  function renderEditLines(){
+    var dlg = editDlg(); var lines = dlg._lines || [];
+    var box = document.getElementById('dlg-edit-lines'); box.innerHTML='';
+    lines.forEach(function(ln, i){
+      var row = document.createElement('div'); row.className='edit-line';
+      row.innerHTML =
+        '<div class="edit-line-main"><strong></strong><span class="edit-line-unit"></span></div>' +
+        '<div class="edit-stepper"><button type="button" aria-label="کم کردن">−</button><span></span><button type="button" aria-label="زیاد کردن">+</button></div>' +
+        '<span class="edit-line-total"></span>' +
+        '<button type="button" class="edit-line-remove" aria-label="حذف قلم">×</button>' +
+        '<input type="hidden" name="product_id"><input type="hidden" name="quantity"><input type="hidden" name="line_note">';
+      row.querySelector('strong').textContent = ln.title;
+      row.querySelector('.edit-line-unit').textContent = faToman(ln.unit);
+      row.querySelector('.edit-stepper span').textContent = toFa(ln.qty);
+      row.querySelector('.edit-line-total').textContent = faToman((parseInt(ln.unit,10)||0) * ln.qty);
+      var inputs = row.querySelectorAll('input');
+      inputs[0].value = ln.pid; inputs[1].value = ln.qty; inputs[2].value = ln.note || '';
+      var btns = row.querySelectorAll('.edit-stepper button');
+      btns[0].onclick = function(){ ln.qty = Math.max(1, ln.qty - 1); renderEditLines(); };
+      btns[1].onclick = function(){ ln.qty = ln.qty + 1; renderEditLines(); };
+      row.querySelector('.edit-line-remove').onclick = function(){ lines.splice(i,1); renderEditLines(); };
+      box.appendChild(row);
+    });
+    document.getElementById('dlg-edit-error').hidden = lines.length > 0;
+    document.getElementById('dlg-edit-submit').disabled = lines.length === 0;
+  }
+  // نرمال‌سازی متن برای جستجوی محصول: ی/ک عربی، نیم‌فاصله و کشیدگی (هم‌قاعده با جستجوی صندوق).
+  function editNorm(s){
+    return (s || '').toLowerCase()
+      .replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/ة/g, 'ه')
+      .replace(/إ/g, 'ا').replace(/أ/g, 'ا')
+      .replace(/‌/g, ' ').replace(/ـ/g, '');
+  }
+  // جستجوی محصول در دیالوگ ویرایش سفارش (مانند وب): فیلتر کارت‌ها بر اساس نام
+  // محصول، حداکثر ۱۶ نتیجه و پیام «پیدا نشد» وقتی نتیجه‌ای نیست.
+  window.ordEditSearch = function(q){
+    var query = editNorm(q).trim();
+    var cards = document.querySelectorAll('#dlg-edit-catalog .edit-pick');
+    var shown = 0;
+    cards.forEach(function(card){
+      var hit = !query || editNorm(card.dataset.title).indexOf(query) >= 0;
+      var show = hit && shown < 16;
+      card.hidden = !show;
+      if (show) shown++;
+    });
+    var empty = document.getElementById('dlg-edit-empty');
+    if (empty) empty.hidden = shown !== 0;
+  };
+  window.ordOpenEdit = function(btn){
+    var dlg = editDlg();
+    document.getElementById('dlg-edit-title').textContent = 'ویرایش سفارش ' + btn.dataset.orderNumber;
+    document.getElementById('dlg-edit-id').value = btn.dataset.orderId;
+    try { dlg._lines = JSON.parse(btn.dataset.items || '[]'); } catch(e) { dlg._lines = []; }
+    var search = document.getElementById('dlg-edit-search');
+    if (search) search.value = '';
+    window.ordEditSearch('');
+    renderEditLines();
+    openDlg('dlg-edit');
+  };
+  window.ordPickAdd = function(btn){
+    var card = btn.closest('.edit-pick'); if (!card) return;
+    var dlg = editDlg(); var lines = dlg._lines || (dlg._lines = []);
+    var found = null;
+    lines.forEach(function(ln){ if (ln.pid === card.dataset.pid) found = ln; });
+    if (found) found.qty += 1;
+    else lines.push({pid: card.dataset.pid, title: card.dataset.title, qty: 1, unit: card.dataset.price || '0', note: ''});
+    renderEditLines();
+  };
+  window.ordEditSubmit = function(){
+    var lines = editDlg()._lines || [];
+    if (lines.length === 0) { document.getElementById('dlg-edit-error').hidden = false; return false; }
+    return true;
+  };
+})();
+</script>
+</body>
+</html>{{end}}
+
+{{define "content"}}
+{{if ne .Page "pos"}}<header class="topbar no-print">
+  <div>
+    <h1 class="page-heading">
+      {{if eq .Page "home"}}پیشخوان مدیریتی کافه
+      {{else if eq .Page "pos"}}صندوق فروش و صدور فیش (POS)
+      {{else if eq .Page "orders"}}سفارش‌ها
+      {{else if eq .Page "receipt"}}فیش سفارش (چاپ مستقیم حرارتی)
+      {{else if eq .Page "receipts"}}کل سفارشات
+      {{else if eq .Page "pricing"}}قیمت‌گذاری و بهای تمام‌شده
+      {{else if eq .Page "analytics"}}تحلیل فروش و عملیات
+      {{else if eq .Page "suppliers"}}تأمین‌کنندگان انبار
+      {{else if eq .Page "waste"}}ضایعات انبار
+      {{else if eq .Page "products"}}محصولات
+      {{else if eq .Page "product-form"}}ایجاد محصول
+      {{else if eq .Page "categories"}}دسته‌بندی‌های منوی کافه
+      {{else if eq .Page "ingredients"}}مدیریت انبار
+      {{else if eq .Page "ingredient-form"}}افزودن قلم به انبار
+      {{else if eq .Page "recipes"}}فرمول ساخت و رسپی محصولات (BOM)
+      {{else if eq .Page "tables"}}وضعیت میزهای سالن و رزرواسیون
+      {{else if eq .Page "customers"}}باشگاه مشتریان
+      {{else if eq .Page "club-groups"}}گروه‌های باشگاه مشتریان
+      {{else if eq .Page "club-group-form"}}{{if eq .Action "update"}}ویرایش گروه مشتریان{{else}}گروه جدید باشگاه{{end}}
+      {{else if eq .Page "club-group"}}جزئیات گروه مشتریان
+      {{else if eq .Page "debtors"}}دفتر حساب‌های دفتری و نسیه
+      {{else if eq .Page "finance"}}امور مالی، هزینه‌ها و حسابداری دوبل
+      {{else if eq .Page "staff"}}مدیریت کارکنان
+      {{else if eq .Page "staff-checklist"}}چک‌لیست اجرایی روزانه و شیفت‌ها
+      {{else if eq .Page "staff-form"}}پروفایل پرسنل
+      {{else if eq .Page "inv-categories"}}دسته‌بندی مواد اولیه
+      {{else if eq .Page "inv-purchases"}}فاکتورهای خرید انبار
+      {{else if eq .Page "reports"}}گزارشات روزانه
+      {{else if eq .Page "settings"}}تنظیمات کافه و چاپگرهای حرارتی
+      {{else if eq .Page "editor"}}ویرایشگر ساختاریافته اطلاعات ({{.Kind}})
+      {{else}}منووکس{{end}}
+    </h1>
+    <div class="topbar-meta">
+      <span class="meta-chip">{{.JalaliNow}}</span>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a href="/?page=pos" hx-get="/?page=pos" hx-target="#main-view" hx-push-url="true" class="btn btn-primary">+ ثبت سفارش در صندوق (POS)</a>
+    <a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">سفارش‌ها ({{faInt .Analytics.OpenOrders}})</a>
+  </div>
+</header>{{end}}
+
+{{if .Message}}
+<div class="toast-seed" data-toast="{{.Message}}" hidden></div>
+{{end}}
+{{if eq .Page "home"}}
+  <section class="dash-head">
+    <div>
+      <p class="dash-eyebrow">نمای عملیاتی امروز</p>
+      <h2 class="dash-title">خلاصه وضعیت کافه</h2>
+      <p class="dash-sub">این صفحه فقط امروز است. فیش روزهای قبل در <a href="/?page=receipts" hx-get="/?page=receipts" hx-target="#main-view" hx-push-url="true">کل سفارشات</a> و فروش دیروز یا بیست روز اخیر در <a href="/?page=reports" hx-get="/?page=reports" hx-target="#main-view" hx-push-url="true">گزارش‌ها</a>.</p>
+    </div>
+    <div class="dash-head-actions">
+      <span class="dash-date-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>{{.DashTodayLabel}}</span>
+      <a href="/?page=home" hx-get="/?page=home" hx-target="#main-view" hx-push-url="true" class="icon-btn dash-refresh" title="به‌روزرسانی اطلاعات داشبورد" aria-label="به‌روزرسانی اطلاعات داشبورد"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 3v4h-4"/></svg></a>
+    </div>
+  </section>
+
+  {{if eq .Stats.ProductsCount 0}}
+  <section class="empty-hero-card">
+    <div>
+      <h2>راه‌اندازی اولیه سامانه منووکس</h2>
+      <p>برای بارگذاری منوی کامل کافه (اسپرسو، لاته، قهوه دمی، کیک روز)، مواد اولیه انبار، رسپی‌ها، میزهای سالن، مشتریان و سفارش‌های نمونه، دکمه روبه‌رو را بزنید.</p>
+    </div>
+    <form method="post" action="/local/seed-demo" hx-post="/local/seed-demo" hx-target="#main-view">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button type="submit" class="btn btn-primary btn-lg">بارگذاری داده‌های نمونه کافه ایرانی</button>
+    </form>
+  </section>
+  {{end}}
+
+  <section class="dash-kpis">
+    <article class="dash-stat span2">
+      <div class="dash-stat-head">
+        <span class="stat-tile info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6.5" width="18" height="11" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5h.01M17.5 14.5h.01"/></svg></span>
+        <h3>درآمد امروز</h3>
+        {{if .DashRevGrowthLabel}}<span class="growth-badge {{.DashRevGrowthClass}}">{{.DashRevGrowthLabel}}</span>{{end}}
+      </div>
+      <p class="dash-stat-desc">مجموع درآمد امروز کافه</p>
+      <div class="dash-stat-foot"><strong class="dash-stat-value">{{.DashRevTodayFa}} <small>تومان</small></strong><a href="/?page=reports" hx-get="/?page=reports" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">جزییات</a></div>
+    </article>
+    <article class="dash-stat span2">
+      <div class="dash-stat-head">
+        <span class="stat-tile info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 8h14l-1.2 11a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8z"/><path d="M8.5 10V6.5a3.5 3.5 0 0 1 7 0V10"/></svg></span>
+        <h3>سفارش‌های امروز</h3>
+        {{if .DashOrdersGrowthLabel}}<span class="growth-badge {{.DashOrdersGrowthClass}}">{{.DashOrdersGrowthLabel}}</span>{{end}}
+      </div>
+      <p class="dash-stat-desc">تعداد سفارش‌های موفق امروز</p>
+      <div class="dash-stat-foot"><strong class="dash-stat-value">{{faInt .DashOrdersToday}} <small>سفارش</small></strong><a href="/?page=pos" hx-get="/?page=pos" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">ثبت سفارش</a></div>
+    </article>
+    <article class="dash-stat span2">
+      <div class="dash-stat-head">
+        <span class="stat-tile info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3.5h12v17l-2-1.4L14 20.5l-2-1.4L10 20.5 8 19.1l-2 1.4z"/><path d="M9 8l6 6m0-6l-6 6"/></svg></span>
+        <h3>میانگین فاکتور</h3>
+        {{if .DashAvgGrowthLabel}}<span class="growth-badge {{.DashAvgGrowthClass}}">{{.DashAvgGrowthLabel}}</span>{{end}}
+      </div>
+      <p class="dash-stat-desc">میانگین مبلغ هر فاکتور امروز</p>
+      <div class="dash-stat-foot"><strong class="dash-stat-value">{{.DashAvgTodayFa}} <small>تومان</small></strong><a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">سفارش‌ها</a></div>
+    </article>
+    <article class="dash-stat span3">
+      <div class="dash-stat-head">
+        <span class="stat-tile {{if gt .DashLowStock 0}}danger{{else}}ok{{end}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+        <h3>موجودی کم</h3>
+        {{if gt .DashLowStock 0}}<span class="growth-badge neg">نیاز به بررسی</span>{{else}}<span class="growth-badge pos">وضعیت مناسب</span>{{end}}
+      </div>
+      <p class="dash-stat-desc">کالاهای رسیده به حد هشدار انبار</p>
+      <div class="dash-stat-foot"><strong class="dash-stat-value {{if gt .DashLowStock 0}}danger-text{{end}}">{{if gt .DashLowStock 0}}{{faInt .DashLowStock}} <small>کالا</small>{{else}}بدون کمبود{{end}}</strong><a href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">مدیریت انبار</a></div>
+    </article>
+    <article class="dash-stat span3">
+      <div class="dash-stat-head">
+        <span class="stat-tile {{if gt .DashWaiting 0}}warn{{else}}info{{end}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+        <h3>سفارش‌های در انتظار</h3>
+        {{if gt .DashWaiting 0}}<span class="growth-badge warnb">نیاز به اقدام</span>{{else}}<span class="growth-badge neutral">صف خالی</span>{{end}}
+      </div>
+      <p class="dash-stat-desc">سفارش‌های در حال آماده‌سازی</p>
+      <div class="dash-stat-foot"><strong class="dash-stat-value {{if gt .DashWaiting 0}}warn-text{{end}}">{{if gt .DashWaiting 0}}{{faInt .DashWaiting}} <small>سفارش</small>{{else}}بدون سفارش{{end}}</strong><a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">پیگیری</a></div>
+    </article>
+  </section>
+
+  {{if or (gt .DashLowStock 0) (gt .DashWaiting 0)}}
+  <section class="dash-alert">
+    <div>
+      <strong><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4L21 20H3z"/><path d="M12 10v4.5m0 2.5v.01"/></svg> نیازمند توجه امروز</strong>
+      <p>برای جلوگیری از تأخیر یا توقف فروش بررسی کنید.</p>
+    </div>
+    {{if gt .DashLowStock 0}}<a href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">{{faInt .DashLowStock}} قلم کم‌موجود</a>{{end}}
+    {{if gt .DashWaiting 0}}<a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">{{faInt .DashWaiting}} سفارش در انتظار</a>{{end}}
+  </section>
+  {{end}}
+
+  <div class="dash-mid">
+    <section class="panel-card dash-chart-card">
+      <div class="panel-header">
+        <div><h2>گزارش درآمد و هزینه</h2></div>
+        <div class="dash-tabs">
+          <a href="/?page=home&range=today" hx-get="/?page=home&range=today" hx-target="#main-view" hx-push-url="true" class="dash-tab {{if eq .DashChartRange "today"}}active{{end}}">امروز</a>
+          <a href="/?page=home&range=7d" hx-get="/?page=home&range=7d" hx-target="#main-view" hx-push-url="true" class="dash-tab {{if eq .DashChartRange "7d"}}active{{end}}">۷ روز گذشته</a>
+          <a href="/?page=home&range=30d" hx-get="/?page=home&range=30d" hx-target="#main-view" hx-push-url="true" class="dash-tab {{if eq .DashChartRange "30d"}}active{{end}}">۳۰ روز گذشته</a>
+        </div>
+      </div>
+      <div class="chart-legend"><span><i class="dot income"></i>درآمد</span><span><i class="dot expense"></i>هزینه</span></div>
+      {{.DashChart}}
+    </section>
+
+    <section class="panel-card dash-pulse">
+      <div class="panel-header">
+        <div><h2>نبض عملیات امروز</h2><p>موارد مهم برای تصمیم‌گیری سریع مدیر</p></div>
+        <span class="meta-chip ok">به‌روز</span>
+      </div>
+      <div class="pulse-rows">
+        <a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="pulse-row">
+          <span class="pulse-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+          <span class="pulse-text"><strong>در حال آماده‌سازی</strong><small>سفارش‌های در حال آماده‌سازی</small></span>
+          <strong class="pulse-value">{{faInt .DashWaiting}} سفارش</strong>
+        </a>
+        <a href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" class="pulse-row">
+          <span class="pulse-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+          <span class="pulse-text"><strong>موجودی نیازمند بررسی</strong><small>برای جلوگیری از توقف فروش بررسی شود</small></span>
+          <strong class="pulse-value">{{faInt .DashLowStock}} قلم</strong>
+        </a>
+        <a href="/?page=receipts" hx-get="/?page=receipts" hx-target="#main-view" hx-push-url="true" class="pulse-row">
+          <span class="pulse-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 8h14l-1.2 11a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8z"/><path d="M8.5 10V6.5a3.5 3.5 0 0 1 7 0V10"/></svg></span>
+          <span class="pulse-text"><strong>تراکنش موفق</strong><small>ثبت‌شده در داده‌های امروز</small></span>
+          <strong class="pulse-value">{{faInt .DashCompletedToday}}</strong>
+        </a>
+      </div>
+      <a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="pulse-footer">مشاهده مرکز سفارش‌ها ←</a>
+    </section>
+  </div>
+
+  <div class="dash-bottom">
+    <section class="panel-card dash-recent">
+      <div class="panel-header">
+        <div><h2>آخرین سفارش‌ها</h2><p>آخرین فروش‌های ثبت‌شده صندوق • مجموع دریافتی قابل مشاهده: <strong>{{.DashRecentTotal}}</strong></p></div>
+        <a href="/?page=orders" hx-get="/?page=orders" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">همه سفارش‌ها</a>
+      </div>
+      {{if .DashRecent}}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>اقلام سفارش</th><th>تعداد</th><th>مبلغ</th><th>زمان ثبت</th></tr></thead>
+          <tbody>
+            {{range .DashRecent}}
+            <tr>
+              <td><div class="ord-item-badges">{{range .Items}}<span class="ord-item-badge">{{.}}</span>{{else}}<strong>{{.ItemsLabel}}</strong>{{end}}</div></td>
+              <td>{{faInt .Quantity}} قلم</td>
+              <td><strong class="price-tag">{{.Entity.PriceToman}}</strong></td>
+              <td>{{.TimeLabel}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}<p class="empty-text">هنوز سفارشی ثبت نشده است.</p>{{end}}
+    </section>
+
+    <section class="panel-card dash-popular">
+      <div class="panel-header">
+        <div><h2>محصولات پرفروش امروز</h2><p>رتبه‌بندی بر اساس تعداد سفارش واقعی</p></div>
+      </div>
+      {{if .DashPopular}}
+      <div class="pop-rows">
+        {{range .DashPopular}}
+        <div class="pop-row">
+          <span class="pop-rank">{{faInt .Rank}}</span>
+          <div class="pop-main">
+            <div class="pop-line"><strong>{{.Name}}</strong><small>{{faInt .Qty}} سفارش</small></div>
+            <div class="pop-bar"><i style="width:{{.Percent}}%"></i></div>
+          </div>
+        </div>
+        {{end}}
+      </div>
+      {{else}}<p class="empty-text">امروز هنوز فروش تکمیل‌شده‌ای ثبت نشده است.</p>{{end}}
+    </section>
+  </div>
+
+  <section class="panel-card dash-low">
+    <div class="panel-header">
+      <div><h2 class="danger-text">محصولات کم‌موجود</h2><p>اقلامی که به حداقل موجودی نزدیک شده‌اند</p></div>
+      <a href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">مشاهده موجودی و مدیریت موجودی</a>
+    </div>
+    {{if .DashLowItems}}
+    <div class="dash-low-grid">
+      {{range .DashLowItems}}
+      <div class="dash-low-item">
+        <strong>{{.Entity.Label}}</strong>
+        <small>موجودی: {{.StockDisplay}}</small>
+        <span class="badge {{if eq .StatusKey "out"}}status-danger{{else}}status-warn{{end}}">{{.StatusText}}</span>
+      </div>
+      {{end}}
+    </div>
+    {{else}}<p class="empty-text">همه اقلام بالای حد هشدار هستند؛ وضعیت مناسب است.</p>{{end}}
+  </section>
+
+{{else}}
+  {{template "workflow" .}}
+{{end}}
+{{end}}

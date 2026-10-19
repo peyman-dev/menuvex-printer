@@ -42,26 +42,83 @@ export const documentSchema = z.discriminatedUnion('type', [
     }),
   }),
   z.strictObject({ type: z.literal('receipt'), lines: z.array(text(500)).min(1).max(100) }),
-]);
-export const connectionSchema = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('spooler'), queueName: z.string().min(1).max(512) }),
+  /**
+   * Frontend-authored raw ESC/POS. The agent forwards these bytes **verbatim** — no rendering,
+   * no font substitution, no added initialize/feed/cut — so the frontend stays the source of
+   * truth for the printed design. Gated behind the operator-owned `rawPassthrough` printer flag;
+   * without it the agent answers `RAW_PASSTHROUGH_DISABLED`.
+   *
+   * Use `commands` for short sequences and `data` (base64) for full raster receipts. The decoded
+   * byte limit is 1 MiB; the agent allows enough wire space for base64 and the JSON envelope.
+   */
   z.strictObject({
-    type: z.literal('network'),
-    host: z.string(),
-    port: z.number().int().min(1).max(65535),
-  }),
-  z.strictObject({
-    type: z.literal('usb'),
-    vendorId: z.number().int(),
-    productId: z.number().int(),
-    serial: z.string().nullable(),
-    bus: z.number().int(),
-    ports: z.array(z.number().int()),
-    interface: z.number().int(),
-    endpoint: z.number().int(),
-    alternate: z.number().int(),
+    type: z.literal('escpos'),
+    commands: z
+      .array(z.number().int().min(0).max(255))
+      .max(16 * 1024)
+      .default([]),
+    data: z
+      .string()
+      // Base64 expansion of the agent's 1 MiB decoded ESC/POS limit.
+      .max(1_398_104)
+      .default(''),
   }),
 ]);
+/**
+ * The only connection types the protocol carries.
+ *
+ * `spooler` is stored locally and is *never* published on the wire by a current agent — see
+ * `Connection::api_value` in `src-tauri/src/printers/mod.rs`, which projects it onto the reserved
+ * USB-shaped descriptor. It stays in this schema so the desktop window and older builds can round
+ * trip it. A website that only implements `network` and `usb` therefore still validates every
+ * `printers.list` payload; use `spoolerQueueName()` before reading `type`.
+ */
+export const CONNECTION_TYPES = ['spooler', 'network', 'usb'] as const;
+export type ConnectionType = (typeof CONNECTION_TYPES)[number];
+/** Name the value that was rejected. Zod's default `invalid_union` message ("Invalid input" /
+ * "Invalid discriminator value") hides it, which is how an unsupported type reached production
+ * with no actionable message. */
+function unsupportedConnectionType(received: unknown): string {
+  const shown =
+    typeof received === 'string' && received.length > 0
+      ? `"${received.slice(0, 64)}"`
+      : '<missing>';
+  return `Unsupported printer connection type: ${shown}. Supported: ${CONNECTION_TYPES.map(
+    (t) => `"${t}"`,
+  ).join(', ')}.`;
+}
+export const connectionSchema = z.discriminatedUnion(
+  'type',
+  [
+    z.strictObject({ type: z.literal('spooler'), queueName: z.string().min(1).max(512) }),
+    z.strictObject({
+      type: z.literal('network'),
+      host: z.string(),
+      port: z.number().int().min(1).max(65535),
+    }),
+    z.strictObject({
+      type: z.literal('usb'),
+      vendorId: z.number().int(),
+      productId: z.number().int(),
+      serial: z.string().nullable(),
+      bus: z.number().int(),
+      ports: z.array(z.number().int()),
+      interface: z.number().int(),
+      endpoint: z.number().int(),
+      alternate: z.number().int(),
+    }),
+  ],
+  {
+    error: (issue) =>
+      unsupportedConnectionType((issue.input as { type?: unknown } | undefined)?.type),
+  },
+);
+export type Connection = z.infer<typeof connectionSchema>;
+export const usbFallbackTargetSchema = connectionSchema.refine(
+  (connection) => connection.type !== 'usb',
+  'USB fallback must be a spooler queue or network printer',
+);
+
 export const printerStatusSchema = z.enum(['online', 'offline', 'unknown', 'busy', 'error']);
 export const printerSchema = z.object({
   id,
@@ -73,6 +130,11 @@ export const printerSchema = z.object({
   cut: z.boolean(),
   fontFamily: z.string(),
   fontSize: z.number().int(),
+  /** Legacy-compatible profile field; writes from remote `printer.save` are ignored by the agent.
+   * The local opt-in and raw target configuration are not part of the website-facing Printer API. */
+  rawPassthrough: z.boolean().optional(),
+  /** Local-only failover for USB profiles; a remote printer.save cannot change the stored value. */
+  usbFallbackTarget: usbFallbackTargetSchema.nullable().optional(),
   status: printerStatusSchema,
 });
 export const errorSchema = z.object({
@@ -80,6 +142,8 @@ export const errorSchema = z.object({
   message: z.string(),
   retryable: z.boolean(),
   uncertain: z.boolean(),
+  printer: z.string().optional(),
+  actionRequired: z.string().optional(),
 });
 export const jobSchema = z.object({
   jobId: id,
@@ -127,6 +191,12 @@ export type DiscoveredNetworkPrinter = z.infer<typeof discoveredNetworkPrinterSc
 export type PrinterInput = z.infer<typeof printerInputSchema>;
 export type InstalledPrinter = z.infer<typeof installedPrinterSchema>;
 export type QueueClearResult = z.infer<typeof queueClearResultSchema>;
+/** Raw ESC/POS document: the frontend owns the design, the agent only transports the bytes. */
+export function escposDocument(bytes: Uint8Array): PrintDocument {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return { type: 'escpos', data: btoa(binary) };
+}
 export type ConnectionState =
   'connected' | 'disconnected' | 'connecting' | 'unauthorized' | 'error';
 export type PrinterStatusEvent = { printerId: string; status: PrinterStatus };
@@ -136,6 +206,8 @@ export class AgentError extends Error {
     message: string,
     public uncertain = false,
     public retryable = false,
+    public printer?: string,
+    public actionRequired?: string,
   ) {
     super(message);
     this.name = 'AgentError';

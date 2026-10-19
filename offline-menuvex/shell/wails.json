@@ -1,0 +1,14 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Coffish Desktop",
+  "outputfilename": "coffish-desktop",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "Coffish"
+  },
+  "frontend:dir": "../ui",
+  "wailsjsdir": "./generated"
+}

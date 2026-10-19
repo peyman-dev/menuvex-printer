@@ -38,6 +38,6 @@ Window close hides; tray Quit stops accepting work and waits for the current bou
 
 ## Extension seams
 
-`Transport` is independent of Print Manager; Serial or Windows RAW spooler can implement it later. Document variants are strict and versioned. `Renderer` owns font/cache lifetime. Automatic LAN discovery belongs in `printers/discovery.rs`, not the print loop. Database schema `user_version=1` must receive explicit forward migrations before upgrades; version incompatibility is rejected rather than downgraded.
+`Transport` is independent of Print Manager; network TCP, OS RAW spooler, and direct USB transports implement it. Document variants are strict and versioned. `Renderer` owns font/cache lifetime. Automatic LAN discovery belongs in `printers/discovery.rs`, not the print loop. Database schema `user_version=1` must receive explicit forward migrations before upgrades; version incompatibility is rejected rather than downgraded.
 
 Updater is deliberately not installed with a placeholder key/URL. Add Tauri updater only with reviewed signed metadata, public key, verified HTTPS endpoint, atomic update policy and graceful queue drain. Keep old protocol clients functional during a staged rollout. See release gates.

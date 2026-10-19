@@ -4,7 +4,7 @@
 
 Before editing MenuVex: find existing printer abstraction, WebUSB implementation, invoice data mapping, order creation/order WebSocket subscriber, persistent settings, auth/CSP configuration, routes, download page and UI conventions. Nothing in this dedicated Agent repo establishes those contracts. Keep existing UI/order WebSocket code and dependencies unless a minimal adapter needs them.
 
-Place/re-export `sdk/src/*` under the established PWA service location, e.g. `src/lib/printer/`. Add the SDK's `zod` dependency using that repo's package manager, not automatically converting it to npm. Use one `printerAgent` singleton or one custom client at composition root for a nondefault port. Optional `sdk/react/PrinterAgentProvider.tsx` provides status and client; component code should not instantiate WebSockets.
+Place/re-export `sdk/src/*` under the established PWA service location, e.g. `src/lib/printer/`. Add the SDK's `zod` dependency using that repo's package manager, not automatically converting it to npm. Use one `printerAgent` singleton or one custom client at composition root for a nondefault port. Optional `sdk/react/PrinterAgentProvider.tsx` provides status and client; component code should not instantiate WebSockets. See the copy-ready [frontend-agent prompt](frontend-agent-prompt.md) for the spooler compatibility marker and receipt formatting contract.
 
 ## Pairing and refresh
 
@@ -16,7 +16,7 @@ Do not claim “printed” on `print()` resolve. The result is durably queued/ex
 
 ## Legacy migration
 
-`BrowserWebUSBPrinter` is an adapter accepting the real existing print callback; it is not a second WebUSB implementation and never calls `navigator.usb.requestDevice()`. `MenuVexAgentPrinter` delegates to the SDK. `MigratingPrinterProvider` chooses Agent first, with legacy fallback only for initial `AGENT_UNAVAILABLE`, explicitly enabled by application policy, **before** any submission.
+`BrowserWebUSBPrinter` is an adapter accepting the real existing print callback; it is not a second WebUSB implementation and never calls `navigator.usb.requestDevice()`. `MenuVexAgentPrinter` delegates to the SDK. When displaying printer connections, call `spoolerQueueName(connection)` before branching on `connection.type`: a returned queue name identifies the backward-compatible `{type: "usb", vendorId: 0, serial: "queue:<name>"}` spooler descriptor, not a physical USB device. `MigratingPrinterProvider` chooses Agent first, with legacy fallback only for initial `AGENT_UNAVAILABLE`, explicitly enabled by application policy, **before** any submission.
 
 Routing is durably assigned per job in browser IndexedDB before invoking either transport. A previously Agent-owned ID never moves to legacy during an outage. Legacy IDs are not automatically replayed because its delivery outcome/dedup semantics are unknown. Atomic IndexedDB claims prevent two same-profile tabs both starting legacy for an ID. Uncertain Agent timeouts/auth failures never fall back.
 

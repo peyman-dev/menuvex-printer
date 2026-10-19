@@ -1,0 +1,40 @@
+name: Build Cross-OS Desktop Executables
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop-release.yml'
+  pull_request:
+    paths:
+      - 'desktop/**'
+  workflow_dispatch:
+
+jobs:
+  build-desktop:
+    name: Build & Test Desktop (Windows .exe, macOS, Linux)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Run Desktop Test Suite (CGO_ENABLED=0)
+        run: CGO_ENABLED=0 go test -v ./...
+
+      - name: Cross-Compile Executables for Windows, macOS, and Linux
+        run: make all
+
+      - name: Upload Cross-OS Desktop Executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: coffish-desktop-binaries
+          path: desktop/dist/*

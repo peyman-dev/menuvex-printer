@@ -3,6 +3,7 @@ import { webcrypto } from 'node:crypto';
 import WebSocket from 'ws';
 import { PrinterAgentClient, type Socket } from '../src/client';
 import { importPairingSecret } from '../src/credentials';
+import { spoolerQueueName } from '../src/compat';
 // Started only by the Rust integration test: real WS + auth + SQLite + renderer + test transport.
 it.skipIf(!process.env.MENUVEX_TEST_PORT)(
   'SDK → real Rust Agent → test-only transport',
@@ -18,11 +19,26 @@ it.skipIf(!process.env.MENUVEX_TEST_PORT)(
     });
     try {
       await client.connect();
-      expect(await client.getPrinters()).toHaveLength(1);
+      const printers = await client.getPrinters();
+      expect(printers).toHaveLength(1);
+      // The Legacy Windows integration fixture is a spooler; the Rust integration fixture is LAN.
+      if (printers[0].connection.type !== 'network') {
+        expect(printers[0].connection.type).toBe('usb');
+        expect(spoolerQueueName(printers[0].connection)).toBe('Test-only queue');
+      }
       const request = {
         jobId: 'integration:invoice',
         printerId: 'integration-printer',
-        document: { type: 'receipt' as const, lines: ['سلام MenuVex ۱۲۳', 'Integration test'] },
+        document: {
+          type: 'receipt' as const,
+          lines: [
+            '[center] MenuVex test',
+            'میز ۴ | Espresso | 240,000',
+            '----------------------------',
+            'سلام MenuVex ۱۲۳',
+            'Integration test',
+          ],
+        },
       };
       await client.print(request);
       await expect

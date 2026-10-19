@@ -1,0 +1,67 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/devices/register",
+    "auth": "user JWT"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/devices",
+    "auth": "user JWT"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/devices/:id",
+    "auth": "user JWT"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/devices/:id/revoke",
+    "auth": "user JWT"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/conflicts",
+    "auth": "user JWT"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/conflicts/:id/resolve",
+    "auth": "user JWT"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/handshake",
+    "auth": "device"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/bootstrap",
+    "auth": "device"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/push",
+    "auth": "device"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/pull",
+    "auth": "device"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/ack",
+    "auth": "device"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/status",
+    "auth": "device"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/metrics",
+    "auth": "internal key"
+  }
+]

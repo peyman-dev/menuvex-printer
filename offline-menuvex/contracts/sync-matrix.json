@@ -1,0 +1,211 @@
+{
+  "protocol_version": 2,
+  "description": "Sync Matrix. entity types with status 'implemented' must equal the executor's supported_entity_types (tests/test_sync_executor.py).",
+  "entries": [
+    {
+      "domain": "catalog",
+      "entity_type": "category",
+      "push_operations": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "pull": true,
+      "bootstrap": true,
+      "conflict_policy": "optimistic_version",
+      "status": "implemented",
+      "notes": "delete is a tombstone; omitted base_version = last-write-wins"
+    },
+    {
+      "domain": "catalog",
+      "entity_type": "product",
+      "push_operations": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "pull": true,
+      "bootstrap": true,
+      "conflict_policy": "optimistic_version",
+      "status": "implemented",
+      "notes": "delete is a tombstone; omitted base_version = last-write-wins"
+    },
+    {
+      "domain": "catalog",
+      "entity_type": "ingredient",
+      "push_operations": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "pull": true,
+      "bootstrap": true,
+      "conflict_policy": "optimistic_version",
+      "status": "implemented",
+      "notes": "delete is a tombstone; omitted base_version = last-write-wins"
+    },
+    {
+      "domain": "marketing",
+      "entity_type": "banner",
+      "push_operations": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "pull": true,
+      "bootstrap": true,
+      "conflict_policy": "optimistic_version",
+      "status": "implemented",
+      "notes": "delete is a tombstone; omitted base_version = last-write-wins"
+    },
+    {
+      "domain": "orders",
+      "entity_type": "order",
+      "push_operations": [
+        "create",
+        "update"
+      ],
+      "pull": true,
+      "bootstrap": "opt-in (latest 50)",
+      "conflict_policy": "create_once; update = last-write-wins full line list",
+      "status": "implemented",
+      "notes": "update edits the existing order in place (same id/number/table), same semantics as PUT /orders/{id}/items"
+    },
+    {
+      "domain": "orders",
+      "entity_type": "order_status",
+      "push_operations": [
+        "complete",
+        "cancel"
+      ],
+      "pull": true,
+      "bootstrap": false,
+      "conflict_policy": "state_machine",
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "domain": "inventory",
+      "entity_type": "inventory_movement",
+      "push_operations": [
+        "append",
+        "create"
+      ],
+      "pull": true,
+      "bootstrap": "inventory_summary",
+      "conflict_policy": "append_only_event",
+      "status": "implemented",
+      "notes": "quantities are signed movements, never absolute stock"
+    },
+    {
+      "domain": "recipes",
+      "entity_type": "recipe",
+      "push_operations": [],
+      "pull": true,
+      "bootstrap": true,
+      "conflict_policy": "server_authoritative",
+      "status": "read_only",
+      "notes": ""
+    },
+    {
+      "domain": "waste",
+      "entity_type": "waste_event",
+      "push_operations": [],
+      "pull": true,
+      "bootstrap": "opt-in",
+      "conflict_policy": "server_authoritative",
+      "status": "read_only",
+      "notes": ""
+    },
+    {
+      "domain": "waste",
+      "entity_type": "waste_item",
+      "push_operations": [],
+      "pull": true,
+      "bootstrap": "opt-in",
+      "conflict_policy": "server_authoritative",
+      "status": "read_only",
+      "notes": ""
+    },
+    {
+      "domain": "payments",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "append_only_event",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    },
+    {
+      "domain": "customers",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "server_authoritative",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    },
+    {
+      "domain": "debts",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "append_only_event",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    },
+    {
+      "domain": "expenses",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "append_only_event",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    },
+    {
+      "domain": "accounting",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "append_only_event",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    },
+    {
+      "domain": "tables",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "server_authoritative",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    },
+    {
+      "domain": "discounts",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "server_authoritative",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    },
+    {
+      "domain": "settings",
+      "entity_type": null,
+      "push_operations": [],
+      "pull": false,
+      "bootstrap": false,
+      "conflict_policy": "server_authoritative",
+      "status": "not_implemented",
+      "notes": "needs product decisions; rejected with SYNC_ENTITY_UNSUPPORTED"
+    }
+  ]
+}

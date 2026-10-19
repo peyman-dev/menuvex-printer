@@ -13,14 +13,18 @@ sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libdbus-1-de
 npm ci
 npm test
 cargo test --manifest-path src-tauri/Cargo.toml --no-default-features
+cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --features libusb
+# Default package build: spooler/network, no direct USB
 npm run tauri -- build --target x86_64-unknown-linux-gnu --bundles deb,appimage
+# Optional direct-USB package build
+npm run tauri -- build --features libusb --target x86_64-unknown-linux-gnu --bundles deb,appimage
 ```
 
 These native steps could not execute in the sandbox because package/toolchain endpoints were inaccessible. `.deb` is configured for desktop dependencies; Noto Arabic is also embedded in the binary. Tauri creates desktop integration; autostart uses the logged-in desktop user and can be disabled in Settings. Install a verified `.deb` via `sudo apt install ./<actual-file>.deb`, then run the Agent without sudo. No wildcard device rule is shipped during package installation because the intended VID/PID is not known yet.
 
 ## One-time USB setup
 
-Find the exact vendor/product IDs from `lsusb` or the Agent's USB discovery. An administrator runs the included helper with those actual four-hex-digit IDs:
+USB discovery/direct access is present only in builds made with Cargo feature `libusb`; default builds use the OS spooler and network transports. Find the exact vendor/product IDs from `lsusb` or, in a libusb-enabled build, the Agent's USB discovery. An administrator runs the included helper with those actual four-hex-digit IDs:
 
 ```sh
 sudo bash scripts/linux-usb-permissions.sh VVVV PPPP
