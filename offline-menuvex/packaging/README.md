@@ -27,6 +27,10 @@ Validation performed by the scripts:
 - `.dmg`: UDIF `koly` trailer, data-fork bounds, Info.plist keys, and (on Linux) a full
   DMG → HFS+ → file round-trip compared with `cmp`.
 
+`packaging/verify-artifacts.sh <dir>` re-validates a directory of built files
+(checksums, dpkg metadata, ELF/Mach-O/PE headers, AppImage magic, squashfs
+superblocks, UDIF trailers; it also lists NSIS contents when `7zz` is installed).
+
 The same scripts run unchanged in `packaging/ci/offline-installers.yml`
 (Ubuntu 22.04, Windows 2022, macOS 14 / 15 Intel), which also performs real
 install/upgrade/uninstall tests on those runners. See `docs/offline/installers.md`

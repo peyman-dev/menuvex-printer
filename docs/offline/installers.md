@@ -27,7 +27,14 @@ offline-menuvex/release-artifacts/
 | ۸ | `MenuVex-Offline-1.0.0-linux-amd64.tar.gz` | Linux x86_64 | 5,791,465 | آرشیو portable (نصب‌کننده نیست) |
 | ۹ | `SHA256SUMS` | — | — | sha256 هر هشت فایل |
 
-`SHA256SUMS` (بازتولیدشدنی با `cd offline-menuvex/release-artifacts && sha256sum -c SHA256SUMS`):
+`SHA256SUMS` (بازتولیدشدنی با `cd offline-menuvex/release-artifacts && sha256sum -c SHA256SUMS`).
+برای بازبینی ساختاری همهٔ فایل‌ها بدون نصب:
+
+```bash
+./offline-menuvex/packaging/verify-artifacts.sh offline-menuvex/release-artifacts
+```
+
+
 
 ```
 6b0d3a02a219afe34da7ab567d3bc3a84f2d062e4583fe02d5e4c2142c6ac33e  MenuVex-Offline-1.0.0-aarch64.AppImage
