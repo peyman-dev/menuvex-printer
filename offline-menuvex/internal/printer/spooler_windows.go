@@ -5,7 +5,9 @@ package printer
 import (
 	"context"
 	"errors"
-	"os/exec"
+	"fmt"
+	"runtime"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -17,34 +19,77 @@ var ErrSpoolerMissing = errors.New("صف چاپ ویندوز پیدا نشد؛ �
 // ErrSpoolerUnsupported means raw spooler printing is not available on this OS.
 var ErrSpoolerUnsupported = errors.New("ارسال خام به صف چاپ در این سیستم‌عامل پشتیبانی نمی‌شود")
 
-// ListQueues enumerates installed printers through the Windows printing
-// subsystem. PowerShell is invoked with a fixed command, never user input.
+// ListQueues uses the same local/connection enumeration as MenuVex Printer Agent
+// (EnumPrintersW level 4), so installed USB and shared queues are found without
+// requiring PowerShell, WMIC or any user-entered printer details.
 func ListQueues(ctx context.Context) ([]string, error) {
-	shell, err := exec.LookPath("powershell.exe")
-	if err != nil {
-		if wmic, wErr := exec.LookPath("wmic.exe"); wErr == nil {
-			cctx, cancel := context.WithTimeout(ctx, 6*time.Second)
-			defer cancel()
-			out, runErr := exec.CommandContext(cctx, wmic, "printer", "get", "name").Output()
-			if runErr != nil {
-				return nil, ErrSpoolerMissing
-			}
-			return ParseQueueList(string(out)), nil
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	const flags = printerEnumLocal | printerEnumConnections
+	var needed, count uint32
+	procEnumPrintersW.Call(
+		uintptr(flags), 0, 4, 0, 0,
+		uintptr(unsafe.Pointer(&needed)), uintptr(unsafe.Pointer(&count)),
+	)
+	if needed == 0 {
+		return []string{}, nil
+	}
+	if needed > maxPrinterEnumBytes {
+		return nil, fmt.Errorf("فهرست صف‌های چاپ ویندوز بیش از حد مجاز بزرگ است (%d بایت)", needed)
+	}
+
+	buffer := make([]byte, int(needed))
+	ok, _, callErr := procEnumPrintersW.Call(
+		uintptr(flags), 0, 4, uintptr(unsafe.Pointer(&buffer[0])), uintptr(needed),
+		uintptr(unsafe.Pointer(&needed)), uintptr(unsafe.Pointer(&count)),
+	)
+	runtime.KeepAlive(buffer)
+	if ok == 0 {
+		if callErr == syscall.Errno(0) {
+			return nil, errors.New("خواندن صف‌های چاپ ویندوز ناموفق بود")
 		}
-		return nil, ErrSpoolerMissing
+		return nil, fmt.Errorf("خواندن صف‌های چاپ ویندوز ناموفق بود: %w", callErr)
 	}
-	cctx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(cctx, shell, "-NoProfile", "-NonInteractive", "-Command",
-		"Get-Printer | Select-Object -ExpandProperty Name").Output()
-	if err != nil {
-		return nil, errors.New("خواندن صف‌های چاپ ویندوز ناموفق بود: " + err.Error())
+
+	infoSize := unsafe.Sizeof(printerInfo4W{})
+	if infoSize == 0 || uint64(count)*uint64(infoSize) > uint64(len(buffer)) {
+		return nil, errors.New("پاسخ صف چاپ ویندوز ساختار نامعتبر دارد")
 	}
-	return ParseQueueList(string(out)), nil
+	infos := unsafe.Slice((*printerInfo4W)(unsafe.Pointer(&buffer[0])), int(count))
+	base := uintptr(unsafe.Pointer(&buffer[0]))
+	end := base + uintptr(len(buffer))
+	var names []string
+	for _, info := range infos {
+		if info.printerName == nil {
+			continue
+		}
+		namePtr := uintptr(unsafe.Pointer(info.printerName))
+		if namePtr < base || namePtr >= end {
+			continue
+		}
+		maxUnits := (end - namePtr) / unsafe.Sizeof(uint16(0))
+		var units []uint16
+		for i := uintptr(0); i < maxUnits; i++ {
+			unit := *(*uint16)(unsafe.Add(unsafe.Pointer(info.printerName), i*unsafe.Sizeof(uint16(0))))
+			if unit == 0 {
+				break
+			}
+			units = append(units, unit)
+		}
+		if len(units) != 0 {
+			names = append(names, syscall.UTF16ToString(units))
+		}
+	}
+	return ParseQueueList(strings.Join(names, "\n")), nil
 }
 
 var (
 	winspool             = syscall.NewLazyDLL("winspool.drv")
+	procEnumPrintersW    = winspool.NewProc("EnumPrintersW")
 	procOpenPrinterW     = winspool.NewProc("OpenPrinterW")
 	procClosePrinter     = winspool.NewProc("ClosePrinter")
 	procStartDocPrinterW = winspool.NewProc("StartDocPrinterW")
@@ -53,6 +98,18 @@ var (
 	procEndPagePrinter   = winspool.NewProc("EndPagePrinter")
 	procEndDocPrinter    = winspool.NewProc("EndDocPrinter")
 )
+
+const (
+	printerEnumLocal       = 0x00000002
+	printerEnumConnections = 0x00000004
+	maxPrinterEnumBytes    = 16 << 20
+)
+
+type printerInfo4W struct {
+	printerName *uint16
+	serverName  *uint16
+	attributes  uint32
+}
 
 type docInfo1 struct {
 	pDocName    *uint16

@@ -310,6 +310,11 @@ func (a *Application) handlePrinterProbe(w http.ResponseWriter, r *http.Request)
 	a.navigatePrinter(w, r, id, "بررسی اتصال: "+res.Summary)
 }
 
+func (a *Application) handlePrinterQueueScan(w http.ResponseWriter, r *http.Request) {
+	a.navigateQuery(w, r, "printers", map[string]string{"discovery": "queues"},
+		"فهرست چاپگرهای نصب‌شده روی سیستم بررسی شد؛ نتیجه همین‌جا نمایش داده می‌شود.")
+}
+
 func (a *Application) handlePrinterUSBScan(w http.ResponseWriter, r *http.Request) {
 	devices, err := a.discoverUSB()
 	msg := fmt.Sprintf("%d دستگاه چاپگر USB پیدا شد؛ فقط دستگاه‌هایی که گره usblp دارند قابل افزودن مستقیم هستند.", len(devices))
@@ -324,7 +329,14 @@ func (a *Application) handlePrinterUSBScan(w http.ResponseWriter, r *http.Reques
 		a.usbCacheErr = err.Error()
 	}
 	a.usbCacheMu.Unlock()
-	a.navigateQuery(w, r, "printer-new", map[string]string{"kind": "usb"}, msg)
+
+	page := "printer-new"
+	extra := map[string]string{"kind": "usb"}
+	if strings.TrimSpace(r.FormValue("return_page")) == "printers" {
+		page = "printers"
+		extra = map[string]string{"discovery": "usb"}
+	}
+	a.navigateQuery(w, r, page, extra, msg)
 }
 
 func (a *Application) handlePrinterScanStart(w http.ResponseWriter, r *http.Request) {

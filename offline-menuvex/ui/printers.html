@@ -4,12 +4,20 @@
     <div>
       <p class="dash-eyebrow">PRINTER CENTER</p>
       <h2 class="dash-title">چاپگرها، مسیر فیش و صف چاپ</h2>
-      <p class="dash-sub">هر چاپگر را یک‌بار تعریف کنید؛ سفارش‌ها و فیش‌ها از همین مسیر چاپ می‌شوند. خطای چاپ هیچ‌وقت سفارش ثبت‌شده را تغییر نمی‌دهد.</p>
+      <p class="dash-sub">اول فهرست چاپگرهای نصب‌شده، USB یا شبکه را جستجو کنید؛ با انتخاب دستگاه، مقصد اتصال خودکار پر می‌شود و نیازی به واردکردن IP یا نام صف نیست. خطای چاپ هیچ‌وقت سفارش ثبت‌شده را تغییر نمی‌دهد.</p>
     </div>
-    <div class="dash-head-actions">
-      <a href="/?page=printer-new" hx-get="/?page=printer-new" hx-target="#main-view" hx-push-url="true" class="btn btn-primary">+ افزودن چاپگر</a>
+    <div class="dash-head-actions printer-center-actions">
+      <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-primary">پرینترهای نصب‌شده</button>
+      </form>
+      <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="return_page" value="printers">
+        <button type="submit" class="btn btn-outline">جستجوی USB</button>
+      </form>
       <a href="/?page=printer-scan" hx-get="/?page=printer-scan" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">جستجوی شبکه</a>
-      <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">صف چاپ {{if gt .PrintJobCounts.Failed 0}}<span class="badge status-danger">{{faInt .PrintJobCounts.Failed}}</span>{{end}}</a>
+      <a href="/?page=printer-new" hx-get="/?page=printer-new" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">افزودن دستی</a>
     </div>
   </section>
 
@@ -21,6 +29,55 @@
     <article><span>USB مستقیم</span><strong>{{faInt .PrinterStats.USB}}</strong></article>
     <article class="{{if gt .PrintJobCounts.Failed 0}}has-error{{end}}"><span>Job خطادار</span><strong>{{faInt .PrintJobCounts.Failed}}</strong></article>
   </section>
+
+  {{if eq .PrinterDiscoveryMode "queues"}}
+  <section class="panel-card printer-discovery-results">
+    <div class="panel-header">
+      <div><h2>پرینترهای نصب‌شده روی سیستم‌عامل</h2><p>صف‌های چاپی که ویندوز یا CUPS پیدا کرده است؛ برای انتخاب، مشخصات اتصال به‌طور خودکار پر می‌شود.</p></div>
+      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">بستن ×</a>
+    </div>
+    {{if .PrinterQueueError}}
+      <p class="field-hint field-warn">{{.PrinterQueueError}}</p>
+    {{else if .PrinterQueues}}
+      <div class="item-list">
+        {{range .PrinterQueues}}
+        <div class="list-row compact">
+          <div><strong dir="ltr">{{.}}</strong><div class="row-sub">صف چاپ سیستم‌عامل</div></div>
+          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=spooler&queue_name={{urlquery .}}&name={{urlquery .}}" hx-get="/?page=printer-new&kind=spooler&queue_name={{urlquery .}}&name={{urlquery .}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
+        </div>
+        {{end}}
+      </div>
+    {{else}}
+      <p class="empty-text">هیچ صف چاپی روی این سیستم پیدا نشد. چاپگر USB را در سیستم‌عامل نصب کنید یا «جستجوی شبکه» را بزنید.</p>
+    {{end}}
+  </section>
+  {{else if eq .PrinterDiscoveryMode "usb"}}
+  <section class="panel-card printer-discovery-results">
+    <div class="panel-header">
+      <div><h2>دستگاه‌های USB شناسایی‌شده</h2><p>دستگاه‌های چاپگر متصل به USB پیدا شده‌اند؛ شناسایی به‌تنهایی چیزی را به فهرست یا صف چاپ اضافه نمی‌کند.</p></div>
+      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">بستن ×</a>
+    </div>
+    {{if .PrinterUSBError}}<p class="field-hint field-warn">{{.PrinterUSBError}} برای چاپگرهای نصب‌شده، «پرینترهای نصب‌شده» را بزنید.</p>{{end}}
+    {{if .PrinterUSBDevices}}
+      <div class="item-list usb-list">
+        {{range .PrinterUSBDevices}}
+        <div class="list-row compact">
+          <div>
+            <strong>{{.DisplayName}}</strong>
+            <div class="row-sub" dir="ltr">{{.VendorID}}:{{.ProductID}}{{if .DevicePath}} • {{.DevicePath}}{{end}}</div>
+            <div class="row-sub">{{.AccessNote}}</div>
+          </div>
+          {{if .Accessible}}
+          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-get="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
+          {{else}}<span class="badge status-muted">از صف سیستم‌عامل استفاده کنید</span>{{end}}
+        </div>
+        {{end}}
+      </div>
+    {{else if not .PrinterUSBError}}
+      <p class="empty-text">دستگاه چاپگر USB سازگار پیدا نشد. برای چاپگرهای نصب‌شده، فهرست صف‌های سیستم‌عامل را هم بررسی کنید.</p>
+    {{end}}
+  </section>
+  {{end}}
 
   <section class="panel-card">
     <div class="panel-header">
@@ -79,10 +136,13 @@
   {{else}}
   <section class="empty-hero-card">
     <div>
-      <h2>هنوز چاپگری تعریف نشده است</h2>
-      <p>چاپگر شبکه را با IP و پورت اضافه کنید، از صف نصب‌شده سیستم‌عامل استفاده کنید یا دستگاه USB سازگار را وارد کنید. تا قبل از تعریف مقصد، سفارش‌ها بدون چاپ ثبت می‌شوند.</p>
+      <h2>هنوز چاپگری تنظیم نشده است</h2>
+      <p>برای شناسایی خودکار، «پرینترهای نصب‌شده»، «جستجوی USB» یا «جستجوی شبکه» را بزنید. مشخصات اتصال از سیستم یا دستگاه پیدا می‌شود؛ افزودن دستی فقط راه جایگزین است. تا انتخاب مقصد، سفارش‌ها بدون چاپ ثبت می‌شوند.</p>
     </div>
-    <a href="/?page=printer-new" hx-get="/?page=printer-new" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-lg">افزودن اولین چاپگر</a>
+    <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button type="submit" class="btn btn-primary btn-lg">جستجوی خودکار چاپگرها</button>
+    </form>
   </section>
   {{end}}
 
@@ -117,7 +177,7 @@
     <div>
       <p class="dash-eyebrow">ADD PRINTER</p>
       <h2 class="dash-title">افزودن چاپگر در چهار گام</h2>
-      <p class="dash-sub">هیچ دستگاهی خودکار به فهرست اضافه نمی‌شود؛ فقط مقصدی که خودتان انتخاب و ذخیره کنید برای چاپ استفاده می‌شود.</p>
+      <p class="dash-sub">ابتدا پرینترهای نصب‌شده، USB یا شبکه را پیدا کنید؛ انتخاب دستگاه مشخصات اتصال را خودکار پر می‌کند. فقط ثبت نهایی و انتخاب نقش چاپگر با شماست.</p>
     </div>
     <div class="dash-head-actions">
       <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">بازگشت به مرکز چاپگرها</a>
@@ -242,7 +302,7 @@
     </section>
 
     <aside class="panel-card printer-discovery">
-      <div class="panel-header"><div><h2>پیدا کردن دستگاه</h2><p>جستجو فقط پیشنهاد می‌دهد؛ افزودن همیشه دستی است.</p></div></div>
+      <div class="panel-header"><div><h2>پیدا کردن دستگاه</h2><p>با انتخاب نتیجه، نوع اتصال و مشخصات دستگاه خودکار پر می‌شود؛ فقط تأیید و تنظیم نقش باقی می‌ماند.</p></div></div>
       <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         <button type="submit" class="btn btn-outline btn-block btn-sm">جستجوی چاپگرهای USB</button>
@@ -259,7 +319,7 @@
             <div class="row-sub">{{.AccessNote}}</div>
           </div>
           {{if .Accessible}}
-          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=usb&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-get="/?page=printer-new&kind=usb&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
+          <a class="btn btn-sm btn-primary" href="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-get="/?page=printer-new&kind=usb&name={{urlquery .DisplayName}}&model={{urlquery .Product}}&usb_path={{urlquery .DevicePath}}&usb_vid={{urlquery .VendorID}}&usb_pid={{urlquery .ProductID}}&usb_serial={{urlquery .Serial}}&usb_bus={{urlquery .Bus}}&usb_port={{urlquery .PortPath}}&usb_product={{urlquery .Product}}&usb_manufacturer={{urlquery .Manufacturer}}" hx-target="#main-view" hx-push-url="true">انتخاب</a>
           {{else}}<span class="badge status-muted">قابل چاپ مستقیم نیست</span>{{end}}
         </div>
         {{end}}
@@ -591,7 +651,7 @@
           <td dir="ltr"><strong>{{.Host}}</strong></td>
           <td>{{faInt .Port}}</td>
           <td><span class="badge status-warn">پورت باز است</span></td>
-          <td><a class="btn btn-subtle btn-sm" href="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}" hx-get="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}" hx-target="#main-view" hx-push-url="true">افزودن این نشانی</a></td>
+          <td><a class="btn btn-subtle btn-sm" href="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}&name={{urlquery .Host}}" hx-get="/?page=printer-new&kind=network&host={{urlquery .Host}}&port={{.Port}}&name={{urlquery .Host}}" hx-target="#main-view" hx-push-url="true">انتخاب پرینتر</a></td>
         </tr>
       {{end}}
       </tbody>

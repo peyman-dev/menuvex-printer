@@ -129,6 +129,9 @@ type View struct {
 	PrintJobFilter      string
 	PrintQueuePrinter   string
 	PrinterRecentJobs   []store.PrintJobView
+
+	PrinterDiscoveryMode string
+
 	POSFormToken        string
 	POSGroups           []POSGroup
 	POSTables           []POSTableRow
@@ -1913,6 +1916,7 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /local/printer-probe", a.handlePrinterProbe)
 	mux.HandleFunc("POST /local/printer-delete", a.handlePrinterDelete)
 	mux.HandleFunc("POST /local/printer-usb-scan", a.handlePrinterUSBScan)
+	mux.HandleFunc("POST /local/printer-queue-scan", a.handlePrinterQueueScan)
 	mux.HandleFunc("POST /local/printer-scan", a.handlePrinterScanStart)
 	mux.HandleFunc("GET /local/printer-scan-status", a.handlePrinterScanStatus)
 	mux.HandleFunc("POST /local/printer-scan-cancel", a.handlePrinterScanCancel)
@@ -3859,6 +3863,23 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
 		v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", "", 8)
 		v.Printers, _ = a.store.Entities(ctx, "printer")
+		switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("discovery"))) {
+		case "queues":
+			v.PrinterDiscoveryMode = "queues"
+			queues, queueErr := a.listQueues(ctx)
+			v.PrinterQueues = queues
+			if queueErr != nil {
+				v.PrinterQueueError = queueErr.Error()
+			}
+		case "usb":
+			v.PrinterDiscoveryMode = "usb"
+			a.usbCacheMu.Lock()
+			if time.Since(a.usbCacheAt) < 2*time.Minute {
+				v.PrinterUSBDevices = append([]printer.USBDevice(nil), a.usbCache...)
+				v.PrinterUSBError = a.usbCacheErr
+			}
+			a.usbCacheMu.Unlock()
+		}
 	case "printer":
 		id := strings.TrimSpace(r.URL.Query().Get("id"))
 		p, pErr := a.store.Printer(ctx, id)
@@ -3894,6 +3915,8 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		if kind := strings.ToLower(strings.TrimSpace(q.Get("kind"))); kind == printer.KindNetwork || kind == printer.KindSpooler || kind == printer.KindUSB {
 			draft.Kind = kind
 		}
+		draft.Name = strings.TrimSpace(q.Get("name"))
+		draft.Model = strings.TrimSpace(q.Get("model"))
 		draft.Host = strings.TrimSpace(q.Get("host"))
 		draft.Port, _ = strconv.Atoi(strings.TrimSpace(q.Get("port")))
 		draft.QueueName = strings.TrimSpace(q.Get("queue_name"))

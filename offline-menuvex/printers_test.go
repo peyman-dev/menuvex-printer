@@ -57,8 +57,8 @@ func TestPrinterCenterPagesRender(t *testing.T) {
 	a := testApp(t)
 	pages := map[string][]string{
 		"/?page=printers": {
-			"مرکز چاپگرها", "افزودن چاپگر", "جستجوی شبکه", "صف چاپ", "هنوز چاپگری تعریف نشده",
-			"وضعیت چاپ خودکار", "چاپگرها و صف چاپ",
+			"مرکز چاپگرها", "پرینترهای نصب‌شده", "جستجوی USB", "جستجوی شبکه", "افزودن دستی",
+			"صف چاپ", "هنوز چاپگری تنظیم نشده", "جستجوی خودکار چاپگرها", "وضعیت چاپ خودکار", "چاپگرها و صف چاپ",
 		},
 		"/?page=printer-new": {
 			"افزودن چاپگر در چهار گام", "آدرس IPv4 چاپگر", "صف چاپ سیستم‌عامل", "USB مستقیم",
@@ -90,6 +90,42 @@ func TestPrinterCenterPagesRender(t *testing.T) {
 	}
 	if !strings.Contains(ordersGet(t, a, "/?page=printers"), p.Name) {
 		t.Fatal("printer list must show the saved printer")
+	}
+}
+
+func TestPrinterQueueScanShowsInstalledQueuesAndPrefillsWizard(t *testing.T) {
+	a := testApp(t)
+	a.queueScan = func(context.Context) ([]string, error) {
+		return []string{"EPSON-TM-T20", "Kitchen Receipt"}, nil
+	}
+
+	body := ordersPost(t, a, "/local/printer-queue-scan", url.Values{})
+	for _, want := range []string{
+		"پرینترهای نصب‌شده روی سیستم‌عامل", "EPSON-TM-T20", "Kitchen Receipt",
+		"صف چاپ سیستم‌عامل", "انتخاب", "queue_name=EPSON-TM-T20",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("installed-printer discovery missing %q: %s", want, body)
+		}
+	}
+	if profiles, err := a.store.Printers(context.Background()); err != nil || len(profiles) != 0 {
+		t.Fatalf("discovery must list candidates, not silently add them: %+v err=%v", profiles, err)
+	}
+
+	path := "/?page=printer-new&" + url.Values{
+		"kind":       {printer.KindSpooler},
+		"queue_name": {"EPSON-TM-T20"},
+		"name":       {"EPSON-TM-T20"},
+	}.Encode()
+	body = ordersGet(t, a, path)
+	for _, want := range []string{
+		`name="connection_kind" value="spooler" checked`,
+		`name="queue_name"`, `value="EPSON-TM-T20"`,
+		`name="name" value="EPSON-TM-T20"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("selected OS printer was not prefilled (%q): %s", want, body)
+		}
 	}
 }
 
@@ -304,7 +340,7 @@ func TestPrinterNetworkScanProgressAndCancel(t *testing.T) {
 	}
 	// The scan page displays the same result and never auto-adds it.
 	page := ordersGet(t, a, "/?page=printer-scan&scan="+url.QueryEscape(scanID))
-	if !strings.Contains(page, "192.168.77.7") || !strings.Contains(page, "پورت باز") || !strings.Contains(page, "افزودن این نشانی") {
+	if !strings.Contains(page, "192.168.77.7") || !strings.Contains(page, "پورت باز") || !strings.Contains(page, "انتخاب پرینتر") {
 		t.Fatalf("scan page missing result: %s", page)
 	}
 
@@ -714,5 +750,16 @@ func TestPrinterUSBScanShowsAccessButNeverAutoAdds(t *testing.T) {
 	list, _ := a.store.Printers(context.Background())
 	if len(list) != 0 {
 		t.Fatalf("USB discovery must never auto-add printers: %+v", list)
+	}
+
+	body = ordersPost(t, a, "/local/printer-usb-scan", url.Values{"return_page": {"printers"}})
+	for _, want := range []string{"دستگاه‌های USB شناسایی‌شده", "Epson TM-T20", "Printer Without usblp", "پرینترهای نصب‌شده"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("printer-center USB scan missing %q: %s", want, body)
+		}
+	}
+	list, _ = a.store.Printers(context.Background())
+	if len(list) != 0 {
+		t.Fatalf("printer-center USB discovery must not auto-add printers: %+v", list)
 	}
 }

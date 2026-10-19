@@ -202,7 +202,7 @@ device exists. Both clearly mark physical confirmation as skipped.
 |---|---|---|---|---|---|
 | Network RAW | all | manual/probe | `net.Dial` + write deadline | TCP write completed | simulated fake printer |
 | CUPS | Linux/macOS | `lpstat -e` | `lp -d <validated> -o raw`, bytes on stdin | queue accepted | pending |
-| Windows spooler | Windows | PowerShell/WMIC queue list | winspool RAW sequence | spool accepted | pending |
+| Windows spooler | Windows | `EnumPrintersW` level 4 (local + connected queues), matching the Agent | winspool RAW sequence | spool accepted | pending |
 | USB | Linux | sysfs class `0x07` + `usbmon`/`usbmisc` mapping | write `/dev/usb/lp*` with timeout | device write completed | pending |
 
 Argument safety: queue names are validated (no control chars), passed as a single argv element,
@@ -213,7 +213,7 @@ clean, and under `/dev/usb/lp`.
 
 | Page | Query | Content |
 |---|---|---|
-| Printer centre | `/?page=printers` | inventory cards, counters, global print switch, recent jobs |
+| Printer centre | `/?page=printers` | inventory cards, counters, global print switch, recent jobs; operator-triggered discovery for OS-installed queues and USB, with network scan entry; selecting a candidate pre-fills the setup wizard and never silently saves it |
 | Add wizard | `/?page=printer-new` | connection type, target fields, USB scan, queue datalist, role/paper/cut/active |
 | Network scan | `/?page=printer-scan` | allowed `/24` list, bounded scan, live progress, results, cancel |
 | Printer detail | `/?page=printer&id=…` | edit form, probe evidence, test print, activate/deactivate, delete (explicit checkbox) |
@@ -232,6 +232,7 @@ Added:
 
 - `POST /local/printer-save`, `/local/printer-active`, `/local/printer-delete`
 - `POST /local/printer-probe` (`ajax=1` returns JSON, otherwise a detail-page toast)
+- `POST /local/printer-queue-scan` lists OS-installed print queues; selection pre-fills the wizard
 - `POST /local/printer-usb-scan`
 - `POST /local/printer-scan`, `GET /local/printer-scan-status?scan=…`,
   `POST /local/printer-scan-cancel`
