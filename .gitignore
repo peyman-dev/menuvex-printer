@@ -9,3 +9,6 @@ __pycache__/
 src-tauri/gen/
 .DS_Store
 legacy-core-test.sqlite3*
+
+# Locally built installers kept in the workspace for download (not source)
+offline-menuvex/release-artifacts/

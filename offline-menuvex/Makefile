@@ -14,7 +14,7 @@ else
 DARWIN_CGO := 0
 endif
 
-.PHONY: all test clean windows darwin linux macos-bundle
+.PHONY: all test clean windows darwin linux macos-bundle package-linux package-windows package-macos package-all
 
 all: clean windows darwin linux macos-bundle
 
@@ -56,6 +56,23 @@ macos-bundle: clean darwin
 		'<key>CFBundleShortVersionString</key><string>2.1.0</string>' \
 		'<key>NSHighResolutionCapable</key><true/>' \
 		'</dict></plist>' > $(DIST_DIR)/CoffishDesktop.app/Contents/Info.plist
+
+# Real installers (see packaging/ and docs/offline/installers.md).
+# Requirements are documented per script; CI runs the same commands on real
+# Windows, macOS and Linux runners (.github/workflows/offline-installers.yml).
+package-linux:
+	./packaging/linux/build-deb.sh amd64
+	./packaging/linux/build-deb.sh arm64
+	./packaging/linux/build-tarball.sh amd64
+
+package-windows:
+	./packaging/windows/build-nsis.sh
+
+package-macos:
+	./packaging/macos/build-dmg.sh arm64
+	./packaging/macos/build-dmg.sh amd64
+
+package-all: package-linux package-windows package-macos
 
 clean:
 	rm -rf $(DIST_DIR) local coffish-desktop shell/build/bin

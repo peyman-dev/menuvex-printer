@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MenuVex Offline
+Name[fa]=منووکس آفلاین
+GenericName=Café & Restaurant Management
+GenericName[fa]=مدیریت کافه و رستوران
+Comment=Offline sales, kitchen and thermal-printer management
+Comment[fa]=مدیریت آفلاین فروش، آشپزخانه و چاپگر حرارتی
+Exec=menuvex-offline
+TryExec=menuvex-offline
+Icon=menuvex-offline
+Terminal=false
+Categories=Office;Utility;
+Keywords=restaurant;cafe;menu;printer;receipt;pos;
+Keywords[fa]=رستوران;کافه;چاپگر;فیش;صندوق;
+StartupNotify=true
+StartupWMClass=MenuVexOffline

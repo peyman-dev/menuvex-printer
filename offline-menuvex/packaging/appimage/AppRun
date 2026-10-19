@@ -1,0 +1,6 @@
+#!/bin/sh
+# AppImage entry point: run the bundled MenuVex Offline desktop binary.
+# All web assets are embedded in the executable; no host files are required
+# except the GTK3/WebKit2 (or Chromium) desktop stack used for the window.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/bin/menuvex-offline" "$@"

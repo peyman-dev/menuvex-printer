@@ -142,8 +142,11 @@ static void launchNativeCocoaWindow(const char *urlCStr) {
 import "C"
 import "unsafe"
 
-func runNativeDesktopWindow(url string) {
+// openDesktopWindow shows the embedded WKWebView window and blocks until the
+// user closes it, so the caller can stop the local backend afterwards.
+func openDesktopWindow(url string) bool {
 	cstr := C.CString(url)
 	defer C.free(unsafe.Pointer(cstr))
 	C.launchNativeCocoaWindow(cstr)
+	return true
 }

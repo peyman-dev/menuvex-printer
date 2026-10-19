@@ -1,0 +1,343 @@
+# MenuVex Offline installer pipeline (installer matrix + GitHub Release).
+#
+# This file must live at .github/workflows/offline-installers.yml for GitHub to
+# run it. It is kept here because the automation token used to push this branch
+# has contents:write but not workflows:write, so GitHub rejects any push that
+# creates or edits a file under .github/workflows/ (see docs/offline/installers.md).
+#
+# To install it (repository admin, requires a token/app with the "workflows"
+# permission):
+#     mkdir -p .github/workflows
+#     git mv offline-menuvex/packaging/ci/offline-installers.yml .github/workflows/
+#     git commit -m "ci: enable MenuVex Offline installer pipeline"
+#
+# The pipeline itself is unmodified and runs the same packaging scripts that
+# produced the local installers documented in docs/offline/installers.md.
+
+name: MenuVex Offline Installers
+
+# Builds and validates real installers for the Go/HTMX MenuVex Offline desktop
+# application in offline-menuvex/ (the Rust/Tauri agent in src-tauri/ has its
+# own workflow in installers.yml).
+#
+#   push / pull request -> test + build + validate + upload artifacts
+#   tag offline-v*      -> additionally publish a GitHub Release
+
+on:
+  push:
+    branches: ['arena/9d25b45b-menuvex-printer']
+    tags: ['offline-v*']
+  pull_request:
+    paths:
+      - 'offline-menuvex/**'
+      - '.github/workflows/offline-installers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: offline-menuvex
+
+jobs:
+  test:
+    name: Test (linux/amd64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: offline-menuvex/go.mod
+          cache: false
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: gofmt (touched trees)
+        run: |
+          # print_policy_test.go and ui_fixes_test.go predate this work and are
+          # intentionally left untouched.
+          unformatted="$(gofmt -l cmd internal *.go | grep -v -E '^(print_policy_test\.go|ui_fixes_test\.go)$' || true)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Unit and integration tests
+        run: go test ./... -count=1 -v 2>&1 | tee /tmp/test.log | tail -40
+
+  linux:
+    name: Linux packages
+    needs: test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: offline-menuvex/go.mod
+          cache: false
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends squashfs-tools libfuse2
+
+      - name: Build .deb (amd64, arm64) and portable tarball
+        run: |
+          ./packaging/linux/build-deb.sh amd64
+          ./packaging/linux/build-deb.sh arm64
+          ./packaging/linux/build-tarball.sh amd64
+
+      - name: Download appimagetool
+        run: |
+          set -euo pipefail
+          url="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          if ! curl -fsSL "$url" -o /tmp/appimagetool; then
+            url="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+            curl -fsSL "$url" -o /tmp/appimagetool
+          fi
+          chmod +x /tmp/appimagetool
+          /tmp/appimagetool --appimage-extract-and-run --version || true
+
+      - name: Build AppImage and validate container + payload
+        run: APPIMAGETOOL=/tmp/appimagetool ./packaging/appimage/build-appimage.sh x86_64
+
+      - name: Install test (.deb) with real dpkg
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y python3-gi gir1.2-gtk-3.0 || true
+          sudo apt-get install -y gir1.2-webkit2-4.1 || sudo apt-get install -y gir1.2-webkit2-4.0 || true
+          sudo dpkg -i dist/menuvex-offline_1.0.0_amd64.deb || { sudo apt-get -f install -y; sudo dpkg -i dist/menuvex-offline_1.0.0_amd64.deb; }
+          test -x /usr/bin/menuvex-offline
+          test -f /usr/share/applications/menuvex-offline.desktop
+          menuvex-offline -version
+
+          # Run the installed binary from a directory outside the source tree.
+          cd /tmp
+          ( menuvex-offline -no-window -addr 127.0.0.1:18787 >/tmp/installed.log 2>&1 & echo $! >/tmp/app.pid )
+          for i in $(seq 1 30); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18787/license || true)"
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          test "$code" = "200" || { cat /tmp/installed.log; exit 1; }
+          curl -s -o /dev/null -w 'ui page: %{http_code}\n' http://127.0.0.1:18787/license
+          curl -s -o /dev/null -w 'static asset: %{http_code}\n' http://127.0.0.1:18787/static/app.css
+          test -f "$HOME/.config/CoffishDesktop/coffish-desktop.db"
+          kill "$(cat /tmp/app.pid)" || true
+          sleep 1
+
+          # Removal must keep the operator's data.
+          sudo dpkg -r menuvex-offline
+          test ! -e /usr/bin/menuvex-offline
+          test -f "$HOME/.config/CoffishDesktop/coffish-desktop.db"
+          echo "uninstall kept the database: OK"
+
+      - name: Checksums
+        run: cd dist && sha256sum *.deb *.AppImage *.tar.gz > SHA256SUMS && cat SHA256SUMS
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MenuVex-Offline-Linux
+          path: |
+            offline-menuvex/dist/*.deb
+            offline-menuvex/dist/*.AppImage
+            offline-menuvex/dist/*.tar.gz
+            offline-menuvex/dist/SHA256SUMS
+          if-no-files-found: error
+
+  windows:
+    name: Windows installer
+    needs: test
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: offline-menuvex/go.mod
+          cache: false
+
+      - name: Locate makensis
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
+          if [ ! -x "$MAKENSIS" ]; then
+            choco install nsis -y --no-progress
+            MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
+          fi
+          test -x "$MAKENSIS"
+          echo "MAKENSIS=$MAKENSIS" >> "$GITHUB_ENV"
+          "$MAKENSIS" -VERSION
+
+      - name: Build installer and validate PE structure + embedded payload
+        shell: bash
+        run: ./packaging/windows/build-nsis.sh
+
+      - name: Install / upgrade / uninstall test (silent)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Resolve-Path 'dist\MenuVex-Offline-Setup-1.0.0-x64.exe').Path
+          $installDir = Join-Path $env:ProgramFiles 'MenuVex Offline'
+          $exe = Join-Path $installDir 'MenuVexOffline.exe'
+          $dataDir = Join-Path $env:APPDATA 'CoffishDesktop'
+          $dataFile = Join-Path $dataDir 'offline.sqlite'
+
+          New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+          Set-Content -Path $dataFile -Value 'operator-data-marker'
+
+          # Fresh install
+          $p = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exited with $($p.ExitCode)" }
+          if (-not (Test-Path $exe)) { throw "application not installed at $exe" }
+
+          $reg = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MenuVexOffline'
+          if (-not (Test-Path $reg)) { throw "uninstall registry key missing" }
+          $version = (Get-ItemProperty $reg).DisplayVersion
+          if ($version -ne '1.0.0') { throw "unexpected DisplayVersion: $version" }
+
+          # Upgrade (second run over the existing installation)
+          $p = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "upgrade exited with $($p.ExitCode)" }
+          if (-not (Test-Path $exe)) { throw "application missing after upgrade" }
+          if (-not (Test-Path $dataFile)) { throw "database removed by upgrade" }
+
+          # Executable metadata: GUI subsystem, x64 payload
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          $subsystem = [BitConverter]::ToUInt16($bytes, $peOffset + 0x5C)
+          if ($machine -ne 0x8664) { throw ('payload machine is 0x{0:x}' -f $machine) }
+          if ($subsystem -ne 2) { throw "payload is not a GUI subsystem binary" }
+
+          # Uninstall
+          $uninstaller = Join-Path $installDir 'Uninstall.exe'
+          $p = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
+          Start-Sleep -Seconds 2
+          if (Test-Path $exe) { throw "application files remain after uninstall" }
+          if (-not (Test-Path $dataFile)) { throw "database was deleted by uninstall" }
+          if (Test-Path $reg) { throw "uninstall registry key remains" }
+
+          'install, upgrade, data-preservation and uninstall: OK' | Write-Host
+
+      - name: Checksums
+        shell: bash
+        run: cd dist && sha256sum *.exe > SHA256SUMS && cat SHA256SUMS
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MenuVex-Offline-Windows
+          path: |
+            offline-menuvex/dist/*.exe
+            offline-menuvex/dist/SHA256SUMS
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.label }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+            label: arm64
+          - runner: macos-15-intel
+            arch: amd64
+            label: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: offline-menuvex/go.mod
+          cache: false
+
+      - name: Build .app and .dmg (native macOS toolchain)
+        run: ./packaging/macos/build-dmg.sh ${{ matrix.arch }}
+
+      - name: Verify Mach-O architecture, signature and Gatekeeper status
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG="dist/MenuVex-Offline-macOS-${{ matrix.arch }}.dmg"
+          test -f "$DMG"
+          hdiutil verify "$DMG"
+          MNT="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$DMG" >/dev/null
+          APP="$MNT/MenuVex Offline.app"
+          test -x "$APP/Contents/MacOS/MenuVexOffline"
+          plutil -lint "$APP/Contents/Info.plist"
+          lipo -archs "$APP/Contents/MacOS/MenuVexOffline" | tee /tmp/archs.txt
+          if [ "${{ matrix.arch }}" = "arm64" ]; then grep -q arm64 /tmp/archs.txt; else grep -q x86_64 /tmp/archs.txt; fi
+          codesign -dv --verbose=2 "$APP" 2>&1 | tee /tmp/codesign.txt || true
+          echo "--- Gatekeeper assessment (unsigned builds are expected to fail) ---"
+          if spctl --assess --type execute -vv "$APP" 2>&1; then
+            echo "SPCTL=accepted" >> "$GITHUB_ENV"
+          else
+            echo "SPCTL=rejected (unsigned / not notarized)" >> "$GITHUB_ENV"
+          fi
+          hdiutil detach "$MNT" >/dev/null
+          echo "Gatekeeper: $SPCTL"
+
+      - name: Checksums
+        shell: bash
+        run: cd dist && shasum -a 256 *.dmg > SHA256SUMS && cat SHA256SUMS
+
+      - name: Upload macOS disk image
+        uses: actions/upload-artifact@v4
+        with:
+          name: MenuVex-Offline-macOS-${{ matrix.label }}
+          path: |
+            offline-menuvex/dist/*.dmg
+            offline-menuvex/dist/SHA256SUMS
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/offline-v')
+    needs: [linux, windows, macos]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect installers
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Recompute checksums over the released files
+        run: |
+          set -euo pipefail
+          cd release
+          rm -f SHA256SUMS
+          sha256sum $(ls | grep -v '^SHA256SUMS$') > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" release/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "MenuVex Offline ${GITHUB_REF_NAME#offline-}" \
+            --notes "Installers for MenuVex Offline ${GITHUB_REF_NAME#offline-}.
+
+          Windows: MenuVex-Offline-Setup-*-x64.exe (NSIS, per-machine install)
+          Linux:   menuvex-offline_*_amd64.deb, *_arm64.deb, MenuVex-Offline-*.AppImage
+          macOS:   MenuVex-Offline-macOS-arm64.dmg, MenuVex-Offline-macOS-amd64.dmg
+
+          All builds are unsigned: no Windows code-signing certificate and no Apple Developer ID / notarization were available. macOS will show a Gatekeeper warning unless the app is opened via right-click > Open."

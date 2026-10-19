@@ -114,7 +114,10 @@ int main(int argc, const char * argv[]) {
 }
 `
 
-func runNativeDesktopWindow(url string) {
+// openDesktopWindow compiles (once) a tiny Objective-C Cocoa/WKWebView host with
+// the system clang and runs it. Without a compiler it falls back to osascript's
+// JavaScript bridge, and finally to the default browser.
+func openDesktopWindow(url string) bool {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		cacheDir = os.TempDir()
@@ -132,8 +135,9 @@ func runNativeDesktopWindow(url string) {
 		cmd := exec.Command(binPath, url)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		_ = cmd.Run()
-		return
+		if err := cmd.Run(); err == nil {
+			return true
+		}
 	}
 
 	// Fallback using macOS built-in Objective-C bridge in /usr/bin/osascript (JXA Cocoa + WebKit, zero browser)
@@ -155,5 +159,15 @@ webView.loadRequest($.NSURLRequest.requestWithURL(nsurl));
 win.makeKeyAndOrderFront(null);
 app.activateIgnoringOtherApps(true);
 app.run;`
-	_ = exec.Command("/usr/bin/osascript", "-l", "JavaScript", "-e", jxa).Run()
+	if _, statErr := os.Stat("/usr/bin/osascript"); statErr == nil {
+		if err := exec.Command("/usr/bin/osascript", "-l", "JavaScript", "-e", jxa).Run(); err == nil {
+			return true
+		}
+	}
+
+	// Last resort: default browser (window lifetime not observable).
+	if err := exec.Command("/usr/bin/open", url).Start(); err == nil {
+		return false
+	}
+	return false
 }
