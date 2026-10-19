@@ -1,0 +1,19 @@
+{
+  "references_checked": 2368,
+  "unresolved_local_refs": [],
+  "path_parameter_mismatches": [],
+  "operation_dispositions": 748,
+  "dispositions_by_mode": {
+    "local_system_governance": 114,
+    "cafe_profile_settings": 132,
+    "customers_loyalty_retention": 173,
+    "pos_orders_splitbill": 54,
+    "thermal_printers_routing": 70,
+    "accounting_finance_analytics": 48,
+    "inventory_suppliers_bom": 38,
+    "staff_shifts_jobs": 53,
+    "menu_catalog_modifiers": 44,
+    "debtors_credit_ledger": 10,
+    "tables_floor_reservations": 12
+  }
+}

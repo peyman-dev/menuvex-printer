@@ -1,0 +1,8 @@
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/shell/build/bin/
+/coffish-desktop
+
+/shell/generated/
