@@ -67,8 +67,9 @@ func TestPrinterOptInGate(t *testing.T) {
 	if !strings.Contains(pos, "pos-print-row") || !strings.Contains(pos, "pos-printers-menu") {
 		t.Fatal("POS must show print actions once a printer exists")
 	}
-	if settings = ordersGet(t, a, "/?page=settings"); !strings.Contains(settings, "افزودن فیش‌پرینتر جدید") {
-		t.Fatal("settings must show printer config when printer enabled")
+	settings = ordersGet(t, a, "/?page=settings")
+	if !strings.Contains(settings, "مرکز چاپگرها") || strings.Contains(settings, "افزودن فیش‌پرینتر جدید") {
+		t.Fatal("settings must link to the printer center, not host a manual printer form")
 	}
 
 	// خاموش‌کردن صریح: دکمه‌ها پنهان، چاپ دستی و چاپ خودکار هر دو متوقف.

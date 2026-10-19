@@ -229,14 +229,19 @@ func TestPrinterCategoryRouting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// صفحه تنظیمات هر دو بخش جدید را دارد.
-	settings := ordersGet(t, a, "/?page=settings")
-	for _, s := range []string{"چاپ خودکار فیش‌ها", "مسیر چاپ دسته‌بندی محصولات", "موقع ثبت سفارش", "موقع تکمیل سفارش", "تسویه با دو فیش: مشتری + کافه", "پیتزا مخصوص"} {
-		if s == "پیتزا مخصوص" {
-			continue
+	// هر بخش چاپ صفحهٔ مجزای خودش را دارد (و در سایدبار هم هست).
+	policy := ordersGet(t, a, "/?page=print-policy")
+	for _, s := range []string{"چاپ خودکار فیش‌ها", "موقع ثبت سفارش", "موقع تکمیل سفارش", "تسویه با دو فیش: مشتری + کافه"} {
+		if !strings.Contains(policy, s) {
+			t.Fatalf("print-policy page missing %q", s)
 		}
-		if !strings.Contains(settings, s) {
-			t.Fatalf("settings missing %q", s)
+	}
+	if routes := ordersGet(t, a, "/?page=print-routes"); !strings.Contains(routes, "مسیر چاپ دسته‌بندی محصولات") {
+		t.Fatal("print-routes page missing routing section")
+	}
+	for _, s := range []string{"/?page=print-policy", "/?page=print-routes", "/?page=print-queue"} {
+		if !strings.Contains(policy, s) {
+			t.Fatalf("sidebar missing printer sub-page link %q", s)
 		}
 	}
 
@@ -317,10 +322,10 @@ func TestPrinterRouteBulkAssign(t *testing.T) {
 		}
 		catIDs = append(catIDs, id)
 	}
-	settings := ordersGet(t, a, "/?page=settings")
+	settings := ordersGet(t, a, "/?page=print-routes")
 	for _, s := range []string{"data-route-bulk", "data-route-search", "data-route-select", "اعمال روی دسته‌های انتخاب‌شده"} {
 		if !strings.Contains(settings, s) {
-			t.Fatalf("settings bulk route UI missing %q", s)
+			t.Fatalf("print-routes bulk UI missing %q", s)
 		}
 	}
 	ordersPost(t, a, "/local/printer-route", url.Values{

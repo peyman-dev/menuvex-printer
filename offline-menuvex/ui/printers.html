@@ -3,21 +3,32 @@
   <section class="dash-head">
     <div>
       <p class="dash-eyebrow">PRINTER CENTER</p>
-      <h2 class="dash-title">چاپگرها، مسیر فیش و صف چاپ</h2>
-      <p class="dash-sub">اول فهرست چاپگرهای نصب‌شده، USB یا شبکه را جستجو کنید؛ با انتخاب دستگاه، مقصد اتصال خودکار پر می‌شود و نیازی به واردکردن IP یا نام صف نیست. خطای چاپ هیچ‌وقت سفارش ثبت‌شده را تغییر نمی‌دهد.</p>
+      <h2 class="dash-title">مرکز چاپگرها</h2>
+      <p class="dash-sub">پرینترها به‌صورت خودکار از سیستم پیدا می‌شوند؛ انتخاب هر دستگاه در همین صفحه و داخل دیالوگ انجام می‌شود و هیچ صفحهٔ جزئیات جداگانه‌ای در کار نیست.</p>
     </div>
-    <div class="dash-head-actions printer-center-actions">
+    <div class="dash-head-actions">
+      <a href="/?page=printer-new" hx-get="/?page=printer-new" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">افزودن دستی</a>
+    </div>
+  </section>
+
+  {{template "printerTabs" .}}
+
+  <section class="discovery-hero">
+    <div class="discovery-hero-text">
+      <h3>یافتن خودکار پرینترهای متصل</h3>
+      <p>سیستم خودش صف‌های نصب‌شده، دستگاه‌های USB و پرینترهای شبکه را پیدا می‌کند. نتیجه همین‌جا نمایش داده می‌شود و با «انتخاب»، دیالوگ تنظیم باز می‌شود؛ نیازی به واردکردن دستی IP یا نام صف نیست.</p>
+    </div>
+    <div class="discovery-hero-actions">
       <form method="post" action="/local/printer-queue-scan" hx-post="/local/printer-queue-scan" hx-target="#main-view">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button type="submit" class="btn btn-primary">پرینترهای نصب‌شده</button>
+        <button type="submit" class="btn btn-primary btn-lg">پرینترهای نصب‌شده روی سیستم</button>
       </form>
       <form method="post" action="/local/printer-usb-scan" hx-post="/local/printer-usb-scan" hx-target="#main-view">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         <input type="hidden" name="return_page" value="printers">
         <button type="submit" class="btn btn-outline">جستجوی USB</button>
       </form>
-      <a href="/?page=printer-scan" hx-get="/?page=printer-scan" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">جستجوی شبکه</a>
-      <a href="/?page=printer-new" hx-get="/?page=printer-new" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">افزودن دستی</a>
+      <a href="/?page=printer-scan" hx-get="/?page=printer-scan" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">جستجوی شبکه محلی</a>
     </div>
   </section>
 
@@ -117,7 +128,7 @@
       </dl>
       {{if .LastCheckDetail}}<p class="printer-check-note">{{.LastCheckDetail}}</p>{{end}}
       <div class="printer-card-actions">
-        <a href="/?page=printer&id={{.ID}}" hx-get="/?page=printer&id={{.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">تنظیمات و جزئیات</a>
+        <button type="button" class="btn btn-outline btn-sm" onclick="printerEditOpen(this)" data-id="{{.ID}}" data-kind="{{.Kind}}" data-name="{{.Name}}" data-model="{{.Model}}" data-station="{{.Station}}" data-role="{{.Role}}" data-paper="{{.PaperMM}}" data-host="{{.Host}}" data-port="{{.Port}}" data-queue="{{.QueueName}}" data-usb-path="{{.USB.DevicePath}}" data-usb-vid="{{.USB.VendorID}}" data-usb-pid="{{.USB.ProductID}}" data-usb-serial="{{.USB.Serial}}" data-usb-bus="{{.USB.Bus}}" data-usb-port="{{.USB.PortPath}}" data-usb-product="{{.USB.Product}}" data-usb-manufacturer="{{.USB.Manufacturer}}" data-cut="{{if .Cut}}1{{end}}" data-active="{{if .Active}}1{{end}}" data-summary="{{.KindLabel}}{{if .ConnectionDetail}} • {{.ConnectionDetail}}{{end}}" data-check="{{if .LastCheckDetail}}{{.LastCheckDetail}}{{else}}هنوز بررسی نشده است.{{end}}">تنظیمات</button>
         <form method="post" action="/local/printer-probe" hx-post="/local/printer-probe" hx-target="#main-view" class="inline-form">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
           <input type="hidden" name="printer_id" value="{{.ID}}">
@@ -126,7 +137,7 @@
         <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view" class="inline-form">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
           <input type="hidden" name="printer_id" value="{{.ID}}">
-          <input type="hidden" name="return_page" value="printer">
+          <input type="hidden" name="return_page" value="printers">
           <button type="submit" class="btn btn-subtle btn-sm">چاپ آزمایشی</button>
         </form>
       </div>
@@ -366,167 +377,297 @@
 
   {{if .PrinterScan}}{{template "scanResults" .}}{{end}}
 
-{{else if eq .Page "printer"}}
+{{else if eq .Page "print-policy"}}
   <section class="dash-head">
     <div>
-      <p class="dash-eyebrow">PRINTER DETAIL</p>
-      <h2 class="dash-title">{{.PrinterProfile.Name}}</h2>
-      <p class="dash-sub">{{.PrinterProfile.KindLabel}} • {{if .PrinterProfile.Active}}فعال{{else}}غیرفعال{{end}}{{if .PrinterProfile.ConnectionDetail}} • <bdi dir="ltr">{{.PrinterProfile.ConnectionDetail}}</bdi>{{end}}</p>
-    </div>
-    <div class="dash-head-actions">
-      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">بازگشت</a>
-      <a href="/?page=print-queue&printer={{.PrinterProfile.ID}}" hx-get="/?page=print-queue&printer={{.PrinterProfile.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">Jobهای این چاپگر</a>
+      <p class="dash-eyebrow">PRINT POLICY</p>
+      <h2 class="dash-title">چاپ خودکار فیش‌ها</h2>
+      <p class="dash-sub">در هر لحظه از چرخهٔ سفارش چه کسی فیش بگیرد؛ کدام چاپگر بلیت هر دسته را بزند در صفحهٔ «مسیر چاپ دسته‌بندی‌ها» تعیین می‌شود.</p>
     </div>
   </section>
-
-  <div class="printer-layout">
+  {{template "printerTabs" .}}
+  {{if .PrinterEnabled}}
     <section class="panel-card">
       <div class="panel-header">
-        <div><h2>تنظیمات چاپگر</h2><p>تغییرات روی Jobهای بعدی اثر می‌گذارد؛ Jobهای موجود مقصد خود را حفظ می‌کنند.</p></div>
+        <div>
+          <h2>سربرگ و پابرگ فیش صندوق</h2>
+          <p>این متن در قالب فاکتور چاپی نمایش داده می‌شود و در پایگاه داده محلی ذخیره می‌ماند؛ تنظیم آن از انتخاب و نقش پرینترها جداست.</p>
+        </div>
       </div>
-      <form method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" class="form-grid">
+      <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="form-grid">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <input type="hidden" name="id" value="{{.PrinterProfile.ID}}">
+        <input type="hidden" name="kind" value="cafe_profile">
+        <input type="hidden" name="id" value="cafe-main-profile">
+        <input type="hidden" name="return_page" value="print-policy">
         <div class="form-row-2">
-          <label>نام چاپگر
-            <input name="name" value="{{.PrinterProfile.Name}}" maxlength="128" required>
+          <label>متن سربرگ فیش
+            <textarea name="receipt_header_text" rows="3" maxlength="1000" dir="auto" placeholder="متنی که بالای فاکتور چاپ می‌شود">{{if .CafeProfile.ID}}{{.CafeProfile.Field "receipt_header_text"}}{{end}}</textarea>
           </label>
-          <label>مدل دستگاه
-            <input name="model" value="{{.PrinterProfile.Model}}" maxlength="128">
-          </label>
-        </div>
-        <div class="form-row-3">
-          <label>نوع اتصال
-            <select name="connection_kind">
-              <option value="network" {{if eq .PrinterProfile.Kind "network"}}selected{{end}}>شبکه</option>
-              <option value="spooler" {{if eq .PrinterProfile.Kind "spooler"}}selected{{end}}>صف سیستم‌عامل</option>
-              <option value="usb" {{if eq .PrinterProfile.Kind "usb"}}selected{{end}}>USB مستقیم</option>
-              {{if eq .PrinterProfile.Kind ""}}<option value="" selected>قدیمی (انتخاب کنید)</option>{{end}}
-            </select>
-          </label>
-          <label>نقش
-            <select name="role">
-              <option value="" {{if eq .PrinterProfile.Role ""}}selected{{end}}>بدون نقش ثابت</option>
-              <option value="cashier" {{if eq .PrinterProfile.Role "cashier"}}selected{{end}}>صندوق</option>
-              <option value="kitchen" {{if eq .PrinterProfile.Role "kitchen"}}selected{{end}}>آشپزخانه و بار</option>
-              <option value="all" {{if eq .PrinterProfile.Role "all"}}selected{{end}}>هر دو</option>
-            </select>
-          </label>
-          <label>ایستگاه
-            <input name="station" value="{{.PrinterProfile.Station}}" maxlength="64">
+          <label>متن پابرگ فیش
+            <textarea name="receipt_footer_text" rows="3" maxlength="1000" dir="auto" placeholder="مثلاً: با تشکر از خرید شما">{{if .CafeProfile.ID}}{{if .CafeProfile.Field "receipt_footer_text"}}{{.CafeProfile.Field "receipt_footer_text"}}{{else}}{{.CafeProfile.Field "receipt_note"}}{{end}}{{end}}</textarea>
           </label>
         </div>
-        <div class="form-row-3">
-          <label>IP چاپگر شبکه
-            <input name="host" value="{{.PrinterProfile.Host}}" dir="ltr" inputmode="decimal" placeholder="192.168.1.203">
-          </label>
-          <label>پورت
-            <input name="port" value="{{.PrinterProfile.Port}}" dir="ltr" inputmode="numeric">
-          </label>
-          <label>کاغذ
-            <select name="paper">
-              <option value="80" {{if ne .PrinterProfile.PaperMM 58}}selected{{end}}>۸۰ میلی‌متر</option>
-              <option value="58" {{if eq .PrinterProfile.PaperMM 58}}selected{{end}}>۵۸ میلی‌متر</option>
-            </select>
-          </label>
-        </div>
-        <label>نام صف چاپ سیستم‌عامل
-          <input name="queue_name" value="{{.PrinterProfile.QueueName}}" dir="ltr" list="printer-detail-queues">
-        </label>
-        <datalist id="printer-detail-queues">{{range .PrinterQueues}}<option value="{{.}}"></option>{{end}}</datalist>
-        <label>مسیر دستگاه USB
-          <input name="usb_path" value="{{.PrinterProfile.USB.DevicePath}}" dir="ltr" placeholder="/dev/usb/lp0">
-        </label>
-        <input type="hidden" name="usb_vid" value="{{.PrinterProfile.USB.VendorID}}">
-        <input type="hidden" name="usb_pid" value="{{.PrinterProfile.USB.ProductID}}">
-        <input type="hidden" name="usb_serial" value="{{.PrinterProfile.USB.Serial}}">
-        <input type="hidden" name="usb_bus" value="{{.PrinterProfile.USB.Bus}}">
-        <input type="hidden" name="usb_port" value="{{.PrinterProfile.USB.PortPath}}">
-        <input type="hidden" name="usb_product" value="{{.PrinterProfile.USB.Product}}">
-        <input type="hidden" name="usb_manufacturer" value="{{.PrinterProfile.USB.Manufacturer}}">
-        <div class="form-row-2">
-          <label class="inline-check"><input type="checkbox" name="cut" {{if .PrinterProfile.Cut}}checked{{end}}> برش خودکار کاغذ</label>
-          <label class="inline-check"><input type="checkbox" name="is_active" {{if .PrinterProfile.Active}}checked{{end}}> استفاده در چاپ خودکار</label>
-        </div>
-        <button type="submit" class="btn btn-primary">ذخیره تغییرات</button>
+        <p class="empty-text">فیش صندوق و پیش‌نمایش از همین متن استفاده می‌کنند.</p>
+        <button type="submit" class="btn btn-primary">ذخیرهٔ متن فیش</button>
       </form>
     </section>
 
-    <aside class="panel-card">
-      <div class="panel-header"><div><h2>وضعیت و آزمایش</h2><p>نتیجه‌ها ممکن است تأیید فیزیکی چاپ نداشته باشند.</p></div></div>
-      <div class="printer-actions-stack">
-        <form method="post" action="/local/printer-probe" hx-post="/local/printer-probe" hx-target="#main-view">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <button type="submit" class="btn btn-outline btn-block">بررسی اتصال</button>
-        </form>
-        <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <input type="hidden" name="return_page" value="printer">
-          <button type="submit" class="btn btn-primary btn-block">چاپ آزمایشی</button>
-        </form>
-        <form method="post" action="/local/printer-active" hx-post="/local/printer-active" hx-target="#main-view">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <button type="submit" class="btn btn-subtle btn-block">{{if .PrinterProfile.Active}}غیرفعال‌کردن این چاپگر{{else}}فعال‌کردن این چاپگر{{end}}</button>
-        </form>
+  <section class="panel-card pw-card">
+    <div class="panel-header">
+      <div>
+        <h2>چاپ خودکار فیش‌ها</h2>
+        <p>برای هر لحظه از سفارش انتخاب کنید چه کسی فیش بگیرد — بدون عدد و تنظیم فنی. این سیاست سراسری است؛ این‌که کدام چاپگر بلیت کدام دسته را چاپ کند در بخش «مسیر چاپ دسته‌بندی محصولات» تعیین می‌شود.</p>
       </div>
-
-      {{if .PrinterCheck}}
-      <div class="probe-panel">
-        <div class="probe-head">
-          <strong>آخرین بررسی</strong>
-          <span class="badge {{.PrinterCheck.StateClass}}">{{.PrinterCheck.StateLabel}}</span>
-        </div>
-        <p class="row-sub">{{.PrinterCheck.Summary}}</p>
-        <div class="probe-stages">
-          {{range .PrinterCheck.Stages}}
-          <div class="probe-stage">
-            <span class="badge {{.LayerClass}}">{{.LayerLabel}}</span>
-            <div><strong>{{.Label}}</strong><small>{{.Detail}}</small></div>
-          </div>
-          {{end}}
-        </div>
-        <p class="field-hint">زمان بررسی: <bdi>{{.PrinterCheck.CheckedAt}}</bdi></p>
-      </div>
-      {{else}}<p class="empty-text">هنوز بررسی‌ای انجام نشده است. با «بررسی اتصال» لایه‌های دسترسی، پورت و پاسخ پروتکل را ببینید.</p>{{end}}
-
-      <details class="danger-zone">
-        <summary>حذف چاپگر</summary>
-        <p class="row-sub">حذف چاپگر Jobهای قبلی و سفارش‌ها را پاک نمی‌کند؛ فقط مسیرهای دسته‌بندی این چاپگر آزاد می‌شوند.</p>
-        <form method="post" action="/local/printer-delete" hx-post="/local/printer-delete" hx-target="#main-view" class="form-grid">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <input type="hidden" name="printer_id" value="{{.PrinterProfile.ID}}">
-          <label class="inline-check"><input type="checkbox" name="confirm_delete" required> از حذف این چاپگر مطمئنم</label>
-          <button type="submit" class="btn btn-danger">حذف چاپگر</button>
-        </form>
-      </details>
-    </aside>
-  </div>
-
-  <section class="panel-card">
-    <div class="panel-header"><div><h2>Jobهای اخیر این چاپگر</h2><p>وضعیت چاپ مستقل از وضعیت سفارش ثبت می‌شود.</p></div></div>
-    {{if .PrinterRecentJobs}}
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>فیش</th><th>سفارش</th><th>وضعیت</th><th>تلاش</th><th>خطا</th><th></th></tr></thead>
-        <tbody>
-        {{range .PrinterRecentJobs}}
-          <tr>
-            <td>{{.DocTypeLabel}}</td>
-            <td>{{if .OrderNumber}}{{ordno .OrderNumber}}{{else}}—{{end}}</td>
-            <td><span class="badge {{.StatusClass}}">{{.StatusLabel}}</span></td>
-            <td>{{faInt .Attempts}}</td>
-            <td class="print-job-error">{{.LastError}}</td>
-            <td>{{if .Retryable}}<form method="post" action="/local/print-queue-retry" hx-post="/local/print-queue-retry" hx-target="#main-view" class="inline-form"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="job_id" value="{{.ID}}"><button type="submit" class="btn btn-subtle btn-sm">تلاش دوباره</button></form>{{end}}</td>
-          </tr>
-        {{end}}
-        </tbody>
-      </table>
+      <form method="post" action="/local/print-policy" hx-post="/local/print-policy" hx-target="#main-view" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="pw_checkout_mode" value="both">
+        <button type="submit" class="btn btn-outline btn-sm">تسویه با دو فیش: مشتری + کافه</button>
+      </form>
     </div>
-    {{else}}<p class="empty-text">برای این چاپگر هنوز Jobی ثبت نشده است.</p>{{end}}
+    <form method="post" action="/local/print-policy" hx-post="/local/print-policy" hx-target="#main-view" class="pw-form">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="pw-group">
+        <div class="pw-group-head"><h3>موقع ثبت سفارش</h3><p>لحظه‌ای که سفارش جدید با میز در صندوق یا منوی آنلاین ثبت می‌شود.</p></div>
+        <div class="pw-opts">
+          <label class="pw-opt"><input type="radio" name="pw_create_mode" value="none" {{if eq .PrintPolicy.Create.Mode "none"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>پرینت نگیره</strong><small>سفارش فقط در صفحه ثبت می‌شود؛ اگر لازم شد دستی چاپ می‌کنید.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_create_mode" value="kitchen" {{if eq .PrintPolicy.Create.Mode "kitchen"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>فقط برای آشپزخانه پرینت بگیره</strong><small>یک بلیت سفارش برای آشپزخانه چاپ می‌شود تا آماده‌سازی شروع شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_create_mode" value="customer" {{if eq .PrintPolicy.Create.Mode "customer"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>فقط برای مشتری پرینت بگیره</strong><small>یک فیش کامل سفارش برای مشتری چاپ می‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_create_mode" value="both" {{if eq .PrintPolicy.Create.Mode "both"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>هم برای مشتری و هم آشپزخانه پرینت بگیره</strong><small>یک فیش برای مشتری و یک بلیت برای آشپزخانه چاپ می‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_create_mode" value="custom" {{if eq .PrintPolicy.Create.Mode "custom"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>چیدمان دلخواه</strong><small>نوع فیش و تعداد نسخه‌ها را خودم انتخاب می‌کنم.</small></span></label>
+        </div>
+        {{if eq .PrintPolicy.Create.Mode "custom"}}
+        <div class="pw-custom">
+          <label>نوع فیش موقع ثبت سفارش
+            <select name="pw_create_doc" onchange="this.form.requestSubmit()">
+              <option value="kitchen" {{if eq .PrintPolicy.Create.Doc "kitchen"}}selected{{end}}>فقط بلیت آشپزخانه</option>
+              <option value="cashier" {{if eq .PrintPolicy.Create.Doc "cashier"}}selected{{end}}>فقط فیش مشتری</option>
+              <option value="all" {{if eq .PrintPolicy.Create.Doc "all"}}selected{{end}}>هم برای مشتری + هم برای آشپزخانه</option>
+            </select>
+          </label>
+          <label>تعداد نسخه هر فیش یا بلیت
+            <select name="pw_create_copies" onchange="this.form.requestSubmit()">
+              <option value="1" {{if eq .PrintPolicy.Create.Copies 1}}selected{{end}}>یک نسخه</option>
+              <option value="2" {{if eq .PrintPolicy.Create.Copies 2}}selected{{end}}>دو نسخه</option>
+              <option value="3" {{if eq .PrintPolicy.Create.Copies 3}}selected{{end}}>سه نسخه</option>
+              <option value="4" {{if eq .PrintPolicy.Create.Copies 4}}selected{{end}}>چهار نسخه</option>
+              <option value="5" {{if eq .PrintPolicy.Create.Copies 5}}selected{{end}}>پنج نسخه</option>
+            </select>
+          </label>
+        </div>
+        {{end}}
+      </div>
+
+      <div class="pw-group">
+        <div class="pw-group-head"><h3>سفارش بدون میز (میز انتخاب نشده)</h3><p>وقتی در صندوق میزی انتخاب نشود (مثلاً بیرون‌بر یا پیشخوان)، این بخش مشخص می‌کند چه چیزی چاپ شود.</p></div>
+        <div class="pw-opts">
+          <label class="pw-opt"><input type="radio" name="pw_notable_mode" value="none" {{if eq .PrintPolicy.NoTable.Mode "none"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>پرینت نگیره</strong><small>سفارش بدون میز هیچ فیش یا بلیتی چاپ نمی‌کند.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_notable_mode" value="kitchen" {{if eq .PrintPolicy.NoTable.Mode "kitchen"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>فقط برای آشپزخانه پرینت بگیره</strong><small>فقط یک بلیت برای آشپزخانه چاپ می‌شود؛ فیش مشتری چاپ نمی‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_notable_mode" value="customer" {{if eq .PrintPolicy.NoTable.Mode "customer"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>فقط برای مشتری پرینت بگیره</strong><small>یک فیش مشتری برای سفارش بدون میز چاپ می‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_notable_mode" value="both" {{if eq .PrintPolicy.NoTable.Mode "both"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>هم برای مشتری و هم آشپزخانه پرینت بگیره</strong><small>یک فیش برای مشتری و یک بلیت برای آشپزخانه چاپ می‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_notable_mode" value="custom" {{if eq .PrintPolicy.NoTable.Mode "custom"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>چیدمان دلخواه</strong><small>نوع سند و تعداد نسخه را خودم انتخاب می‌کنم.</small></span></label>
+        </div>
+        {{if eq .PrintPolicy.NoTable.Mode "custom"}}
+        <div class="pw-custom">
+          <label>نوع سند برای سفارش بدون میز
+            <select name="pw_notable_doc" onchange="this.form.requestSubmit()">
+              <option value="kitchen" {{if eq .PrintPolicy.NoTable.Doc "kitchen"}}selected{{end}}>فقط بلیت آشپزخانه</option>
+              <option value="cashier" {{if eq .PrintPolicy.NoTable.Doc "cashier"}}selected{{end}}>فقط فیش مشتری</option>
+              <option value="all" {{if eq .PrintPolicy.NoTable.Doc "all"}}selected{{end}}>هم فیش مشتری + هم بلیت آشپزخانه</option>
+            </select>
+          </label>
+          <label>تعداد نسخه هر فیش یا بلیت
+            <select name="pw_notable_copies" onchange="this.form.requestSubmit()">
+              <option value="1" {{if eq .PrintPolicy.NoTable.Copies 1}}selected{{end}}>یک نسخه</option>
+              <option value="2" {{if eq .PrintPolicy.NoTable.Copies 2}}selected{{end}}>دو نسخه</option>
+              <option value="3" {{if eq .PrintPolicy.NoTable.Copies 3}}selected{{end}}>سه نسخه</option>
+              <option value="4" {{if eq .PrintPolicy.NoTable.Copies 4}}selected{{end}}>چهار نسخه</option>
+              <option value="5" {{if eq .PrintPolicy.NoTable.Copies 5}}selected{{end}}>پنج نسخه</option>
+            </select>
+          </label>
+        </div>
+        {{end}}
+      </div>
+
+      <div class="pw-group">
+        <div class="pw-group-head"><h3>موقع تسویه صندوق</h3><p>وقتی پرداخت مشتری در صندوق ثبت می‌شود.</p></div>
+        <div class="pw-opts">
+          <label class="pw-opt"><input type="radio" name="pw_checkout_mode" value="none" {{if eq .PrintPolicy.Checkout.Mode "none"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>پرینت نگیره</strong><small>فاکتور فقط با زدن دکمه‌ی چاپ در صفحه‌ی فیش‌ها چاپ می‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_checkout_mode" value="customer" {{if eq .PrintPolicy.Checkout.Mode "customer"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>فقط برای مشتری پرینت بگیره</strong><small>یک فیش پرداخت به دست مشتری می‌رسد.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_checkout_mode" value="both" {{if eq .PrintPolicy.Checkout.Mode "both"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>هم برای مشتری و هم کافه پرینت بگیره</strong><small>یک فیش برای مشتری و یک فیش برای بایگانی صندوق.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_checkout_mode" value="custom" {{if eq .PrintPolicy.Checkout.Mode "custom"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>چیدمان دلخواه</strong><small>نوع فیش و تعداد نسخه‌ها را خودم انتخاب می‌کنم.</small></span></label>
+        </div>
+        {{if eq .PrintPolicy.Checkout.Mode "custom"}}
+        <div class="pw-custom">
+          <label>تعداد نسخه در هر تسویه
+            <select name="pw_checkout_copies" onchange="this.form.requestSubmit()">
+              <option value="1" {{if eq .PrintPolicy.Checkout.Copies 1}}selected{{end}}>یک نسخه</option>
+              <option value="2" {{if eq .PrintPolicy.Checkout.Copies 2}}selected{{end}}>دو نسخه</option>
+              <option value="3" {{if eq .PrintPolicy.Checkout.Copies 3}}selected{{end}}>سه نسخه</option>
+              <option value="4" {{if eq .PrintPolicy.Checkout.Copies 4}}selected{{end}}>چهار نسخه</option>
+              <option value="5" {{if eq .PrintPolicy.Checkout.Copies 5}}selected{{end}}>پنج نسخه</option>
+            </select>
+          </label>
+          <label class="pw-merchant"><input type="checkbox" name="pw_checkout_merchant" {{if .PrintPolicy.Checkout.Merchant}}checked{{end}} onchange="this.form.requestSubmit()"> نسخه کافه (بایگانی صندوق) هم چاپ شود</label>
+        </div>
+        {{end}}
+      </div>
+
+      <div class="pw-group">
+        <div class="pw-group-head"><h3>موقع تکمیل سفارش</h3><p>وقتی وضعیت سفارش به «تکمیل‌شده» تغییر می‌کند — یعنی سفارش آماده است.</p></div>
+        <div class="pw-opts">
+          <label class="pw-opt"><input type="radio" name="pw_complete_mode" value="none" {{if eq .PrintPolicy.Complete.Mode "none"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>پرینت نگیره</strong><small>هیچ فیشی برای تکمیل سفارش چاپ نمی‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_complete_mode" value="customer" {{if eq .PrintPolicy.Complete.Mode "customer"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>فقط برای مشتری پرینت بگیره</strong><small>فقط فیش نهایی مشتری چاپ می‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_complete_mode" value="kitchen" {{if eq .PrintPolicy.Complete.Mode "kitchen"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>فقط برای آشپزخانه پرینت بگیره</strong><small>فقط بلیت آشپزخانه چاپ می‌شود.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_complete_mode" value="both" {{if eq .PrintPolicy.Complete.Mode "both"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>هم برای مشتری و هم آشپزخانه پرینت بگیره</strong><small>فیش کامل مشتری و بلیت آشپزخانه با هم چاپ می‌شوند.</small></span></label>
+          <label class="pw-opt"><input type="radio" name="pw_complete_mode" value="custom" {{if eq .PrintPolicy.Complete.Mode "custom"}}checked{{end}} onchange="this.form.requestSubmit()"><span><strong>چیدمان دلخواه</strong><small>نوع فیش و تعداد نسخه‌ها را خودم انتخاب می‌کنم.</small></span></label>
+        </div>
+        {{if eq .PrintPolicy.Complete.Mode "custom"}}
+        <div class="pw-custom">
+          <label>نوع فیش تکمیل سفارش
+            <select name="pw_complete_doc" onchange="this.form.requestSubmit()">
+              <option value="kitchen" {{if eq .PrintPolicy.Complete.Doc "kitchen"}}selected{{end}}>فقط بلیت آشپزخانه</option>
+              <option value="cashier" {{if eq .PrintPolicy.Complete.Doc "cashier"}}selected{{end}}>فقط فیش مشتری</option>
+              <option value="all" {{if eq .PrintPolicy.Complete.Doc "all"}}selected{{end}}>هم فیش مشتری + هم بلیت آشپزخانه</option>
+            </select>
+          </label>
+          <label>تعداد نسخه هر فیش یا بلیت
+            <select name="pw_complete_copies" onchange="this.form.requestSubmit()">
+              <option value="1" {{if eq .PrintPolicy.Complete.Copies 1}}selected{{end}}>یک نسخه</option>
+              <option value="2" {{if eq .PrintPolicy.Complete.Copies 2}}selected{{end}}>دو نسخه</option>
+              <option value="3" {{if eq .PrintPolicy.Complete.Copies 3}}selected{{end}}>سه نسخه</option>
+              <option value="4" {{if eq .PrintPolicy.Complete.Copies 4}}selected{{end}}>چهار نسخه</option>
+              <option value="5" {{if eq .PrintPolicy.Complete.Copies 5}}selected{{end}}>پنج نسخه</option>
+            </select>
+          </label>
+        </div>
+        {{end}}
+      </div>
+
+      <div class="pw-save"><button type="submit" class="btn btn-primary">ذخیره تنظیمات چاپ خودکار</button></div>
+    </form>
   </section>
+  {{else}}
+  <section class="panel-card"><p class="empty-text">چاپگر حرارتی خاموش است؛ ابتدا از «تنظیمات کافه» سوییچ «استفاده از چاپگر حرارتی» را روشن کنید.</p></section>
+  {{end}}
+
+{{else if eq .Page "print-routes"}}
+  <section class="dash-head">
+    <div>
+      <p class="dash-eyebrow">CATEGORY ROUTING</p>
+      <h2 class="dash-title">مسیر چاپ دسته‌بندی محصولات</h2>
+      <p class="dash-sub">یک چاپگر انتخاب کنید و هر چند دسته را که می‌خواهید هم‌زمان تیک بزنید؛ لازم نیست برای هر دسته جدا تنظیم کنید.</p>
+    </div>
+    <div class="dash-head-actions">
+      <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">مرکز چاپگرها</a>
+    </div>
+  </section>
+  {{template "printerTabs" .}}
+  {{if .PrinterEnabled}}
+  <section class="panel-card">
+    <div class="panel-header">
+      <div>
+        <h2>مسیر چاپ دسته‌بندی محصولات</h2>
+        <p>این تنظیم فقط بلیت آماده‌سازی/آشپزخانه را دسته‌بندی می‌کند و فاکتور کامل مشتری همچنان طبق تنظیمات صندوق چاپ می‌شود. تا وقتی هیچ مسیر فعالی نباشد، چاپ قبلیِ یک بلیت کامل ادامه دارد؛ با فعال‌شدن دست‌کم یک مسیر، دسته‌های بدون مسیر به پرینتر پیش‌فرض آشپزخانه می‌روند.</p>
+      </div>
+    </div>
+    {{if .CategoryRoutes}}
+    <form method="post" action="/local/printer-route" hx-post="/local/printer-route" hx-target="#main-view" class="route-bulk" data-route-bulk>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <div class="route-bulk-bar">
+        <label>۱) چاپگر مقصد
+          <select name="printer_id" required>
+            <option value="" disabled selected>یک چاپگر انتخاب کنید…</option>
+            {{range .Printers}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
+          </select>
+        </label>
+        <label>تعداد نسخه بلیت
+          <select name="copies">
+            <option value="1" selected>یک نسخه</option>
+            <option value="2">دو نسخه</option>
+            <option value="3">سه نسخه</option>
+            <option value="4">چهار نسخه</option>
+            <option value="5">پنج نسخه</option>
+          </select>
+        </label>
+        <label class="route-search">۲) جستجوی دسته‌بندی
+          <input type="search" placeholder="مثلاً: پیتزا، نوشیدنی سرد…" data-route-search autocomplete="off">
+        </label>
+      </div>
+      <div class="route-bulk-tools">
+        <span class="route-count" data-route-count>۰ دسته انتخاب شده</span>
+        <span class="route-tools-actions">
+          <button type="button" class="btn btn-subtle btn-sm" data-route-select="visible">انتخاب همهٔ نمایش‌داده‌شده‌ها</button>
+          <button type="button" class="btn btn-subtle btn-sm" data-route-select="routed">انتخاب دسته‌های دارای مسیر</button>
+          <button type="button" class="btn btn-subtle btn-sm" data-route-select="none">حذف انتخاب‌ها</button>
+        </span>
+      </div>
+      <div class="route-chips">
+        {{range $row := .CategoryRoutes}}
+        <label class="route-chip {{if $row.HasRoute}}has-route{{end}}" data-route-chip data-name="{{$row.Category.Label}}">
+          <input type="checkbox" name="category_id" value="{{$row.Category.ID}}" {{if $row.HasRoute}}data-routed="1"{{end}}>
+          <span class="route-chip-body">
+            <strong>{{$row.Category.Label}}</strong>
+            <small>{{faInt $row.Products}} محصول{{if $row.HasRoute}} • اکنون: {{$row.PrinterName}}{{if not $row.Active}} (متوقف){{end}}{{else}} • بدون مسیر اختصاصی{{end}}</small>
+          </span>
+        </label>
+        {{end}}
+      </div>
+      <p class="empty-text" data-route-noresult hidden>دسته‌ای با این جستجو پیدا نشد.</p>
+      <div class="route-bulk-submit">
+        <button type="submit" class="btn btn-primary" data-route-submit disabled>۳) اعمال روی دسته‌های انتخاب‌شده</button>
+        <span class="field-hint">با یک کلیک، همهٔ دسته‌های تیک‌خورده به چاپگر مقصد می‌روند؛ مسیر قبلی هر دسته با مسیر جدید جایگزین می‌شود.</span>
+      </div>
+    </form>
+
+    <form method="post" action="/local/printer-route" hx-post="/local/printer-route" hx-target="#main-view" class="route-clear" data-route-bulk>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="printer_id" value="">
+      <details>
+        <summary>حذف گروهی مسیر دسته‌ها</summary>
+        <p class="field-hint">دسته‌هایی که مسیرشان حذف شود به پرینتر پیش‌فرض آشپزخانه برمی‌گردند.</p>
+        <div class="route-chips">
+          {{range $row := .CategoryRoutes}}{{if $row.HasRoute}}
+          <label class="route-chip has-route" data-route-chip data-name="{{$row.Category.Label}}">
+            <input type="checkbox" name="category_id" value="{{$row.Category.ID}}" data-routed="1">
+            <span class="route-chip-body"><strong>{{$row.Category.Label}}</strong><small>اکنون: {{$row.PrinterName}}</small></span>
+          </label>
+          {{end}}{{end}}
+        </div>
+        <div class="route-bulk-submit">
+          <button type="submit" class="btn btn-danger" data-route-submit disabled>حذف مسیر دسته‌های انتخاب‌شده</button>
+          <span class="route-count" data-route-count>۰ دسته انتخاب شده</span>
+        </div>
+      </details>
+    </form>
+
+    <div class="route-current">
+      <h3>مسیرهای فعلی</h3>
+      <div class="route-list">
+        {{range $row := .CategoryRoutes}}{{if $row.HasRoute}}
+        <div class="route-row">
+          <div class="route-cat">
+            <strong>{{$row.Category.Label}}</strong>
+            <span>{{faInt $row.Products}} محصول • {{faInt $row.Copies}} نسخه</span>
+            <small>{{if $row.Active}}مسیر فعال{{else}}مسیر متوقف است{{end}}</small>
+          </div>
+          <span class="route-dest">← {{$row.PrinterName}}</span>
+          <form method="post" action="/local/printer-route-toggle" hx-post="/local/printer-route-toggle" hx-target="#main-view" class="inline-form">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="category_id" value="{{$row.Category.ID}}">
+            <button type="submit" class="btn btn-subtle btn-sm">{{if $row.Active}}توقف مسیر{{else}}فعال‌سازی مسیر{{end}}</button>
+          </form>
+        </div>
+        {{end}}{{end}}
+      </div>
+    </div>
+    {{else}}
+    <p class="empty-text">هنوز دسته‌بندی منو ثبت نشده است.</p>
+    {{end}}
+  </section>
+  {{else}}
+  <section class="panel-card"><p class="empty-text">چاپگر حرارتی خاموش است؛ ابتدا از «تنظیمات کافه» سوییچ «استفاده از چاپگر حرارتی» را روشن کنید.</p></section>
+  {{end}}
 
 {{else if eq .Page "print-queue"}}
   <section class="dash-head">
@@ -543,6 +684,8 @@
       <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle">مرکز چاپگرها</a>
     </div>
   </section>
+
+  {{template "printerTabs" .}}
 
   <section class="printer-stats">
     <article><span>کل Jobها</span><strong>{{faInt .PrintJobCounts.Total}}</strong></article>
@@ -621,9 +764,11 @@
   <!-- دیالوگ تنظیم پرینتر پیداشده: انتخاب نتیجهٔ جستجو صفحه را عوض نمی‌کند؛
        مشخصات اتصال خودکار پر شده و فقط نام/نقش/کاغذ با کاربر است. -->
   <div class="dlg-overlay" id="dlg-printer-found" role="dialog" aria-modal="true" aria-labelledby="pf-title">
-    <form method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" class="dlg dlg-wide pf-dlg">
+    <div class="dlg dlg-wide pf-dlg">
+    <form method="post" action="/local/printer-save" hx-post="/local/printer-save" hx-target="#main-view" class="pf-form">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="return_page" value="printers">
+      <input type="hidden" name="id" id="pf-id" value="">
       <input type="hidden" name="connection_kind" id="pf-kind" value="">
       <div class="pf-head">
         <div>
@@ -688,14 +833,47 @@
           </select>
         </div>
       </div>
-      <label class="inline-check"><input type="checkbox" name="cut" checked> برش خودکار کاغذ — فقط پرینترهای دارای کاتر</label>
-      <label class="inline-check"><input type="checkbox" name="is_active" checked> این چاپگر در چاپ خودکار استفاده شود</label>
+      <label class="inline-check"><input type="checkbox" name="cut" id="pf-cut" checked> برش خودکار کاغذ — فقط پرینترهای دارای کاتر</label>
+      <label class="inline-check"><input type="checkbox" name="is_active" id="pf-active" checked> این چاپگر در چاپ خودکار استفاده شود</label>
       <p class="field-hint">فونت چاپ همان فونت برنامه است و قابل انتخاب نیست. پس از ذخیره در همین صفحه می‌مانید؛ از کارت پرینتر «بررسی اتصال» و «چاپ آزمایشی» را بزنید.</p>
       <div class="pf-actions">
         <button type="submit" class="btn btn-primary">ذخیره پرینتر</button>
         <button type="button" class="btn btn-subtle" onclick="closeDlg(this)">انصراف</button>
       </div>
     </form>
+
+    <div class="pf-more" id="pf-more" hidden>
+      <p class="row-sub" id="pf-check"></p>
+      <div class="pf-actions">
+        <form method="post" action="/local/printer-probe" hx-post="/local/printer-probe" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="printer_id" class="pf-action-id" value="">
+          <button type="submit" class="btn btn-outline btn-sm">بررسی اتصال</button>
+        </form>
+        <form method="post" action="/local/print-test" hx-post="/local/print-test" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="printer_id" class="pf-action-id" value="">
+          <input type="hidden" name="return_page" value="printers">
+          <button type="submit" class="btn btn-primary btn-sm">چاپ آزمایشی</button>
+        </form>
+        <form method="post" action="/local/printer-active" hx-post="/local/printer-active" hx-target="#main-view" class="inline-form">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="printer_id" class="pf-action-id" value="">
+          <button type="submit" class="btn btn-subtle btn-sm" id="pf-toggle-label">غیرفعال‌کردن</button>
+        </form>
+      </div>
+      <details class="danger-zone">
+        <summary>حذف چاپگر</summary>
+        <p class="row-sub">حذف چاپگر Jobهای قبلی و سفارش‌ها را پاک نمی‌کند؛ فقط مسیرهای دسته‌بندی این چاپگر آزاد می‌شوند.</p>
+        <form method="post" action="/local/printer-delete" hx-post="/local/printer-delete" hx-target="#main-view" class="form-grid">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="printer_id" class="pf-action-id" value="">
+          <label class="inline-check"><input type="checkbox" name="confirm_delete" required> از حذف این چاپگر مطمئنم</label>
+          <button type="submit" class="btn btn-danger btn-sm">حذف چاپگر</button>
+        </form>
+      </details>
+    </div>
+    </div>
   </div>
 {{end}}
 
@@ -743,3 +921,12 @@
   {{end}}
 </div>
 {{end}}{{end}}
+
+{{define "printerTabs"}}
+<nav class="printer-tabs" aria-label="بخش‌های چاپ">
+  <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="printer-tab {{if or (eq .Page "printers") (eq .Page "printer-new") (eq .Page "printer-scan")}}is-active{{end}}">پرینترها</a>
+  <a href="/?page=print-policy" hx-get="/?page=print-policy" hx-target="#main-view" hx-push-url="true" class="printer-tab {{if eq .Page "print-policy"}}is-active{{end}}">چاپ خودکار فیش‌ها</a>
+  <a href="/?page=print-routes" hx-get="/?page=print-routes" hx-target="#main-view" hx-push-url="true" class="printer-tab {{if eq .Page "print-routes"}}is-active{{end}}">مسیر چاپ دسته‌بندی‌ها</a>
+  <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="printer-tab {{if eq .Page "print-queue"}}is-active{{end}}">صف چاپ{{if gt .PrintJobCounts.Failed 0}} ({{faInt .PrintJobCounts.Failed}} خطا){{end}}</a>
+</nav>
+{{end}}

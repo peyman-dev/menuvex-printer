@@ -158,7 +158,7 @@ func TestReceiptPagePreviewMatchesWeb(t *testing.T) {
 	if _, err := a.store.SaveLocalRecord(context.Background(), "printer", "", map[string]any{"title": "چاپگر تست", "connection": "192.0.2.20:9100", "paper_width": "80mm"}); err != nil {
 		t.Fatal(err)
 	}
-	r2 := httptest.NewRequest("GET", "http://localhost/?page=settings", nil)
+	r2 := httptest.NewRequest("GET", "http://localhost/?page=print-policy", nil)
 	w2 := httptest.NewRecorder()
 	a.Handler().ServeHTTP(w2, r2)
 	settings := w2.Body.String()

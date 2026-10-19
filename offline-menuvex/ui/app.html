@@ -137,14 +137,26 @@
         </a>
 
         <div class="nav-section-title">مدیریت کافه</div>
-        <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="nav-item {{if or (eq .Page "printers") (eq .Page "printer") (eq .Page "printer-new") (eq .Page "printer-scan") (eq .Page "print-queue")}}active{{end}}">
+        <a href="/?page=printers" hx-get="/?page=printers" hx-target="#main-view" hx-push-url="true" class="nav-item {{if or (eq .Page "printers") (eq .Page "printer-new") (eq .Page "printer-scan")}}active{{end}}">
           <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><path d="M17 12h.01"/></svg>
-          <span>چاپگرها و صف چاپ</span>
+          <span>مرکز چاپگرها</span>
+        </a>
+        <a href="/?page=print-policy" hx-get="/?page=print-policy" hx-target="#main-view" hx-push-url="true" class="nav-item {{if eq .Page "print-policy"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/><path d="M9 21h6M12 17v4"/></svg>
+          <span>چاپ خودکار فیش‌ها</span>
+        </a>
+        <a href="/?page=print-routes" hx-get="/?page=print-routes" hx-target="#main-view" hx-push-url="true" class="nav-item {{if eq .Page "print-routes"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h6M14 6h6M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="12" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></svg>
+          <span>مسیر چاپ دسته‌بندی‌ها</span>
+        </a>
+        <a href="/?page=print-queue" hx-get="/?page=print-queue" hx-target="#main-view" hx-push-url="true" class="nav-item {{if eq .Page "print-queue"}}active{{end}}">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
+          <span>صف چاپ</span>
           {{if gt .PrintJobCounts.Failed 0}}<span class="nav-badge danger">{{faInt .PrintJobCounts.Failed}}</span>{{end}}
         </a>
         <a href="/?page=settings" class="nav-item {{if eq .Page "settings"}}active{{end}}">
           <svg class="nav-icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <span>پرینترها و تنظیمات</span>
+          <span>تنظیمات کافه</span>
         </a>
       </nav>
 
@@ -232,7 +244,8 @@
     'club-group': 'customers',
     'club-group-form': 'customers',
     'staff-form': 'staff',
-    'printer': 'printers',
+    'print-policy': 'print-policy',
+    'print-routes': 'print-routes',
     'printer-new': 'printers',
     'printer-scan': 'printers',
     'print-queue': 'printers'
@@ -800,14 +813,15 @@ document.addEventListener('htmx:afterSwap', function (e) {
   // ── دیالوگ «تنظیم پرینتر» برای پرینترهای پیداشده ──
   // انتخاب نتیجهٔ جستجو (صف سیستم‌عامل / USB / شبکه) نباید کاربر را به صفحهٔ
   // دیگری ببرد: همین‌جا دیالوگ باز می‌شود و مشخصات اتصال از data-* دکمه پر می‌شود.
-  window.printerFoundOpen = function(btn){
-    var d = btn.dataset || {};
+  function pfFill(d, isEdit) {
     var dlg = document.getElementById('dlg-printer-found');
     if (!dlg) return;
     var set = function(id, v){ var el = document.getElementById(id); if (el) el.value = v || ''; };
+    set('pf-id', isEdit ? d.id : '');
     set('pf-kind', d.kind);
     set('pf-name', d.name);
     set('pf-model', d.model);
+    set('pf-station', d.station);
     set('pf-host', d.host);
     set('pf-port', d.port);
     set('pf-queue', d.queue);
@@ -819,17 +833,31 @@ document.addEventListener('htmx:afterSwap', function (e) {
     set('pf-usb-port', d.usbPort);
     set('pf-usb-product', d.usbProduct);
     set('pf-usb-manufacturer', d.usbManufacturer);
-    var role = document.getElementById('pf-role'); if (role) role.value = '';
-    var paper = document.getElementById('pf-paper'); if (paper) paper.value = '80';
+    var role = document.getElementById('pf-role'); if (role) role.value = isEdit ? (d.role || '') : '';
+    var paper = document.getElementById('pf-paper'); if (paper) paper.value = isEdit ? (d.paper || '80') : '80';
+    var cut = document.getElementById('pf-cut'); if (cut) cut.checked = isEdit ? d.cut === '1' : true;
+    var active = document.getElementById('pf-active'); if (active) active.checked = isEdit ? d.active === '1' : true;
+    var title = document.getElementById('pf-title'); if (title) title.textContent = isEdit ? 'تنظیمات پرینتر' : 'تنظیم پرینتر پیداشده';
     var summary = document.getElementById('pf-summary');
     if (summary) {
       var detail = d.kind === 'network' ? (d.host + ':' + (d.port || '9100')) : d.kind === 'spooler' ? d.queue : d.kind === 'usb' ? (d.usbPath || d.name || '') : '';
-      summary.textContent = (d.summary || 'پرینتر پیداشده') + (detail ? ' • ' + detail : '');
+      summary.textContent = (d.summary || 'پرینتر') + (detail ? ' • ' + detail : '');
+    }
+    var more = document.getElementById('pf-more');
+    if (more) {
+      more.hidden = !isEdit;
+      if (isEdit) {
+        dlg.querySelectorAll('.pf-action-id').forEach(function(el){ el.value = d.id || ''; });
+        var check = document.getElementById('pf-check'); if (check) check.textContent = d.check || '';
+        var tog = document.getElementById('pf-toggle-label'); if (tog) tog.textContent = d.active === '1' ? 'غیرفعال‌کردن این چاپگر' : 'فعال‌کردن این چاپگر';
+      }
     }
     dlg.querySelectorAll('[data-pf-only]').forEach(function(el){ el.hidden = el.getAttribute('data-pf-only') !== d.kind; });
     openDlg('dlg-printer-found');
-    var name = document.getElementById('pf-name'); if (name) { name.focus(); name.select(); }
-  };
+    var name = document.getElementById('pf-name'); if (name) { name.focus(); if (!isEdit) name.select(); }
+  }
+  window.printerFoundOpen = function(btn){ pfFill(btn.dataset || {}, false); };
+  window.printerEditOpen = function(btn){ pfFill(btn.dataset || {}, true); };
 
   // ── لغو سفارش ──
   window.ordOpenCancel = function(btn){
@@ -1022,10 +1050,11 @@ document.addEventListener('htmx:afterSwap', function (e) {
       {{else if eq .Page "reports"}}گزارشات روزانه
       {{else if eq .Page "printers"}}مرکز چاپگرها و دستگاه‌های حرارتی
       {{else if eq .Page "printer-new"}}افزودن چاپگر جدید
-      {{else if eq .Page "printer"}}تنظیمات و وضعیت چاپگر
-      {{else if eq .Page "printer-scan"}}جستجوی چاپگر در شبکه محلی
+            {{else if eq .Page "printer-scan"}}جستجوی چاپگر در شبکه محلی
       {{else if eq .Page "print-queue"}}صف چاپ و پیگیری Jobها
-      {{else if eq .Page "settings"}}تنظیمات کافه و چاپگرهای حرارتی
+      {{else if eq .Page "print-policy"}}چاپ خودکار فیش‌ها
+      {{else if eq .Page "print-routes"}}مسیر چاپ دسته‌بندی محصولات
+      {{else if eq .Page "settings"}}تنظیمات کافه
       {{else if eq .Page "editor"}}ویرایشگر ساختاریافته اطلاعات ({{.Kind}})
       {{else}}منووکس{{end}}
     </h1>

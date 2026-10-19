@@ -3827,7 +3827,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 	case "suppliers":
 		v.Suppliers, _ = a.store.Entities(ctx, "supplier")
 		v.Purchases, _ = a.store.Entities(ctx, "purchase")
-	case "settings":
+	case "settings", "print-policy", "print-routes":
 		v.Printers, _ = a.store.Entities(ctx, "printer")
 		v.PrinterRoutes, _ = a.store.Entities(ctx, "printer_route")
 		v.PrintJobs, _ = a.store.PrintJobs(ctx, "")
@@ -3890,34 +3890,14 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			a.usbCacheMu.Unlock()
 		}
 	case "printer":
-		id := strings.TrimSpace(r.URL.Query().Get("id"))
-		p, pErr := a.store.Printer(ctx, id)
-		if pErr != nil {
-			v.Page = "printers"
-			v.PrinterProfiles, _ = a.store.Printers(ctx)
-			v.PrinterStats = a.store.PrinterStats(ctx)
-			v.PrintJobCounts = a.store.PrintJobCounts(ctx)
-			v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", "", 8)
-			v.Message = "چاپگر مورد نظر یافت نشد؛ فهرست چاپگرها نمایش داده می‌شود."
-		} else {
-			v.PrinterProfile = p
-			v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", p.ID, 12)
-			if p.LastCheckAt != "" {
-				v.PrinterCheck = &printer.ProbeResult{
-					Host: p.Host, Port: p.Port, State: p.LastCheckState,
-					Summary: p.LastCheckDetail, Stages: p.LastCheckStages,
-					CheckedAt: p.LastCheckAt,
-					Reachable: p.LastCheckState != printer.ProbeOffline,
-				}
-			}
-			v.PrinterProfiles, _ = a.store.Printers(ctx)
-			v.PrinterStats = a.store.PrinterStats(ctx)
-			queues, qErr := a.listQueues(ctx)
-			v.PrinterQueues = queues
-			if qErr != nil {
-				v.PrinterQueueError = qErr.Error()
-			}
-		}
+		// صفحهٔ جزئیات چاپگر حذف شده است؛ لینک‌های قدیمی به فهرست چاپگرها می‌رسند
+		// و تنظیمات از دیالوگ کارت چاپگر انجام می‌شود.
+		v.Page = "printers"
+		v.PrinterProfiles, _ = a.store.Printers(ctx)
+		v.PrinterStats = a.store.PrinterStats(ctx)
+		v.PrintJobCounts = a.store.PrintJobCounts(ctx)
+		v.PrinterRecentJobs, _ = a.store.PrintJobsFilter(ctx, "", "", 8)
+		v.Printers, _ = a.store.Entities(ctx, "printer")
 	case "printer-new":
 		draft := printer.Profile{PaperMM: printer.Paper80, WidthDots: 576, Copies: 1, Cut: true, Active: true}
 		q := r.URL.Query()
@@ -5253,7 +5233,7 @@ func (a *Application) handlePrintPolicy(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 		if !modes[mode] {
-			a.navigatePage(w, r, "settings", "سناریوی چاپ نامعتبر است.")
+			a.navigatePage(w, r, "print-policy", "سناریوی چاپ نامعتبر است.")
 			return
 		}
 		fields["pw_"+g+"_mode"] = mode
@@ -5275,14 +5255,14 @@ func (a *Application) handlePrintPolicy(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 	if len(fields) == 0 {
-		a.navigatePage(w, r, "settings", "تغییری برای ذخیره ارسال نشد.")
+		a.navigatePage(w, r, "print-policy", "تغییری برای ذخیره ارسال نشد.")
 		return
 	}
 	if _, err := a.store.SaveLocalRecord(r.Context(), "cafe_profile", "cafe-main-profile", fields); err != nil {
-		a.navigatePage(w, r, "settings", "خطا در ذخیره تنظیمات چاپ: "+err.Error())
+		a.navigatePage(w, r, "print-policy", "خطا در ذخیره تنظیمات چاپ: "+err.Error())
 		return
 	}
-	a.navigatePage(w, r, "settings", "تنظیمات چاپ خودکار ذخیره شد.")
+	a.navigatePage(w, r, "print-policy", "تنظیمات چاپ خودکار ذخیره شد.")
 }
 
 // handlePrinterRouteSave تعیین مقصد چاپ دسته‌بندی‌های منو (کدام چاپگر بلیت
@@ -5301,7 +5281,7 @@ func (a *Application) handlePrinterRouteSave(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	if len(catIDs) == 0 {
-		a.navigatePage(w, r, "settings", "هیچ دسته‌بندی‌ای انتخاب نشده است؛ اول دسته‌ها را تیک بزنید.")
+		a.navigatePage(w, r, "print-routes", "هیچ دسته‌بندی‌ای انتخاب نشده است؛ اول دسته‌ها را تیک بزنید.")
 		return
 	}
 	printerID := strings.TrimSpace(r.Form.Get("printer_id"))
@@ -5309,7 +5289,7 @@ func (a *Application) handlePrinterRouteSave(w http.ResponseWriter, r *http.Requ
 	if printerID != "" {
 		p, pErr := a.store.Entity(ctx, "printer", printerID)
 		if pErr != nil {
-			a.navigatePage(w, r, "settings", "چاپگر مقصد یافت نشد.")
+			a.navigatePage(w, r, "print-routes", "چاپگر مقصد یافت نشد.")
 			return
 		}
 		printer = p
@@ -5342,7 +5322,7 @@ func (a *Application) handlePrinterRouteSave(w http.ResponseWriter, r *http.Requ
 		if printerID == "" {
 			if existingID != "" {
 				if err := a.store.DeleteLocalRecord(ctx, "printer_route", existingID); err != nil {
-					a.navigatePage(w, r, "settings", "خطا در حذف مسیر چاپ: "+err.Error())
+					a.navigatePage(w, r, "print-routes", "خطا در حذف مسیر چاپ: "+err.Error())
 					return
 				}
 				removed++
@@ -5359,24 +5339,24 @@ func (a *Application) handlePrinterRouteSave(w http.ResponseWriter, r *http.Requ
 			"copies":        strconv.Itoa(copies),
 			"is_active":     existingActive,
 		}); err != nil {
-			a.navigatePage(w, r, "settings", "خطا در ذخیره مسیر چاپ: "+err.Error())
+			a.navigatePage(w, r, "print-routes", "خطا در ذخیره مسیر چاپ: "+err.Error())
 			return
 		}
 		saved++
 	}
 	switch {
 	case missing > 0 && saved == 0 && removed == 0:
-		a.navigatePage(w, r, "settings", "دسته‌بندی‌های انتخاب‌شده یافت نشدند.")
+		a.navigatePage(w, r, "print-routes", "دسته‌بندی‌های انتخاب‌شده یافت نشدند.")
 	case printerID == "":
-		a.navigatePage(w, r, "settings", "مسیر چاپ "+strconv.Itoa(removed)+" دسته حذف شد؛ بلیت آن‌ها به پرینتر پیش‌فرض آشپزخانه می‌رود.")
+		a.navigatePage(w, r, "print-routes", "مسیر چاپ "+strconv.Itoa(removed)+" دسته حذف شد؛ بلیت آن‌ها به پرینتر پیش‌فرض آشپزخانه می‌رود.")
 	case len(catIDs) == 1 && saved == 1:
-		a.navigatePage(w, r, "settings", "مسیر چاپ دسته انتخاب‌شده به چاپگر «"+printer.Label()+"» ذخیره شد.")
+		a.navigatePage(w, r, "print-routes", "مسیر چاپ دسته انتخاب‌شده به چاپگر «"+printer.Label()+"» ذخیره شد.")
 	default:
 		msg := "مسیر چاپ " + strconv.Itoa(saved) + " دسته به چاپگر «" + printer.Label() + "» ذخیره شد."
 		if missing > 0 {
 			msg += " (" + strconv.Itoa(missing) + " دسته یافت نشد.)"
 		}
-		a.navigatePage(w, r, "settings", msg)
+		a.navigatePage(w, r, "print-routes", msg)
 	}
 }
 
@@ -5394,14 +5374,14 @@ func (a *Application) handlePrinterRouteToggle(w http.ResponseWriter, r *http.Re
 				state = "فعال"
 			}
 			if _, err := a.store.SaveLocalRecord(ctx, "printer_route", rt.ID, map[string]any{"is_active": next}); err != nil {
-				a.navigatePage(w, r, "settings", err.Error())
+				a.navigatePage(w, r, "print-routes", err.Error())
 				return
 			}
-			a.navigatePage(w, r, "settings", "مسیر چاپ این دسته "+state+" شد.")
+			a.navigatePage(w, r, "print-routes", "مسیر چاپ این دسته "+state+" شد.")
 			return
 		}
 	}
-	a.navigatePage(w, r, "settings", "برای این دسته هنوز مقصد چاپی انتخاب نشده است.")
+	a.navigatePage(w, r, "print-routes", "برای این دسته هنوز مقصد چاپی انتخاب نشده است.")
 }
 
 // handlePrintOrder چاپ مستقیم همه فیش‌های یک سفارش (مشتری + حواله بار)
@@ -5526,14 +5506,14 @@ func (a *Application) handlePrintTest(w http.ResponseWriter, r *http.Request) {
 	if !a.printerEnabled(r.Context()) {
 		ret := strings.TrimSpace(r.Form.Get("return_page"))
 		if ret == "" {
-			ret = "settings"
+			ret = "printers"
 		}
 		a.navigatePage(w, r, ret, printerDisabledMsg)
 		return
 	}
 	retPage := strings.TrimSpace(r.Form.Get("return_page"))
 	if retPage == "" {
-		retPage = "settings"
+		retPage = "printers"
 	}
 	printerID := strings.TrimSpace(r.Form.Get("printer_id"))
 	job, err := a.store.EnqueueTestPrintJob(r.Context(), printerID)

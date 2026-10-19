@@ -91,8 +91,10 @@ func (a *Application) navigateQuery(w http.ResponseWriter, r *http.Request, page
 
 func urlQueryEscape(v string) string { return url.QueryEscape(v) }
 
+// navigatePrinter کاربر را روی فهرست چاپگرها نگه می‌دارد؛ صفحهٔ جزئیات جداگانه
+// وجود ندارد و تنظیمات هر چاپگر از دیالوگ کارت خودش انجام می‌شود.
 func (a *Application) navigatePrinter(w http.ResponseWriter, r *http.Request, id, message string) {
-	a.navigateQuery(w, r, "printer", map[string]string{"id": id}, message)
+	a.navigateQuery(w, r, "printers", nil, message)
 }
 
 // printerProfileFromForm builds a profile from the wizard/detail form. It is

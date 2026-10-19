@@ -82,10 +82,12 @@ func TestPrinterCenterPagesRender(t *testing.T) {
 	}
 
 	p := saveNetworkPrinter(t, a, "چاپگر صندوق مرکزی", "127.0.0.1", 19100, "cashier", true)
+	// صفحهٔ جزئیات جداگانه وجود ندارد: لینک قدیمی به فهرست می‌رسد و تنظیمات
+	// از دیالوگ کارت چاپگر (printerEditOpen) انجام می‌شود.
 	body := ordersGet(t, a, "/?page=printer&id="+p.ID)
-	for _, want := range []string{p.Name, "تنظیمات چاپگر", "بررسی اتصال", "چاپ آزمایشی", "حذف چاپگر", "صندوق", "Jobهای اخیر"} {
+	for _, want := range []string{p.Name, "printerEditOpen", `id="dlg-printer-found"`, "بررسی اتصال", "چاپ آزمایشی", "حذف چاپگر", "مرکز چاپگرها"} {
 		if !strings.Contains(body, want) {
-			t.Fatalf("printer detail missing %q", want)
+			t.Fatalf("printer list/dialog missing %q", want)
 		}
 	}
 	if !strings.Contains(ordersGet(t, a, "/?page=printers"), p.Name) {
@@ -233,10 +235,11 @@ func TestPrinterProbeLayersAndPersistence(t *testing.T) {
 	if saved.LastCheckState != printer.ProbeOnline || len(saved.LastCheckStages) != 3 {
 		t.Fatalf("probe evidence not persisted: %+v", saved)
 	}
-	detail := ordersGet(t, a, "/?page=printer&id="+profile.ID)
-	for _, want := range []string{"آنلاین", "پاسخ پروتکل چاپگر", "اعتبارسنجی نشانی", "دسترسی TCP"} {
+	// شواهد بررسی روی کارت چاپگر در فهرست دیده می‌شود، نه صفحهٔ جزئیات.
+	detail := ordersGet(t, a, "/?page=printers")
+	for _, want := range []string{"آنلاین"} {
 		if !strings.Contains(detail, want) {
-			t.Fatalf("detail page missing probe evidence %q", want)
+			t.Fatalf("printer list missing probe evidence %q", want)
 		}
 	}
 

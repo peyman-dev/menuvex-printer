@@ -2328,3 +2328,24 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
    در بعضی WebViewها سلکت بومی را زیر تریگر پنهان نمی‌کرد و هر فیلد دو بار دیده می‌شد. */
 .pf-dlg select{height:40px;width:100%;border:1px solid #E3EDF7;border-radius:10px;padding:0 10px;font:inherit;font-size:12.5px;background:#fff;color:#1F2328}
 .pf-dlg .ui-select-native{display:none !important}
+
+/* تب‌های بخش چاپ + کارت‌های لینک تنظیمات + دیالوگ واحد پرینتر */
+.printer-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+.printer-tab{padding:9px 16px;border:1px solid #E3EDF7;border-radius:999px;background:#fff;color:#344054;font-size:12.5px;font-weight:700;text-decoration:none}
+.printer-tab:hover{border-color:#C5D7EB}
+.printer-tab.is-active{background:#1D4F8C;border-color:#1D4F8C;color:#fff}
+.settings-link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.settings-link-card{display:grid;gap:6px;border:1px solid #E4E7EC;border-radius:14px;padding:16px;background:#fff;text-decoration:none;transition:border-color .12s,background .12s}
+.settings-link-card:hover{border-color:#1D4F8C;background:#F0F6FC}
+.settings-link-card strong{font-size:13.5px;color:#101828}
+.settings-link-card span{font-size:11.5px;line-height:1.9;color:#667085}
+.pf-form{display:grid;gap:14px}
+.pf-more{border-top:1px solid #EEF2F6;padding-top:12px;display:grid;gap:10px}
+.pf-more[hidden]{display:none !important}
+
+/* هیروی کشف خودکار پرینتر (صفحه مرکز چاپگرها) */
+.discovery-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;background:linear-gradient(135deg,#F0F6FC,#fff);border:1px solid #D9E7F5;border-radius:16px;padding:20px 22px;margin:0 0 16px}
+.discovery-hero-text{max-width:560px}
+.discovery-hero-text h3{margin:0 0 6px;font-size:15px;color:#101828}
+.discovery-hero-text p{margin:0;font-size:12px;line-height:2;color:#475467}
+.discovery-hero-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
