@@ -1157,12 +1157,13 @@ type POSStageOpt struct {
 
 // CategoryRouteRow یک ردیف «مسیر چاپ دسته‌بندی» در تنظیمات چاپگرها.
 type CategoryRouteRow struct {
-	Category  store.Entity
-	Products  int
-	HasRoute  bool
-	Active    bool
-	PrinterID string
-	Copies    int
+	Category    store.Entity
+	Products    int
+	HasRoute    bool
+	Active      bool
+	PrinterID   string
+	PrinterName string
+	Copies      int
 }
 
 // ClubCustomerRow ردیف مشتری باشگاه با خلاصه خرید واقعی از سفارش‌های محلی.
@@ -3844,11 +3845,19 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 					routeByCat[cid] = rt
 				}
 			}
+			printerNameByID := map[string]string{}
+			for _, p := range v.Printers {
+				printerNameByID[p.ID] = p.Label()
+			}
 			for _, c := range cats {
 				row := CategoryRouteRow{Category: c, Products: counts[c.ID], Active: true, Copies: 1}
 				if rt, ok := routeByCat[c.ID]; ok {
 					row.HasRoute = true
 					row.PrinterID = strings.TrimSpace(rt.Field("printer_id"))
+					row.PrinterName = printerNameByID[row.PrinterID]
+					if row.PrinterName == "" {
+						row.PrinterName = strings.TrimSpace(rt.Field("printer_name"))
+					}
 					row.Active = rt.Field("is_active") != "false" && rt.Field("is_active") != "0"
 					if n, aErr := strconv.Atoi(strings.TrimSpace(rt.Field("copies"))); aErr == nil && n >= 1 && n <= 5 {
 						row.Copies = n
@@ -5276,60 +5285,99 @@ func (a *Application) handlePrintPolicy(w http.ResponseWriter, r *http.Request) 
 	a.navigatePage(w, r, "settings", "تنظیمات چاپ خودکار ذخیره شد.")
 }
 
-// handlePrinterRouteSave تعیین مقصد چاپ یک دسته‌بندی منو (کدام چاپگر
-// بلیت کدام دسته را بگیرد)؛ چاپگر خالی یعنی حذف مسیر اختصاصی دسته.
+// handlePrinterRouteSave تعیین مقصد چاپ دسته‌بندی‌های منو (کدام چاپگر بلیت
+// کدام دسته را بگیرد). چند مقدار category_id در یک درخواست پذیرفته می‌شود تا
+// کاربر بتواند مثلاً ده دسته را یک‌جا به یک چاپگر بدهد؛ printer_id خالی یعنی
+// حذف مسیر اختصاصی دسته‌های انتخاب‌شده. یک category_id هم مثل قبل کار می‌کند.
 func (a *Application) handlePrinterRouteSave(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	catID := strings.TrimSpace(r.Form.Get("category_id"))
+	_ = r.ParseForm()
+	seen := map[string]bool{}
+	var catIDs []string
+	for _, raw := range r.Form["category_id"] {
+		if id := strings.TrimSpace(raw); id != "" && !seen[id] {
+			seen[id] = true
+			catIDs = append(catIDs, id)
+		}
+	}
+	if len(catIDs) == 0 {
+		a.navigatePage(w, r, "settings", "هیچ دسته‌بندی‌ای انتخاب نشده است؛ اول دسته‌ها را تیک بزنید.")
+		return
+	}
 	printerID := strings.TrimSpace(r.Form.Get("printer_id"))
-	cat, err := a.store.Entity(ctx, "category", catID)
-	if err != nil {
-		a.navigatePage(w, r, "settings", "دسته‌بندی مورد نظر یافت نشد.")
-		return
-	}
-	routes, _ := a.store.Entities(ctx, "printer_route")
-	existingID, existingActive := "", "true"
-	for _, rt := range routes {
-		if strings.TrimSpace(rt.Field("category_id")) == catID {
-			existingID = rt.ID
-			if v := strings.TrimSpace(rt.Field("is_active")); v != "" {
-				existingActive = v
-			}
+	var printer store.Entity
+	if printerID != "" {
+		p, pErr := a.store.Entity(ctx, "printer", printerID)
+		if pErr != nil {
+			a.navigatePage(w, r, "settings", "چاپگر مقصد یافت نشد.")
+			return
 		}
-	}
-	if printerID == "" {
-		if existingID != "" {
-			if err := a.store.DeleteLocalRecord(ctx, "printer_route", existingID); err != nil {
-				a.navigatePage(w, r, "settings", err.Error())
-				return
-			}
-		}
-		a.navigatePage(w, r, "settings", "مسیر چاپ دسته «"+cat.Label()+"» حذف شد؛ بلیت آن به پرینتر پیش‌فرض آشپزخانه می‌رود.")
-		return
-	}
-	printer, pErr := a.store.Entity(ctx, "printer", printerID)
-	if pErr != nil {
-		a.navigatePage(w, r, "settings", "چاپگر مقصد یافت نشد.")
-		return
+		printer = p
 	}
 	copies := 1
 	if n, aErr := strconv.Atoi(normalizeDigits(strings.TrimSpace(r.Form.Get("copies")))); aErr == nil && n >= 1 && n <= 5 {
 		copies = n
 	}
-	if _, err := a.store.SaveLocalRecord(ctx, "printer_route", existingID, map[string]any{
-		"title":         cat.Label(),
-		"category_id":   catID,
-		"category_name": cat.Label(),
-		"printer_id":    printerID,
-		"printer_name":  printer.Label(),
-		"receipt_type":  "kitchen",
-		"copies":        strconv.Itoa(copies),
-		"is_active":     existingActive,
-	}); err != nil {
-		a.navigatePage(w, r, "settings", "خطا در ذخیره مسیر چاپ: "+err.Error())
-		return
+	routes, _ := a.store.Entities(ctx, "printer_route")
+	existingByCat := map[string]store.Entity{}
+	for _, rt := range routes {
+		if cid := strings.TrimSpace(rt.Field("category_id")); cid != "" {
+			existingByCat[cid] = rt
+		}
 	}
-	a.navigatePage(w, r, "settings", "مسیر چاپ دسته «"+cat.Label()+"» به چاپگر «"+printer.Label()+"» ذخیره شد.")
+	saved, removed, missing := 0, 0, 0
+	for _, catID := range catIDs {
+		cat, err := a.store.Entity(ctx, "category", catID)
+		if err != nil {
+			missing++
+			continue
+		}
+		existingID, existingActive := "", "true"
+		if rt, ok := existingByCat[catID]; ok {
+			existingID = rt.ID
+			if v := strings.TrimSpace(rt.Field("is_active")); v != "" {
+				existingActive = v
+			}
+		}
+		if printerID == "" {
+			if existingID != "" {
+				if err := a.store.DeleteLocalRecord(ctx, "printer_route", existingID); err != nil {
+					a.navigatePage(w, r, "settings", "خطا در حذف مسیر چاپ: "+err.Error())
+					return
+				}
+				removed++
+			}
+			continue
+		}
+		if _, err := a.store.SaveLocalRecord(ctx, "printer_route", existingID, map[string]any{
+			"title":         cat.Label(),
+			"category_id":   catID,
+			"category_name": cat.Label(),
+			"printer_id":    printerID,
+			"printer_name":  printer.Label(),
+			"receipt_type":  "kitchen",
+			"copies":        strconv.Itoa(copies),
+			"is_active":     existingActive,
+		}); err != nil {
+			a.navigatePage(w, r, "settings", "خطا در ذخیره مسیر چاپ: "+err.Error())
+			return
+		}
+		saved++
+	}
+	switch {
+	case missing > 0 && saved == 0 && removed == 0:
+		a.navigatePage(w, r, "settings", "دسته‌بندی‌های انتخاب‌شده یافت نشدند.")
+	case printerID == "":
+		a.navigatePage(w, r, "settings", "مسیر چاپ "+strconv.Itoa(removed)+" دسته حذف شد؛ بلیت آن‌ها به پرینتر پیش‌فرض آشپزخانه می‌رود.")
+	case len(catIDs) == 1 && saved == 1:
+		a.navigatePage(w, r, "settings", "مسیر چاپ دسته انتخاب‌شده به چاپگر «"+printer.Label()+"» ذخیره شد.")
+	default:
+		msg := "مسیر چاپ " + strconv.Itoa(saved) + " دسته به چاپگر «" + printer.Label() + "» ذخیره شد."
+		if missing > 0 {
+			msg += " (" + strconv.Itoa(missing) + " دسته یافت نشد.)"
+		}
+		a.navigatePage(w, r, "settings", msg)
+	}
 }
 
 // handlePrinterRouteToggle توقف/فعال‌سازی موقت مسیر چاپ یک دسته.

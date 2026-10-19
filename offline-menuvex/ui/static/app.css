@@ -1877,6 +1877,27 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .route-form{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;flex:1}
 .route-form label{display:grid;gap:5px;font-size:11px;font-weight:700;color:#344054}
 .route-form select{height:36px;border:1px solid #E3EDF7;border-radius:9px;padding:0 8px;font:inherit;font-size:12.5px;background:#fff;min-width:170px}
+.route-bulk{display:grid;gap:12px}
+.route-bulk-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:end;background:#F8FAFC;border:1px solid #E3EDF7;border-radius:14px;padding:14px}
+.route-bulk-bar label{display:grid;gap:6px;font-size:11.5px;font-weight:700;color:#344054}
+.route-bulk-bar select,.route-bulk-bar input{height:38px;border:1px solid #E3EDF7;border-radius:10px;padding:0 10px;font:inherit;font-size:12.5px;background:#fff;width:100%}
+.route-bulk-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.route-count{font-size:12px;font-weight:800;color:#1D4F8C}
+.route-tools-actions{display:flex;gap:6px;flex-wrap:wrap}
+.route-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;max-height:320px;overflow-y:auto;padding:2px}
+.route-chip{display:flex;align-items:flex-start;gap:9px;border:1px solid #E4E7EC;border-radius:12px;padding:10px 12px;background:#fff;cursor:pointer;transition:border-color .12s,background .12s}
+.route-chip:hover{border-color:#C5D7EB}
+.route-chip:has(input:checked){border-color:#1D4F8C;background:#F0F6FC;box-shadow:0 0 0 1px #1D4F8C inset}
+.route-chip input{margin-top:3px;accent-color:#1D4F8C;width:16px;height:16px;flex:none}
+.route-chip-body{display:grid;gap:2px;min-width:0}
+.route-chip-body strong{font-size:12.5px;color:#101828}
+.route-chip-body small{font-size:10.5px;color:#667085;line-height:1.8}
+.route-bulk-submit{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.route-clear{margin-top:14px}
+.route-clear summary{cursor:pointer;font-size:12px;font-weight:700;color:#B42318}
+.route-current{margin-top:18px;border-top:1px solid #EEF2F6;padding-top:6px}
+.route-current h3{font-size:13px;color:#101828}
+.route-dest{font-size:12px;font-weight:700;color:#1D4F8C}
 
 /* ═══════════════════════════════════════════════════════════════════
    دیالوگ «ثبت در لیست بدهکاران» صندوق + فیلدهای عمومی دیالوگ‌ها

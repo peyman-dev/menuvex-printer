@@ -5292,46 +5292,99 @@
         <p>این تنظیم فقط بلیت آماده‌سازی/آشپزخانه را دسته‌بندی می‌کند و فاکتور کامل مشتری همچنان طبق تنظیمات صندوق چاپ می‌شود. تا وقتی هیچ مسیر فعالی نباشد، چاپ قبلیِ یک بلیت کامل ادامه دارد؛ با فعال‌شدن دست‌کم یک مسیر، دسته‌های بدون مسیر به پرینتر پیش‌فرض آشپزخانه می‌روند.</p>
       </div>
     </div>
-    <div class="route-list">
-      {{range $row := .CategoryRoutes}}
-      <div class="route-row">
-        <div class="route-cat">
-          <strong>{{$row.Category.Label}}</strong>
-          <span>{{faInt $row.Products}} محصول</span>
-          <small>{{if not $row.HasRoute}}بدون مسیر اختصاصی{{else if $row.Active}}مسیر فعال{{else}}مسیر متوقف است{{end}}</small>
-        </div>
-        <form method="post" action="/local/printer-route" hx-post="/local/printer-route" hx-target="#main-view" class="route-form">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <input type="hidden" name="category_id" value="{{$row.Category.ID}}">
-          <label>مقصد چاپ
-            <select name="printer_id">
-              <option value="">بدون مسیر اختصاصی</option>
-              {{range $.Printers}}<option value="{{.ID}}" {{if eq .ID $row.PrinterID}}selected{{end}}>{{.Label}}</option>{{end}}
-            </select>
-          </label>
-          <label>تعداد نسخه
-            <select name="copies">
-              <option value="1" {{if eq $row.Copies 1}}selected{{end}}>یک نسخه</option>
-              <option value="2" {{if eq $row.Copies 2}}selected{{end}}>دو نسخه</option>
-              <option value="3" {{if eq $row.Copies 3}}selected{{end}}>سه نسخه</option>
-              <option value="4" {{if eq $row.Copies 4}}selected{{end}}>چهار نسخه</option>
-              <option value="5" {{if eq $row.Copies 5}}selected{{end}}>پنج نسخه</option>
-            </select>
-          </label>
-          <button type="submit" class="btn btn-outline btn-sm">ذخیره مسیر</button>
-        </form>
-        {{if $row.HasRoute}}
-        <form method="post" action="/local/printer-route-toggle" hx-post="/local/printer-route-toggle" hx-target="#main-view" class="inline-form">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <input type="hidden" name="category_id" value="{{$row.Category.ID}}">
-          <button type="submit" class="btn btn-subtle btn-sm">{{if $row.Active}}توقف مسیر{{else}}فعال‌سازی مسیر{{end}}</button>
-        </form>
+    {{if .CategoryRoutes}}
+    <form method="post" action="/local/printer-route" hx-post="/local/printer-route" hx-target="#main-view" class="route-bulk" data-route-bulk>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <div class="route-bulk-bar">
+        <label>۱) چاپگر مقصد
+          <select name="printer_id" required>
+            <option value="" disabled selected>یک چاپگر انتخاب کنید…</option>
+            {{range .Printers}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
+          </select>
+        </label>
+        <label>تعداد نسخه بلیت
+          <select name="copies">
+            <option value="1" selected>یک نسخه</option>
+            <option value="2">دو نسخه</option>
+            <option value="3">سه نسخه</option>
+            <option value="4">چهار نسخه</option>
+            <option value="5">پنج نسخه</option>
+          </select>
+        </label>
+        <label class="route-search">۲) جستجوی دسته‌بندی
+          <input type="search" placeholder="مثلاً: پیتزا، نوشیدنی سرد…" data-route-search autocomplete="off">
+        </label>
+      </div>
+      <div class="route-bulk-tools">
+        <span class="route-count" data-route-count>۰ دسته انتخاب شده</span>
+        <span class="route-tools-actions">
+          <button type="button" class="btn btn-subtle btn-sm" data-route-select="visible">انتخاب همهٔ نمایش‌داده‌شده‌ها</button>
+          <button type="button" class="btn btn-subtle btn-sm" data-route-select="routed">انتخاب دسته‌های دارای مسیر</button>
+          <button type="button" class="btn btn-subtle btn-sm" data-route-select="none">حذف انتخاب‌ها</button>
+        </span>
+      </div>
+      <div class="route-chips">
+        {{range $row := .CategoryRoutes}}
+        <label class="route-chip {{if $row.HasRoute}}has-route{{end}}" data-route-chip data-name="{{$row.Category.Label}}">
+          <input type="checkbox" name="category_id" value="{{$row.Category.ID}}" {{if $row.HasRoute}}data-routed="1"{{end}}>
+          <span class="route-chip-body">
+            <strong>{{$row.Category.Label}}</strong>
+            <small>{{faInt $row.Products}} محصول{{if $row.HasRoute}} • اکنون: {{$row.PrinterName}}{{if not $row.Active}} (متوقف){{end}}{{else}} • بدون مسیر اختصاصی{{end}}</small>
+          </span>
+        </label>
         {{end}}
       </div>
-      {{else}}
-      <p class="empty-text">هنوز دسته‌بندی منو ثبت نشده است.</p>
-      {{end}}
+      <p class="empty-text" data-route-noresult hidden>دسته‌ای با این جستجو پیدا نشد.</p>
+      <div class="route-bulk-submit">
+        <button type="submit" class="btn btn-primary" data-route-submit disabled>۳) اعمال روی دسته‌های انتخاب‌شده</button>
+        <span class="field-hint">با یک کلیک، همهٔ دسته‌های تیک‌خورده به چاپگر مقصد می‌روند؛ مسیر قبلی هر دسته با مسیر جدید جایگزین می‌شود.</span>
+      </div>
+    </form>
+
+    <form method="post" action="/local/printer-route" hx-post="/local/printer-route" hx-target="#main-view" class="route-clear" data-route-bulk>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="printer_id" value="">
+      <details>
+        <summary>حذف گروهی مسیر دسته‌ها</summary>
+        <p class="field-hint">دسته‌هایی که مسیرشان حذف شود به پرینتر پیش‌فرض آشپزخانه برمی‌گردند.</p>
+        <div class="route-chips">
+          {{range $row := .CategoryRoutes}}{{if $row.HasRoute}}
+          <label class="route-chip has-route" data-route-chip data-name="{{$row.Category.Label}}">
+            <input type="checkbox" name="category_id" value="{{$row.Category.ID}}" data-routed="1">
+            <span class="route-chip-body"><strong>{{$row.Category.Label}}</strong><small>اکنون: {{$row.PrinterName}}</small></span>
+          </label>
+          {{end}}{{end}}
+        </div>
+        <div class="route-bulk-submit">
+          <button type="submit" class="btn btn-danger" data-route-submit disabled>حذف مسیر دسته‌های انتخاب‌شده</button>
+          <span class="route-count" data-route-count>۰ دسته انتخاب شده</span>
+        </div>
+      </details>
+    </form>
+
+    <div class="route-current">
+      <h3>مسیرهای فعلی</h3>
+      <div class="route-list">
+        {{range $row := .CategoryRoutes}}{{if $row.HasRoute}}
+        <div class="route-row">
+          <div class="route-cat">
+            <strong>{{$row.Category.Label}}</strong>
+            <span>{{faInt $row.Products}} محصول • {{faInt $row.Copies}} نسخه</span>
+            <small>{{if $row.Active}}مسیر فعال{{else}}مسیر متوقف است{{end}}</small>
+          </div>
+          <span class="route-dest">← {{$row.PrinterName}}</span>
+          <form method="post" action="/local/printer-route-toggle" hx-post="/local/printer-route-toggle" hx-target="#main-view" class="inline-form">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="category_id" value="{{$row.Category.ID}}">
+            <button type="submit" class="btn btn-subtle btn-sm">{{if $row.Active}}توقف مسیر{{else}}فعال‌سازی مسیر{{end}}</button>
+          </form>
+        </div>
+        {{end}}{{end}}
+      </div>
     </div>
+    {{else}}
+    <p class="empty-text">هنوز دسته‌بندی منو ثبت نشده است.</p>
+    {{end}}
   </section>
   {{end}}
 

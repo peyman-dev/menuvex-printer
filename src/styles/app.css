@@ -559,16 +559,49 @@ select {
   place-items: center;
   padding: 24px;
   z-index: 10;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .modal {
   background: #fff;
   border-radius: 16px;
-  padding: 28px;
   max-width: 560px;
   width: 100%;
-  max-height: 90vh;
-  overflow: auto;
+  /* dvh برای وب‌ویوها/موبایل که 100vh نوار آدرس را هم حساب می‌کند */
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow: 0 20px 70px #16295433;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 28px 12px;
+  flex: none;
+}
+.modal-head h2,
+.modal-head h3 {
+  margin: 0;
+}
+.modal-body {
+  padding: 8px 28px 16px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-foot {
+  padding: 14px 28px 20px;
+  border-top: 1px solid #eef2f9;
+  flex: none;
+  background: #fff;
+}
+.font-note {
+  margin: 0 0 16px;
 }
 .discovered {
   display: flex;

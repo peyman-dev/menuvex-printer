@@ -760,6 +760,43 @@ document.addEventListener('htmx:afterSwap', function (e) {
   window.closeDlg = function(btn){ var o=btn.closest('.dlg-overlay'); if (o) o.classList.remove('open'); };
   document.addEventListener('click', function(e){ if (e.target.classList && e.target.classList.contains('dlg-overlay')) e.target.classList.remove('open'); });
 
+  // ── مسیر چاپ دسته‌بندی‌ها: انتخاب گروهی (جستجو، انتخاب همه، شمارنده) ──
+  // با delegation روی document کار می‌کند تا بعد از تعویض محتوای htmx هم زنده بماند.
+  function routeBulkUpdate(form){
+    if (!form) return;
+    var boxes = form.querySelectorAll('input[name="category_id"]');
+    var n = 0;
+    boxes.forEach(function(b){ if (b.checked) n++; });
+    form.querySelectorAll('[data-route-count]').forEach(function(el){ el.textContent = toFa(n) + ' دسته انتخاب شده'; });
+    form.querySelectorAll('[data-route-submit]').forEach(function(btn){ btn.disabled = n === 0; });
+  }
+  document.addEventListener('change', function(e){
+    if (e.target.name === 'category_id') routeBulkUpdate(e.target.closest('[data-route-bulk]'));
+  });
+  document.addEventListener('input', function(e){
+    if (!e.target.hasAttribute || !e.target.hasAttribute('data-route-search')) return;
+    var form = e.target.closest('[data-route-bulk]'); if (!form) return;
+    var q = e.target.value.trim().toLowerCase(), visible = 0;
+    form.querySelectorAll('[data-route-chip]').forEach(function(chip){
+      var hit = !q || (chip.dataset.name || '').toLowerCase().indexOf(q) !== -1;
+      chip.hidden = !hit; if (hit) visible++;
+    });
+    var none = form.querySelector('[data-route-noresult]'); if (none) none.hidden = visible !== 0;
+  });
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('[data-route-select]') : null;
+    if (!btn) return;
+    var form = btn.closest('[data-route-bulk]'); if (!form) return;
+    var mode = btn.getAttribute('data-route-select');
+    form.querySelectorAll('[data-route-chip]').forEach(function(chip){
+      var box = chip.querySelector('input[name="category_id"]'); if (!box) return;
+      if (mode === 'none') box.checked = false;
+      else if (mode === 'visible' && !chip.hidden) box.checked = true;
+      else if (mode === 'routed' && box.hasAttribute('data-routed')) box.checked = true;
+    });
+    routeBulkUpdate(form);
+  });
+
   // ── لغو سفارش ──
   window.ordOpenCancel = function(btn){
     document.getElementById('dlg-cancel-title').textContent = 'لغو سفارش ' + btn.dataset.orderNumber;

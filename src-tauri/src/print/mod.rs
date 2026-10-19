@@ -24,6 +24,11 @@ const INK: u8 = 100;
 const MAX_ROWS: u16 = 4096;
 /// Baseline-to-baseline distance as a multiple of the font size.
 const LEADING: f32 = 1.45;
+/// The one and only print font: the font bundled with (and used by) the app UI.
+/// It is never user-selectable; a stored profile's `font_family` is kept only for
+/// wire compatibility and is ignored here, so an old/garbled value can no longer
+/// break printing with FONT_UNAVAILABLE.
+pub const APP_FONT_FAMILY: &str = "Noto Sans Arabic";
 /// Rustybuzz shaping + Unicode BiDi + Swash rasterization. Font selection is local-only.
 pub struct Renderer {
     fonts: FontSystem,
@@ -129,20 +134,10 @@ impl Renderer {
         if matches!(doc, Document::Escpos { .. }) {
             return doc.escpos_bytes();
         }
-        if
-            !self.fonts
-                .db()
-                .faces()
-                .any(|f| f.families.iter().any(|(name, _)| name == &p.font_family))
-        {
-            return Err(
-                AgentError::new(
-                    "FONT_UNAVAILABLE",
-                    "Install the configured font, e.g. Noto Sans Arabic, before printing"
-                )
-            );
-        }
-        let attrs = Attrs::new().family(Family::Name(&p.font_family));
+        // Always render with the bundled app font (see APP_FONT_FAMILY): the user
+        // does not pick a print font, and the bundled face is loaded in `Default`,
+        // so this lookup cannot fail on a profile value.
+        let attrs = Attrs::new().family(Family::Name(APP_FONT_FAMILY));
         let mut paper = Paper::new(p.width_dots);
         for item in layout::plan(doc, p.font_size, p.width_dots) {
             match item {

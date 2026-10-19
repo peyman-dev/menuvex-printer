@@ -297,3 +297,49 @@ func TestPrinterCategoryRouting(t *testing.T) {
 		t.Fatal("pizza printer must receive nothing after route pause")
 	}
 }
+
+// TestPrinterRouteBulkAssign چند دسته در یک درخواست به یک چاپگر داده می‌شوند
+// و با printer_id خالی هم گروهی حذف می‌شوند؛ صفحه تنظیمات هم فرم گروهی دارد.
+func TestPrinterRouteBulkAssign(t *testing.T) {
+	a := testApp(t)
+	ctx := context.Background()
+	printerID, err := a.store.SaveLocalRecord(ctx, "printer", "", map[string]any{
+		"title": "چاپگر بار", "connection": "127.0.0.1:9100", "station": "بار", "paper_width": "80mm",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catIDs []string
+	for _, name := range []string{"نوشیدنی گرم", "نوشیدنی سرد", "دسر"} {
+		id, err := a.store.SaveLocalRecord(ctx, "category", "", map[string]any{"title": name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		catIDs = append(catIDs, id)
+	}
+	settings := ordersGet(t, a, "/?page=settings")
+	for _, s := range []string{"data-route-bulk", "data-route-search", "data-route-select", "اعمال روی دسته‌های انتخاب‌شده"} {
+		if !strings.Contains(settings, s) {
+			t.Fatalf("settings bulk route UI missing %q", s)
+		}
+	}
+	ordersPost(t, a, "/local/printer-route", url.Values{
+		"category_id": catIDs, "printer_id": {printerID}, "copies": {"2"},
+	})
+	routes, _ := a.store.Entities(ctx, "printer_route")
+	if len(routes) != len(catIDs) {
+		t.Fatalf("bulk assign must save %d routes, got %d", len(catIDs), len(routes))
+	}
+	for _, rt := range routes {
+		if rt.Field("printer_id") != printerID || rt.Field("copies") != "2" {
+			t.Fatalf("bulk route fields wrong: %+v", rt.Fields)
+		}
+	}
+	ordersPost(t, a, "/local/printer-route", url.Values{
+		"category_id": catIDs[:2], "printer_id": {""},
+	})
+	routes, _ = a.store.Entities(ctx, "printer_route")
+	if len(routes) != 1 || routes[0].Field("category_id") != catIDs[2] {
+		t.Fatalf("bulk clear must keep only unselected route, got %+v", routes)
+	}
+}
