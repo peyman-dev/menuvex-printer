@@ -138,6 +138,9 @@ type View struct {
 	// POSStock موجودی قابل تهیهٔ هر محصول (از رسپی) است؛ کارت‌های «ناموجود»
 	// صندوق از همین نقشه ساخته می‌شوند و ثبت سفارش هم سمت سرور کنترل می‌شود.
 	POSStock map[string]store.ProductPortion
+	// POSStockJSON همان نقشه به شکل JSON برای دیالوگ «چه چیزی کم است؟»؛
+	// فقط محصول‌هایی که کمبود دارند داخلش می‌آیند.
+	POSStockJSON string
 	POSTables           []POSTableRow
 	POSRecent           []POSRecentRow
 	POSLastOrderID      string
@@ -2026,6 +2029,7 @@ type ProductRow struct {
 	DiscountPercent int    // تخفیف فعال دسته‌بندی روی این محصول
 	BasePriceToman  string // قیمت پیش از تخفیف (تومان)
 	Featured        bool   // «پیشنهاد روز»
+	Shortage        bool   // کمبود مواد اولیه دارد و علتش قابل دیدن است
 }
 
 // HasDiscount یعنی قیمت این محصول با تخفیف دسته‌بندی کم شده و باید قیمت
@@ -2049,6 +2053,11 @@ type InvRow struct {
 	SKU        string
 	UpdatedFa  string
 	UpdatedRel string
+	// کمبود نسبت به حد سفارش: برای دکمهٔ «چه چیزی کم است؟» در جدول انبار.
+	HasShortfall         bool
+	ShortfallFa          string
+	ShortfallQty         string
+	ShortfallValueToman  string
 }
 
 // InvCategoryRow ردیف جدول «دسته‌بندی مواد اولیه» (categories-page وب):
@@ -2491,6 +2500,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				}
 			}
 		}
+		v.POSStockJSON = posStockJSON(v.POSStock)
 		v.Tables, _ = a.store.Entities(ctx, "table")
 		v.Customers, _ = a.store.Entities(ctx, "customer")
 		// گروه‌های باشگاه برای تب «حساب شرکتی / گروه» دیالوگ بدهکاران صندوق
@@ -2791,6 +2801,8 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		products, pErr := a.store.Entities(ctx, "product")
 		v.Categories, _ = a.store.Entities(ctx, "category")
 		v.ModifierGroups, _ = a.store.Entities(ctx, "modifier_group")
+		// کمبود مواد اولیهٔ هر محصول برای دکمهٔ «چه چیزی کم است؟» در جدول.
+		v.POSStock = a.store.ProductPortions(ctx)
 		if pErr == nil {
 			v.Entities = products
 			catLabel := map[string]string{}
@@ -2822,6 +2834,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 					}
 				}
 				row.Featured = prod.Field("is_featured") == "true"
+				row.Shortage = len(v.POSStock[prod.ID].Shortages) > 0
 				row.CategoryLabel = catLabel[prod.Field("category_id")]
 				if row.CategoryLabel == "" {
 					row.CategoryLabel = "—"
@@ -2865,6 +2878,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				v.ProductRows = append(v.ProductRows, row)
 			}
 		}
+		v.POSStockJSON = posStockJSON(v.POSStock)
 	case "product-form":
 		v.Kind = "product"
 		v.EntityID = strings.TrimSpace(r.URL.Query().Get("id"))
@@ -2999,6 +3013,26 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				}
 				if minOrder != "" {
 					row.MinOrderFa = store.FormatPersianNumber(minOrder)
+				}
+				// کمبود نسبت به حد سفارش (و اگر حدی ثبت نشده، هر موجودی منفی):
+				// دکمهٔ «چه چیزی کم است؟» و پیش‌پر کردن مقدار خرید در دیالوگ
+				// ثبت ورود کالا.
+				minOrderRaw := strings.NewReplacer(",", "", "٬", "").Replace(normalizeNumInput(minOrder))
+				minOrderVal, minErr := strconv.ParseFloat(minOrderRaw, 64)
+				if minErr != nil {
+					minOrderVal = 0
+				}
+				if minOrderVal > stock {
+					row.HasShortfall = true
+					short := minOrderVal - stock
+					row.ShortfallFa = store.FormatPersianNumber(strconv.FormatFloat(short, 'f', -1, 64))
+					row.ShortfallQty = strconv.FormatFloat(short, 'f', -1, 64)
+					if avg, aErr := strconv.ParseFloat(strings.TrimSpace(ing.Field("average_cost")), 64); aErr == nil && avg > 0 {
+						value := new(big.Float).Mul(big.NewFloat(short), big.NewFloat(avg))
+						if valueInt, _ := value.Int(nil); valueInt != nil {
+							row.ShortfallValueToman = store.FormatIRRToToman(valueInt.String())
+						}
+					}
 				}
 				updatedISO := ing.Field("updated_at")
 				if strings.TrimSpace(updatedISO) == "" {
@@ -6841,6 +6875,26 @@ func (a *Application) handleProductsImport(w http.ResponseWriter, r *http.Reques
 		created++
 	}
 	a.navigatePage(w, r, "products", "افزودن گروهی انجام شد: "+store.FormatPersianNumber(strconv.Itoa(created))+" محصول ثبت و "+store.FormatPersianNumber(strconv.Itoa(failed))+" ردیف رد شد.")
+}
+
+// posStockJSON نقشهٔ موجودی قابل تهیه را برای دیالوگ «چه چیزی کم است؟» به
+// JSON تبدیل می‌کند؛ فقط محصول‌هایی که کمبود یا دلیل ناموجودی دارند.
+func posStockJSON(stock map[string]store.ProductPortion) string {
+	out := map[string]store.ProductPortion{}
+	for id, p := range stock {
+		if len(p.Shortages) == 0 && strings.TrimSpace(p.Missing) == "" {
+			continue
+		}
+		out[id] = p
+	}
+	if len(out) == 0 {
+		return "{}"
+	}
+	blob, mErr := json.Marshal(out)
+	if mErr != nil {
+		return "{}"
+	}
+	return string(blob)
 }
 
 // handleProductsBulk ویرایش گروهی محصولات را از JSON ارسالی صفحهٔ محصولات

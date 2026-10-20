@@ -191,7 +191,81 @@
       {{template "content" .}}
     </main>
   </div>
+  <!-- دیالوگ مشترک «چه چیزی کم است؟»: صندوق و محصولات دادهٔ کمبود مواد را در
+       #shortage-data می‌گذارند و دکمه‌های ناموجود/کمبود همین دیالوگ را باز می‌کنند. -->
+  <div class="dlg-overlay" id="dlg-shortage">
+    <div class="dlg" role="dialog" aria-modal="true" dir="rtl">
+      <button type="button" class="dlg-close" onclick="closeDlg(this)" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div class="dlg-head">
+        <h3 class="dlg-title" id="shortage-title">چه چیزی کم است؟</h3>
+        <p class="dlg-desc" id="shortage-desc"></p>
+      </div>
+      <div class="shortage-list" id="shortage-rows"></div>
+      <div class="dlg-actions">
+        <button type="button" class="btn-dlg-cancel" onclick="closeDlg(this)">بستن</button>
+        <a class="btn-dlg-primary" id="shortage-go" href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" onclick="closeDlg(this)">رفتن به انبار</a>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-stack" class="toast-stack no-print" aria-live="polite"></div>
+
+<script>
+(function () {
+  if (window.__shortageInstalled) return;
+  window.__shortageInstalled = true;
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function readStock() {
+    var box = document.getElementById('shortage-data');
+    if (!box) return {};
+    try {
+      return JSON.parse(box.getAttribute('data-stock') || '{}') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  // shortageOpen(productId, title) — فهرست مواد اولیه‌ای که برای این محصول
+  // کم است را نشان می‌دهد (نیاز هر پرس / موجودی / کمبود).
+  window.shortageOpen = function (productId, title) {
+    var info = readStock()[productId] || {};
+    var items = info.shortages || [];
+    document.getElementById('shortage-title').textContent = title ? ('چرا «' + title + '» ناموجود است؟') : 'چه چیزی کم است؟';
+    var desc = document.getElementById('shortage-desc');
+    if (items.length) {
+      desc.textContent = 'مواد اولیهٔ زیر برای تهیهٔ این محصول کافی نیست؛ با ثبت خرید همین اقلام، محصول دوباره قابل فروش می‌شود.';
+    } else if (info.missing === 'غیرفعال در منو') {
+      desc.textContent = 'این محصول از منو ناموجود شده است (نه کمبود مواد)؛ از صفحهٔ محصولات می‌توانید دوباره آن را موجود کنید.';
+    } else if (info.missing === 'موجودی محصول') {
+      desc.textContent = 'موجودی خود این محصول صفر است؛ از صفحهٔ محصولات موجودی آن را زیاد کنید.';
+    } else {
+      desc.textContent = 'برای این محصول کمبودی ثبت نشده است.';
+    }
+    document.getElementById('shortage-rows').innerHTML = items.map(function (it) {
+      return '<div class="shortage-row' + (it.blocking ? ' is-blocking' : '') + '">' +
+        '<div class="shortage-row-head"><strong>' + esc(it.name) + '</strong>' +
+        (it.blocking ? '<span class="shortage-tag">باعث ناموجودی</span>' : '<span class="shortage-tag is-soft">کمبود دارد</span>') +
+        '</div>' +
+        '<div class="shortage-row-nums">' +
+          '<span>نیاز هر پرس: <b>' + esc(it.per_portion) + ' ' + esc(it.unit) + '</b></span>' +
+          '<span>موجودی: <b>' + esc(it.stock) + ' ' + esc(it.unit) + '</b></span>' +
+          '<span class="is-danger">کمبود: <b>' + esc(it.short) + ' ' + esc(it.unit) + '</b></span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    var go = document.getElementById('shortage-go');
+    if (go) {
+      var url = '/?page=ingredients' + (items.length ? '&q=' + encodeURIComponent(items[0].name) : '');
+      go.setAttribute('href', url);
+      go.setAttribute('hx-get', url);
+    }
+    window.openDlg('dlg-shortage');
+  };
+})();
+</script>
 
 <script>
 (function(){

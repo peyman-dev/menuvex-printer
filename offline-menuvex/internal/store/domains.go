@@ -59,6 +59,20 @@ type RecipeLineView struct {
 type ProductPortion struct {
 	Portions int    `json:"portions"`
 	Missing  string `json:"missing,omitempty"`
+	// Shortages برای دیالوگ «چه چیزی کم است؟» است: هر ماده اولیه‌ای که
+	// موجودی‌اش از نیاز یک واحد کمتر است، با مقدار نیاز/موجودی/کمبود.
+	Shortages []PortionShortage `json:"shortages,omitempty"`
+}
+
+// PortionShortage یک ماده اولیهٔ کم‌آورده در رسپی یک محصول است.
+type PortionShortage struct {
+	IngredientID string `json:"id"`
+	Name         string `json:"name"`
+	Unit         string `json:"unit"`
+	PerPortion   string `json:"per_portion"`
+	Stock        string `json:"stock"`
+	Short        string `json:"short"`
+	Blocking     bool   `json:"blocking"`
 }
 
 // Out یعنی با موجودی فعلی حتی یک واحد از محصول قابل تهیه نیست.
@@ -70,6 +84,7 @@ func (p ProductPortion) Out() bool { return p.Portions == 0 }
 type stockSnapshot struct {
 	stock   map[string]float64
 	labels  map[string]string
+	units   map[string]string
 	recipes map[string][]RecipeLineView
 }
 
@@ -77,6 +92,7 @@ func stockSnapshotFromEntities(ingredients, recipes []Entity) stockSnapshot {
 	snap := stockSnapshot{
 		stock:   map[string]float64{},
 		labels:  map[string]string{},
+		units:   map[string]string{},
 		recipes: map[string][]RecipeLineView{},
 	}
 	for _, ing := range ingredients {
@@ -86,6 +102,7 @@ func stockSnapshotFromEntities(ingredients, recipes []Entity) stockSnapshot {
 		}
 		snap.stock[ing.ID] = stock
 		snap.labels[ing.ID] = ing.Label()
+		snap.units[ing.ID] = ing.Field("base_unit")
 	}
 	for _, rec := range recipes {
 		pid := strings.TrimSpace(rec.Field("product_id"))
@@ -129,29 +146,58 @@ func (snap stockSnapshot) portionsFor(productID string) ProductPortion {
 	}
 	best := -1
 	missing := ""
+	shortages := make([]PortionShortage, 0, len(lines))
 	for _, ln := range lines {
 		per, err := strconv.ParseFloat(strings.TrimSpace(ln.Quantity), 64)
 		if err != nil || per <= 0 {
 			continue
 		}
-		units := int(math.Floor(snap.stock[strings.TrimSpace(ln.IngredientID)]/per + 1e-9))
+		id := strings.TrimSpace(ln.IngredientID)
+		stock := snap.stock[id]
+		units := int(math.Floor(stock/per + 1e-9))
 		if units < 0 {
 			units = 0
+		}
+		name := strings.TrimSpace(ln.IngredientName)
+		if name == "" {
+			name = snap.labels[id]
 		}
 		if best < 0 || units < best {
 			best = units
 			if units <= 0 {
-				missing = strings.TrimSpace(ln.IngredientName)
-				if missing == "" {
-					missing = snap.labels[strings.TrimSpace(ln.IngredientID)]
-				}
+				missing = name
 			}
+		}
+		// کمبود یعنی حتی برای «یک واحد» از این محصول هم ماده اولیه کافی نیست.
+		if short := per - stock; short > 1e-9 && len(shortages) < 8 {
+			unit := strings.TrimSpace(ln.Unit)
+			if unit == "" {
+				unit = snap.units[id]
+			}
+			shortages = append(shortages, PortionShortage{
+				IngredientID: id,
+				Name:         name,
+				Unit:         ShortUnitName(unit),
+				PerPortion:   faQtyNumber(per),
+				Stock:        faQtyNumber(stock),
+				Short:        faQtyNumber(short),
+				Blocking:     units <= 0,
+			})
 		}
 	}
 	if best < 0 {
 		return ProductPortion{Portions: -1}
 	}
-	return ProductPortion{Portions: best, Missing: missing}
+	return ProductPortion{Portions: best, Missing: missing, Shortages: shortages}
+}
+
+// ShortUnitName برچسب کوتاه واحد را برمی‌گرداند («گرم (g)» ← «گرم»).
+func ShortUnitName(unit string) string {
+	full := PersianUnitName(unit)
+	if i := strings.Index(full, " ("); i > 0 {
+		return full[:i]
+	}
+	return full
 }
 
 // shortfall اگر موجودی مواد اولیه برای اقلام سفارش کافی نباشد، پیام فارسی

@@ -4,6 +4,7 @@
 {{if eq .Page "pos"}}
   <form method="post" action="{{if .POSEdit}}/local/order-edit{{else}}/local/pos-order{{end}}" hx-post="{{if .POSEdit}}/local/order-edit{{else}}/local/pos-order{{end}}" hx-target="#main-view" id="pos-checkout-form" class="pos-shell">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div id="shortage-data" data-stock="{{.POSStockJSON}}" hidden></div>
     {{if .POSEdit}}<input type="hidden" name="order_id" value="{{.POSEdit.OrderID}}"><input type="hidden" name="return_page" value="pos">{{else}}<input type="hidden" name="client_token" value="{{.POSFormToken}}"><input type="hidden" name="open_receipt" value="true">{{end}}
     <input type="hidden" name="table_id" id="pos-table-id" value="">
     <input type="hidden" name="defer_due_days" id="pos-defer-days" value="">
@@ -174,7 +175,7 @@
             <article class="pos-tile-card{{if $avail.Out}} is-out{{end}}" data-cat="{{.Field "category_id"}}" data-title="{{.Label}}" data-id="{{.ID}}" data-price="{{.PriceIRR}}" data-img="{{.Field "image"}}" data-out="{{if $avail.Out}}1{{end}}" data-portions="{{$avail.Portions}}" data-missing="{{$avail.Missing}}" onclick="posTileAdd(this)" onkeydown="posTileKey(event, this)" tabindex="0" role="button" aria-label="{{if $avail.Out}}{{.Label}} ناموجود است{{else}}افزودن {{.Label}}{{end}}" aria-disabled="{{if $avail.Out}}true{{else}}false{{end}}">
               <div class="pos-tile-photo">
                 {{if .Field "image"}}<img src="{{.Field "image"}}" alt="{{.Label}}">{{else}}<span class="pos-tile-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17.5l5-4.5 4 3.5 3-2.8 4 3.8"/></svg></span>{{end}}
-                {{if $avail.Out}}<span class="pos-tile-out"{{if $avail.Missing}} title="کمبود: {{$avail.Missing}}"{{end}}>ناموجود</span>{{else if and (gt $avail.Portions 0) (le $avail.Portions 5)}}<span class="pos-tile-low" title="موجودی محدود مواد اولیه">تا {{faInt $avail.Portions}} پرس</span>{{end}}
+                {{if $avail.Out}}<button type="button" class="pos-tile-out" data-pid="{{.ID}}" data-ptitle="{{.Label}}" onclick="event.stopPropagation();shortageOpen(this.dataset.pid, this.dataset.ptitle)" title="دیدن علت ناموجودی">ناموجود<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v5"/><path d="M12 7.8v.01"/></svg></button>{{else if and (gt $avail.Portions 0) (le $avail.Portions 5)}}<button type="button" class="pos-tile-low" data-pid="{{.ID}}" data-ptitle="{{.Label}}" onclick="event.stopPropagation();shortageOpen(this.dataset.pid, this.dataset.ptitle)" title="موجودی محدود مواد اولیه — دیدن جزئیات">تا {{faInt $avail.Portions}} پرس<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v5"/><path d="M12 7.8v.01"/></svg></button>{{end}}
                 <span class="pos-tile-badge" data-badge-for="{{.ID}}" hidden>۰</span>
               </div>
               <div class="pos-tile-body">
@@ -733,6 +734,8 @@
       if (el.getAttribute('data-out') === '1') {
         var missing = el.getAttribute('data-missing') || '';
         posToast('«' + title + '» ناموجود است' + (missing ? ' — کمبود ' + missing : '') + '؛ تا شارژ انبار قابل ثبت نیست.');
+        // همان‌جا نشان بده «چه چیزی» کم است، نه فقط اینکه محصول ناموجود است.
+        if (typeof window.shortageOpen === 'function') window.shortageOpen(id, title);
         return;
       }
       var limit = posTileLimit(el);
@@ -1976,6 +1979,7 @@
   </div>
   </section>
 {{else if eq .Page "products"}}
+  <div id="shortage-data" data-stock="{{.POSStockJSON}}" hidden></div>
   <section class="prod-toolbar-card">
     <div class="prod-toolbar-text">
       <h2>محصولات</h2>
@@ -2087,7 +2091,12 @@
               </div>
             </td>
             <td>{{.StockDisplay}}</td>
-            <td><span class="badge {{if eq .StatusKey "in"}}status-ok{{else if eq .StatusKey "low"}}status-warn{{else}}status-danger{{end}}">{{.StatusText}}</span></td>
+            <td>
+              <div class="status-cell">
+                <span class="badge {{if eq .StatusKey "in"}}status-ok{{else if eq .StatusKey "low"}}status-warn{{else}}status-danger{{end}}">{{.StatusText}}</span>
+                {{if .Shortage}}<button type="button" class="link-short" data-pid="{{.Entity.ID}}" data-ptitle="{{.Entity.Label}}" onclick="shortageOpen(this.dataset.pid, this.dataset.ptitle)" title="دیدن مواد اولیهٔ کم">چی کم است؟</button>{{end}}
+              </div>
+            </td>
             <td>
               <div class="row-actions">
                 <a href="/?page=product-form&id={{.Entity.ID}}" hx-get="/?page=product-form&id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true" class="icon-btn" title="ویرایش محصول" aria-label="ویرایش محصول">
@@ -2848,6 +2857,7 @@
                   <div class="inv-qty">
                     <strong class="stock-number{{if .Negative}} is-negative{{end}}"><bdi dir="ltr">{{.QtyDisplay}}</bdi>{{if .UnitShort}}<span class="inv-qty-unit">{{.UnitShort}}</span>{{end}}{{if .Negative}}<span class="inv-neg-chip">منفی</span>{{end}}</strong>
                     <small class="row-sub">{{if .MinOrderFa}}حد سفارش: {{.MinOrderFa}}{{if .UnitShort}} {{.UnitShort}}{{end}}{{else}}بدون حد سفارش{{end}}</small>
+                    {{if .HasShortfall}}<button type="button" class="inv-short-chip" data-id="{{.Entity.ID}}" data-name="{{.Entity.Label}}" data-have="{{.QtyDisplay}}" data-unit="{{.UnitShort}}" data-min="{{.MinOrderFa}}" data-short="{{.ShortfallFa}}" data-value="{{.ShortfallValueToman}}" data-qty="{{.ShortfallQty}}" onclick="invShortageOpen(this)" title="دیدن جزئیات کمبود و ثبت خرید">کمبود {{.ShortfallFa}}{{if .UnitShort}} {{.UnitShort}}{{end}}</button>{{end}}
                   </div>
                 </td>
                 <td><span class="inv-status {{.StatusKey}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">{{if eq .StatusKey "in"}}<circle cx="12" cy="12" r="8.5"/><path d="M8.6 12.3l2.2 2.2 4.4-4.9"/>{{else if eq .StatusKey "low"}}<path d="M12 4L21 20H3z"/><path d="M12 10v4.2m0 2.4v.01"/>{{else}}<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5l5 5m0-5l-5 5"/>{{end}}</svg>{{.StatusText}}</span></td>
@@ -2884,6 +2894,21 @@
           <a href="/?page=ingredient-form" hx-get="/?page=ingredient-form" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">+ افزودن قلم جدید</a>
         </div>
         {{end}}
+
+        <div class="dlg-overlay" id="dlg-inv-shortage">
+          <div class="dlg" role="dialog" aria-modal="true" dir="rtl">
+            <button type="button" class="dlg-close" onclick="closeDlg(this)" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+            <div class="dlg-head">
+              <h3 class="dlg-title" id="inv-shortage-title">چه چیزی کم است؟</h3>
+              <p class="dlg-desc" id="inv-shortage-desc"></p>
+            </div>
+            <div class="shortage-list" id="inv-shortage-rows"></div>
+            <div class="dlg-actions">
+              <button type="button" class="btn-dlg-cancel" onclick="closeDlg(this)">بستن</button>
+              <button type="button" class="btn-dlg-primary" id="inv-shortage-buy" onclick="invShortageBuy()">ثبت ورود کالا</button>
+            </div>
+          </div>
+        </div>
 
         <div class="dlg-overlay" id="dlg-inv-movement">
     <div class="dlg inv-adjust-dialog" role="dialog" aria-modal="true" dir="rtl">
@@ -3036,16 +3061,59 @@
         openDlg('dlg-inv-movement');
         if (qty) setTimeout(function() { qty.focus(); }, 50);
       };
-      window.invMovementFor = function(ingredientId, next) {
+      window.invMovementFor = function(ingredientId, next, presetQty) {
         var select = el('inv-movement-ingredient');
         if (select) select.value = ingredientId;
         window.invMovementOpen(next || 'incoming');
+        // مقدار پیشنهادی (مثلاً کمبود نسبت به حد سفارش) در فیلد مقدار می‌نشیند
+        // تا کاربر فقط تأیید کند؛ بعد از پاک شدن فیلد توسط invMovementOpen.
+        var preset = presetQty == null ? '' : String(presetQty);
+        if (preset !== '') {
+          setTimeout(function() {
+            var qty = el('inv-movement-qty');
+            if (!qty) return;
+            qty.value = preset;
+            window.invMovementSync();
+            qty.focus();
+          }, 120);
+        }
       };
       window.invMovementValidate = function() {
         window.invMovementSync();
         return !el('inv-movement-submit').disabled;
       };
       if (el('inv-movement-ingredient')) window.invMovementScenario('incoming');
+
+      // دیالوگ کمبود یک قلم انبار: چه چیزی، چقدر، و خرید پیشنهادی.
+      var shortageTarget = null;
+      window.invShortageOpen = function(btn) {
+        shortageTarget = btn;
+        var unit = btn.getAttribute('data-unit') || '';
+        var shortQty = btn.getAttribute('data-short') || '';
+        var rows = [
+          ['موجودی فعلی', (btn.getAttribute('data-have') || '—') + (unit ? ' ' + unit : '')],
+          ['حد سفارش', (btn.getAttribute('data-min') || '—') + (unit ? ' ' + unit : '')],
+          ['کمبود', shortQty + (unit ? ' ' + unit : '')]
+        ];
+        var value = btn.getAttribute('data-value') || '';
+        if (value) rows.push(['ارزش تقریبی خرید', value]);
+        document.getElementById('inv-shortage-title').textContent = 'کمبود: ' + (btn.getAttribute('data-name') || '');
+        document.getElementById('inv-shortage-desc').textContent =
+          'برای رسیدن به حد سفارش، این مقدار باید به انبار اضافه شود. با «ثبت ورود کالا» همان مقدار در فرم ثبت تغییر موجودی پر می‌شود.';
+        document.getElementById('inv-shortage-rows').innerHTML = rows.map(function(row, i) {
+          var cls = i === 2 ? ' is-danger' : '';
+          return '<div class="shortage-line' + cls + '"><span>' + row[0] + '</span><strong>' + row[1] + '</strong></div>';
+        }).join('');
+        openDlg('dlg-inv-shortage');
+      };
+      window.invShortageBuy = function() {
+        if (!shortageTarget) return;
+        var id = shortageTarget.getAttribute('data-id');
+        var qty = shortageTarget.getAttribute('data-qty');
+        var overlay = document.getElementById('dlg-inv-shortage');
+        if (overlay) overlay.classList.remove('open');
+        window.invMovementFor(id, 'incoming', qty);
+      };
     })();
   </script>
   <div class="dlg-overlay" id="dlg-inv-purchase">
