@@ -1793,10 +1793,17 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .club-tab:hover{color:#344054}
 .club-tab.active{border-bottom-color:#2468CC;color:#2468CC;font-weight:600}
 .club-card{background:#fff;border:1px solid #E3EDF7;border-radius:12px;overflow:hidden}
-.club-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #E3EDF7;padding:16px}
-.club-search{position:relative;flex:1;max-width:380px;min-width:220px}
-.club-search input{width:100%;height:40px;border:1px solid #E3EDF7;border-radius:8px;padding:0 36px 0 12px;font:inherit;font-size:13px;box-sizing:border-box}
-.club-search svg{position:absolute;top:50%;transform:translateY(-50%);inset-inline-start:11px;width:16px;height:16px;color:#98A2B3}
+/* نوار ابزار باشگاه: جستجو + فیلترها در یک خط (مثل بقیهٔ صفحات) */
+.club-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #E3EDF7;padding:14px 16px}
+.club-search{display:flex;align-items:center;gap:10px;flex:1 1 320px;min-width:0;max-width:640px;margin:0}
+/* فقط کادر جستجو (نه چک‌باکس کنارش) عرض کامل می‌گیرد؛ قبلاً قاعدهٔ
+   `.club-search input` چک‌باکس را هم ۱۰۰٪/۴۰px می‌کرد و به یک بلوک آبی
+   بزرگ با تیک تبدیل می‌شد. */
+.club-search-field{position:relative;flex:1 1 220px;min-width:170px;max-width:380px}
+.club-search-field input{width:100%;height:40px;border:1px solid #E3EDF7;border-radius:10px;padding:0 36px 0 12px;font:inherit;font-size:13px;box-sizing:border-box;background:#fff;color:#101828}
+.club-search-field input:focus{outline:none;border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.12)}
+.club-search-field input::placeholder{color:#98A2B3}
+.club-search-field svg{position:absolute;top:50%;transform:translateY(-50%);inset-inline-start:11px;width:16px;height:16px;color:#98A2B3;pointer-events:none}
 .club-tier{display:inline-flex;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:500}
 .club-tier.bronze{background:#FFF7ED;color:#C2410C}
 .club-tier.silver{background:#F1F5F9;color:#475569}
@@ -1810,9 +1817,15 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .club-switch input:checked + .track{background:#2468CC}
 .club-switch input:checked + .track:before{transform:translateX(-16px)}
 .club-switch-form{display:inline-flex}
-.club-stat{background:#fff;border:1px solid #E3EDF7;border-radius:12px;padding:16px}
+.club-stat{display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #E3EDF7;border-radius:14px;padding:15px 16px}
+.club-stat-ic{width:42px;height:42px;flex:none;border-radius:13px;display:inline-flex;align-items:center;justify-content:center}
+.club-stat-ic svg{width:21px;height:21px}
+.club-stat-ic.tone-blue{background:#EAF2FF;color:#2468CC}
+.club-stat-ic.tone-green{background:#ECFDF3;color:#067647}
+.club-stat-ic.tone-sky{background:#EFF8FF;color:#175CD3}
 .club-stat p{font-size:12px;font-weight:500;color:#667085;margin:0}
-.club-stat strong{display:block;font-size:22px;font-weight:800;color:#101828;margin-top:6px}
+.club-stat strong{display:block;font-size:20px;font-weight:800;color:#101828;margin-top:3px;line-height:1.4}
+.club-stat strong small{font-size:12px;font-weight:600;color:#98A2B3;margin-inline-start:5px}
 .club-subtabs{display:flex;flex-wrap:wrap;gap:8px}
 .club-subtab{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border:1px solid #E3EDF7;border-radius:10px;background:#fff;color:#344054;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
 .club-subtab.active{background:#2468CC;border-color:#2468CC;color:#fff}
@@ -1849,16 +1862,20 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .club-toolbar-acts{display:flex;gap:8px;align-items:center}
 .club-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
 .club-stat-money{font-size:16px !important}
-.club-empty{padding:52px 16px;text-align:center;color:#667085;font-size:13px}
+.club-empty{padding:44px 16px 48px;text-align:center;color:#667085;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:0}
+.club-empty-ic{width:46px;height:46px;border-radius:14px;background:#F2F7FD;color:#2468CC;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+.club-empty-ic svg{width:23px;height:23px}
 .club-empty strong{display:block;font-size:14px;color:#344054;margin-bottom:6px}
-.club-empty p{margin:0}
+.club-empty p{margin:0;max-width:420px;line-height:1.9}
+.club-empty .btn{margin-top:14px}
 .club-credit-cell{display:flex;align-items:center;gap:10px}
 .club-credit-on{color:#047857;font-size:13px;font-weight:600}
 .club-detail-name{font-size:17px;color:#101828}
 .club-detail-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .club-nonmember-note{border:1px dashed #E3EDF7;border-radius:12px;padding:14px;font-size:12.5px;line-height:2;color:#667085;margin-top:14px}
 .dlg-hint{font-size:11.5px;line-height:1.9;color:#667085;margin:6px 0 0}
-.club-valid-check{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#344054;cursor:pointer;margin-inline-start:8px}
+.club-valid-check{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#344054;cursor:pointer;margin:0;white-space:nowrap;flex:none}
+.club-valid-check input[type="checkbox"]{width:16px;height:16px;min-width:16px;min-height:0;margin:0;flex:none}
 .club-group-link{color:#101828;text-decoration:none}
 .club-group-link:hover{color:#2468CC}
 .btn-ghost{background:transparent;border:1px solid transparent;color:#344054}
@@ -2813,6 +2830,8 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
   flex-wrap: wrap; background: #ffffff; border: 1px solid #E3EDF7; border-radius: 16px;
   padding: 16px 18px;
 }
+.cgr-page-text { min-width: 0; }
+.cgr-page-title { margin: 0 0 4px; font-size: 16px; font-weight: 800; color: #101828; }
 .cgr-page-sub { margin: 0; font-size: 12px; line-height: 1.9; color: #667085; }
 .cgr-page-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cgr-page-acts .btn { min-height: 36px; padding: 6px 13px; border-radius: 10px; font-size: 12.5px; gap: 7px; }

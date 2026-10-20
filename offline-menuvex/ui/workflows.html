@@ -3226,8 +3226,10 @@
       </div>
       <form method="get" class="club-search" hx-get="/?page=customers" hx-target="#main-view" hx-push-url="true">
         <input type="hidden" name="page" value="customers"><input type="hidden" name="tab" value="membership"><input type="hidden" name="sub" value="{{.ClubSubTab}}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
-        <input type="text" name="cq" value="{{.ClubSearch}}" placeholder="{{if eq .ClubSubTab "payments"}}جستجو در پرداخت‌ها{{else}}جستجو نام یا موبایل{{end}}">
+        <div class="club-search-field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+          <input type="text" name="cq" value="{{.ClubSearch}}" placeholder="{{if eq .ClubSubTab "payments"}}جستجو در پرداخت‌ها{{else}}جستجو نام یا موبایل{{end}}">
+        </div>
       </form>
       <button type="button" class="btn btn-primary btn-sm" onclick="clubOpenDlg('dlg-club-payment-new')">ثبت پرداخت اشتراک</button>
     </div>
@@ -3330,8 +3332,10 @@
     <div class="club-toolbar">
       <form method="get" class="club-search" hx-get="/?page=customers" hx-target="#main-view" hx-push-url="true">
         <input type="hidden" name="page" value="customers">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
-        <input type="text" name="cq" value="{{.ClubSearch}}" placeholder="جستجوی نام، موبایل یا شماره اشتراک">
+        <div class="club-search-field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+          <input type="text" name="cq" value="{{.ClubSearch}}" placeholder="جستجوی نام، موبایل یا شماره اشتراک">
+        </div>
       </form>
       <div class="club-toolbar-acts">
         <a href="/?page=customers" hx-get="/?page=customers" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">به‌روزرسانی</a>
@@ -3511,31 +3515,42 @@
 
 {{else if eq .Page "club-groups"}}
   <section class="cgr-page-head">
-    <div>
+    <div class="cgr-page-text">
+      <h2 class="cgr-page-title">گروه‌های باشگاه مشتریان</h2>
       <p class="cgr-page-sub">قرارداد کترینگ/شرکتی، تخفیف اعضا و مجوز خرید نسیه — ساخت و ویرایش در همان دیالوگ، بدون ترک صفحه.</p>
     </div>
     <div class="cgr-page-acts">
+      <a class="btn btn-outline" href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true">به‌روزرسانی</a>
       <button type="button" class="btn btn-primary" data-cgr-new>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         گروه جدید
       </button>
-      <a class="btn btn-outline" href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true">به‌روزرسانی</a>
     </div>
   </section>
   <div class="club-stats-grid">
-    <div class="club-stat"><p>گروه‌های ثبت‌شده</p><strong>{{faInt .ClubGroupsTotal}}</strong></div>
-    <div class="club-stat"><p>قراردادهای معتبر</p><strong>{{faInt .ClubGroupsValid}}</strong></div>
-    <div class="club-stat"><p>اعضای گروه‌ها</p><strong>{{faInt .ClubGroupsMembers}}</strong></div>
+    <article class="club-stat">
+      <span class="club-stat-ic tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 19v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V19"/><circle cx="9" cy="7" r="3.4"/><path d="M17.5 14.6a3.6 3.6 0 0 1 3 3.4V19M15.6 4.3a3.2 3.2 0 0 1 0 5.6"/></svg></span>
+      <div><p>گروه‌های ثبت‌شده</p><strong>{{faInt .ClubGroupsTotal}}<small>گروه</small></strong></div>
+    </article>
+    <article class="club-stat">
+      <span class="club-stat-ic tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 12.5l2.2 2.2L15.5 10"/><rect x="3.5" y="4.5" width="17" height="15" rx="3"/></svg></span>
+      <div><p>قراردادهای معتبر</p><strong>{{faInt .ClubGroupsValid}}<small>قرارداد</small></strong></div>
+    </article>
+    <article class="club-stat">
+      <span class="club-stat-ic tone-sky"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5 20v-1.6a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5V20"/></svg></span>
+      <div><p>اعضای گروه‌ها</p><strong>{{faInt .ClubGroupsMembers}}<small>عضو</small></strong></div>
+    </article>
   </div>
   <section class="club-card">
     <div class="club-toolbar">
       <form method="get" class="club-search" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true">
         <input type="hidden" name="page" value="club-groups">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
-        <input type="text" name="cq" value="{{.ClubSearch}}" placeholder="جستجو نام گروه یا رابط">
+        <div class="club-search-field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+          <input type="text" name="cq" value="{{.ClubSearch}}" placeholder="جستجو نام گروه یا رابط">
+        </div>
         <label class="club-valid-check"><input type="checkbox" name="valid" value="1" {{if .ClubOnlyValid}}checked{{end}} onchange="this.form.requestSubmit()"> فقط قراردادهای معتبر</label>
       </form>
-      <button type="button" class="btn btn-primary" data-cgr-new>+ گروه جدید</button>
     </div>
     {{if .ClubGroups}}
     <div class="table-wrap"><table class="data-table">
@@ -3577,7 +3592,17 @@
     </table></div>
     {{else}}
     <div class="club-empty">
-      {{if or .ClubSearch .ClubOnlyValid}}<strong>گروهی با این فیلتر نیست</strong>{{else}}<strong>هنوز گروهی ساخته نشده</strong><p>اولین قرارداد سازمانی را بسازید و اعضا را با شماره موبایل اضافه کنید.</p>{{end}}
+      {{if or .ClubSearch .ClubOnlyValid}}
+      <span class="club-empty-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg></span>
+      <strong>گروهی با این فیلتر نیست</strong>
+      <p>عبارت جستجو را عوض کنید یا فیلتر «فقط قراردادهای معتبر» را بردارید.</p>
+      <a class="btn btn-outline btn-sm" href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true">پاک کردن فیلترها</a>
+      {{else}}
+      <span class="club-empty-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 19v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V19"/><circle cx="9" cy="7" r="3.4"/><path d="M17.5 14.6a3.6 3.6 0 0 1 3 3.4V19M15.6 4.3a3.2 3.2 0 0 1 0 5.6"/></svg></span>
+      <strong>هنوز گروهی ساخته نشده</strong>
+      <p>اولین قرارداد سازمانی را بسازید و اعضا را با شماره موبایل اضافه کنید.</p>
+      <button type="button" class="btn btn-primary btn-sm" data-cgr-new>+ گروه جدید</button>
+      {{end}}
     </div>
     {{end}}
   </section>
