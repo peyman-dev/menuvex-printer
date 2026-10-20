@@ -60,6 +60,9 @@
 
   --primary: #2468CC;
   --ring: #3B82E6;
+  /* عرض استاندارد محتوا: روی مانیتورهای بزرگ متن/جدول‌ها کشیده نمی‌شوند
+     و روی نمایشگر کوچک هم تمام عرض را می‌گیرد. */
+  --content-max: 1600px;
 
   /* نگاشت توکن‌های داخلی روی همان پالت وب (نام تازه‌ای ساخته نشده) */
   --bg-app: var(--color-brand-cream);
@@ -306,6 +309,12 @@ code, pre { direction: ltr; text-align: left; font-family: ui-monospace, SFMono-
   /* نما خودش اسکرول می‌خورد (داشبورد/پرسنل/…); صندوق با .pos-main قفل می‌ماند */
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+/* عرض استاندارد محتوا (هم‌تراز با کانتینر داشبورد وب). صندوق تمام‌عرض می‌ماند. */
+.main-view:not(.pos-main) {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
 }
 
 .topbar {
@@ -2465,13 +2474,17 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .dbk-kpi-body small { font-size: 10.5px; color: #98A2B3; }
 
 /* نوار فیلتر */
+/* نوار فیلتر: همهٔ کنترل‌ها در یک خط می‌مانند (محتوا به خط بعد نمی‌شکند) و
+   هر کنترل min/max عرض مشخص دارد؛ در عرض کم، خودِ نوار افقی اسکرول می‌شود. */
 .dbk-filters {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
   background: #ffffff; border: 1px solid #E7ECF2; border-radius: 16px; padding: 11px 14px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none;
 }
+.dbk-filters::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .dbk-search {
-  display: flex; align-items: center; gap: 8px; flex: 1 1 220px; min-width: 190px; height: 38px;
-  border: 1px solid #E3EDF7; border-radius: 10px; background: #ffffff; padding: 0 11px;
+  display: flex; align-items: center; gap: 8px; flex: 1 1 220px; min-width: 170px; max-width: 420px;
+  height: 38px; border: 1px solid #E3EDF7; border-radius: 10px; background: transparent; padding: 0 11px;
 }
 .dbk-search:focus-within { border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, 0.12); }
 .dbk-search svg { width: 16px; height: 16px; flex: none; color: #98A2B3; }
@@ -2481,26 +2494,33 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 }
 .dbk-search input:focus { outline: none; }
 .dbk-filters select {
-  height: 38px; min-width: 138px; border: 1px solid #E3EDF7; border-radius: 10px;
-  background: #ffffff; color: #344054; font-family: inherit; font-size: 12.5px; padding: 0 10px;
+  height: 38px; min-width: 132px; max-width: 190px; border: 1px solid #E3EDF7; border-radius: 10px;
+  background: transparent; color: #344054; font-family: inherit; font-size: 12.5px; padding: 0 10px;
 }
-.dbk-filters .ui-select { width: auto; min-width: 138px; flex: none; }
+.dbk-filters .ui-select { flex: 0 1 auto; width: auto; min-width: 132px; max-width: 190px; }
 .dbk-filters .ui-select-trigger {
   height: 38px; min-height: 38px; padding: 0 10px; border-radius: 10px;
   border-color: #E3EDF7; font-size: 12.5px; font-weight: 600; color: #344054;
+  background: transparent; width: 100%;
 }
+.dbk-filters .ui-select-trigger:hover { background: rgba(36, 104, 204, 0.05); }
+.dbk-filters .ui-select-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* در یک خط جا نمی‌شود → به‌جای شکستن، کوتاه می‌شود */
+.dbk-filters .ui-select-trigger, .dbk-filters .dbk-date-trigger { white-space: nowrap; }
 .dbk-clear { font-size: 11.5px; font-weight: 700; color: #B42318; padding: 7px 8px; border-radius: 8px; }
 .dbk-clear:hover { background: #FEF3F2; }
 
 /* فیلد تاریخ شمسی */
-.dbk-daterange, .dbk-datefield { position: relative; display: block; flex: none; }
-.dbk-datefield { width: 100%; }
+.dbk-daterange, .dbk-datefield { position: relative; display: block; }
+.dbk-daterange { flex: 0 1 152px; min-width: 116px; max-width: 172px; }
+.dbk-datefield { width: 100%; flex: none; }
 .dbk-date-trigger {
   display: inline-flex; align-items: center; gap: 7px; height: 38px; width: 100%;
-  min-width: 152px; padding: 0 10px; border: 1px solid #E3EDF7; border-radius: 10px;
-  background: #ffffff; color: #98A2B3; font-family: inherit; font-size: 12.5px; cursor: pointer;
+  min-width: 0; padding: 0 10px; border: 1px solid #E3EDF7; border-radius: 10px;
+  background: transparent; color: #98A2B3; font-family: inherit; font-size: 12.5px; cursor: pointer;
   transition: border-color .12s, color .12s;
 }
+.dbk-date-trigger > span[data-jdp-label] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dbk-date-trigger:hover { border-color: #AFC6DC; }
 .dbk-date-trigger.has-value { color: #1F2328; font-weight: 700; }
 .dbk-date-trigger svg { width: 15px; height: 15px; flex: none; color: #98A2B3; }
@@ -2718,8 +2738,28 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
   .dbk-item { grid-template-columns: minmax(0, 1fr) 74px; }
   .dbk-modal-actions { flex-direction: column-reverse; }
   .dbk-modal-actions .btn { width: 100%; }
-  .dbk-daterange { width: 100%; }
-  .dbk-filters .ui-select, .dbk-filters select { width: 100%; }
+  .dbk-daterange { width: auto; }
+}
+/* در پنجره‌های باریک‌تر هم همه‌چیز در یک خط می‌ماند؛ فقط فاصله‌ها و
+   حداقل عرض‌ها جمع‌وجورتر می‌شوند تا نوار به اسکرول افقی نیفتد. */
+@media (max-width: 1240px) {
+  .dbk-filters { gap: 6px; padding: 10px 10px; }
+  .dbk-search { flex: 1 1 150px; min-width: 128px; }
+  .dbk-filters select { min-width: 104px; }
+  .dbk-filters .ui-select { min-width: 104px; }
+  .dbk-filters .ui-select-trigger { font-size: 12px; padding: 0 7px; gap: 4px; }
+  .dbk-filters .ui-select-chevron { width: 14px; height: 14px; }
+  .dbk-daterange { flex: 0 1 132px; min-width: 104px; }
+  .dbk-date-trigger { font-size: 12px; padding: 0 8px; gap: 5px; }
+  .dbk-clear { font-size: 11px; padding: 6px 6px; }
+}
+/* فقط در موبایل، نوار فیلتر به‌جای اسکرول افقی می‌شکند. */
+@media (max-width: 720px) {
+  .dbk-filters { flex-wrap: wrap; overflow-x: visible; }
+  .dbk-search { flex: 1 1 100%; max-width: none; }
+  .dbk-filters .ui-select, .dbk-filters select { flex: 1 1 calc(50% - 5px); max-width: none; }
+  .dbk-daterange { flex: 1 1 calc(50% - 5px); min-width: 0; max-width: none; }
+  .dbk-date-trigger { max-width: none; }
 }
 
 /* ═══ باشگاه مشتریان — دیالوگ «گروه جدید / ویرایش گروه» ═══

@@ -594,11 +594,28 @@
         '<button type="button" class="jdp-link" data-jdp-today>امروز</button>' +
         '<button type="button" class="jdp-link muted" data-jdp-clear>پاک کردن</button>' +
       '</div>';
-    trigger.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
+    // مثل ui-select: در WebView ممکن است یک کلیک فیزیکی دو رویداد بفرستد؛
+    // با pointerdown + محافظِ کلیک تکراری، منو با یک کلیک باز می‌ماند.
+    function togglePop(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
       if (!pop.hidden) { pop.hidden = true; return; }
       openPop(picker);
+    }
+    trigger.addEventListener('pointerdown', function (e) {
+      if (e.button && e.button !== 0) return;
+      // pointerdown کلیک فیزیکی را مصرف می‌کند تا click بعدی تقویم را نبندد.
+      trigger.__jdpPointerToggledAt = Date.now();
+      togglePop(e);
+    });
+    trigger.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    trigger.addEventListener('click', function (e) {
+      var t = trigger.__jdpPointerToggledAt || 0;
+      trigger.__jdpPointerToggledAt = 0;
+      if (t && Date.now() - t < 1000) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        return;
+      }
+      togglePop(e);
     });
     pop.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -720,6 +737,8 @@
   var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
   var counter = 0;
   var openState = null;
+  // پنجرهٔ امن بعد از باز شدن؛ اسکرول/کلیک ناشی از خود باز شدن منو را نادیده می‌گیرد.
+  var OPEN_GRACE_MS = 260;
 
   function selectedOption(select) {
     return select && select.options && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
@@ -747,6 +766,11 @@
       if (restoreFocus) btn.focus();
     }
   }
+  function toggleSelectMenu(select) {
+    if (!select || select.disabled) return;
+    if (openState && openState.select === select) closeSelectMenu(false);
+    else openSelectMenu(select);
+  }
   function chooseOption(select, option) {
     if (!option || option.disabled) return;
     select.value = option.value;
@@ -763,7 +787,15 @@
     if (!option) return;
     var buttons = optionButtons(menu);
     for (var i = 0; i < buttons.length; i++) buttons[i].classList.toggle('is-focused', buttons[i] === option);
-    option.focus();
+    // preventScroll: فوکوس نباید صفحه/منو را اسکرول کند؛ اسکرول ناخواسته
+    // باعث می‌شد شنوندهٔ اسکرول، منو را بلافاصله ببندد.
+    try { option.focus({ preventScroll: true }); } catch (err) { option.focus(); }
+    if (menu.scrollHeight > menu.clientHeight) {
+      var top = option.offsetTop;
+      var bottom = top + option.offsetHeight;
+      if (top < menu.scrollTop) menu.scrollTop = top - 4;
+      else if (bottom > menu.scrollTop + menu.clientHeight) menu.scrollTop = bottom - menu.clientHeight + 4;
+    }
   }
   function positionMenu(menu, btn) {
     var rect = btn.getBoundingClientRect();
@@ -810,7 +842,7 @@
       })(options[i]);
     }
     document.body.appendChild(menu);
-    openState = { select: select, button: btn, menu: menu };
+    openState = { select: select, button: btn, menu: menu, openedAt: Date.now() };
     btn.classList.add('open');
     btn.setAttribute('aria-expanded', 'true');
     positionMenu(menu, btn);
@@ -857,15 +889,37 @@
     btn.setAttribute('aria-haspopup', 'listbox');
     btn.setAttribute('aria-expanded', 'false');
     btn.innerHTML = '<span class="ui-select-value"></span>' + CHEVRON;
-    btn.addEventListener('click', function(e) {
+    // یک کلیک = یک بار باز/بسته. در WebView دسکتاپ، کلیک گاهی دو بار
+    // دیسپچ می‌شود (pointerdown + click یا فعال‌سازی <label>)، به همین دلیل
+    // منو باز می‌شد و بلافاصله بسته می‌شد و کاربر باید چند بار کلیک می‌کرد.
+    btn.addEventListener('pointerdown', function (e) {
+      if (e.button && e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
-      openSelectMenu(select);
+      // pointerdown همان کلیک فیزیکی را «مصرف» می‌کند تا click بعدی دوباره
+      // منو را نبندد؛ ولی کلیک واقعیِ بعدی (هر زمان) آزادانه باز/بسته می‌کند.
+      btn.__uiPointerToggledAt = Date.now();
+      toggleSelectMenu(select);
     });
-    btn.addEventListener('keydown', function(e) {
+    btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var t = btn.__uiPointerToggledAt || 0;
+      btn.__uiPointerToggledAt = 0;
+      // فقط کلیکِ همان لمس/کلیک فیزیکی (≤۱ ثانیه) نادیده گرفته می‌شود.
+      if (t && Date.now() - t < 1000) return;
+      toggleSelectMenu(select);
+    });
+    btn.addEventListener('keydown', function (e) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openSelectMenu(select);
+        if (e.key === 'Enter' || e.key === ' ') {
+          // کلید Enter/Space روی <button> خودش رویداد click هم می‌سازد؛ آن
+          // کلیکِ ساختگی نباید بلافاصله منو را ببندد.
+          btn.__uiPointerToggledAt = Date.now();
+          toggleSelectMenu(select);
+        } else if (!openState) openSelectMenu(select);
       }
     });
     wrap.appendChild(btn);
@@ -890,6 +944,8 @@
 
   document.addEventListener('click', function(e) {
     if (!openState) return;
+    // کلیک روی خود تریگر با stopPropagation مدیریت می‌شود؛ هر کلیک دیگری
+    // (بیرون از منو) منو را می‌بندد.
     if (e.target && e.target.closest && (e.target.closest('.ui-select-menu') || e.target.closest('.ui-select-trigger'))) return;
     closeSelectMenu(false);
   });
@@ -914,8 +970,14 @@
       }
     }
   });
+  // بستن روی اسکرول: فقط وقتی کاربر واقعاً صفحه را اسکرول می‌کند، نه اسکرولِ
+  // ناشی از باز شدن منو (فوکوس/جای‌گذاری) در همان لحظه.
   document.addEventListener('scroll', function(e) {
-    if (openState && !(e.target && e.target.closest && e.target.closest('.ui-select-menu'))) closeSelectMenu(false);
+    if (!openState) return;
+    if (Date.now() - (openState.openedAt || 0) < OPEN_GRACE_MS) return;
+    var t = e.target;
+    if (t && t.closest && (t.closest('.ui-select-menu') || t.closest('.ui-select-trigger'))) return;
+    closeSelectMenu(false);
   }, true);
   window.addEventListener('resize', function() { closeSelectMenu(false); });
   document.addEventListener('reset', function(e) {
