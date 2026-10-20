@@ -3843,7 +3843,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				for _, p := range products {
 					priceToman := parseIRRBig(p.PriceIRR())
 					priceToman.Quo(priceToman, big.NewInt(10))
-					price, _ := priceToman.Int64()
+					price := priceToman.Int64()
 					options = append(options, debtorProductJSON{
 						ID:       p.ID,
 						Title:    p.Label(),
