@@ -2974,6 +2974,211 @@
     </div>
   </div>
 
+  <!-- جزئیات قلم انبار: نمای کلی وضعیت، قیمت خرید و عملیات روزمره -->
+  <div class="dlg-overlay" id="dlg-inv-detail">
+    <div class="dlg dlg-detail" role="dialog" aria-modal="true" dir="rtl" aria-labelledby="invd-title">
+      <button type="button" class="dlg-close dx-close" onclick="closeDlg(this)" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div class="dx-scroll">
+        <header class="dx-head">
+          <h3 class="dx-title" id="invd-title">جزئیات قلم انبار</h3>
+          <p class="dx-sub">نمای کلی وضعیت موجودی، قیمت خرید و دسترسی سریع به عملیات روزمره</p>
+        </header>
+
+        <section class="dx-hero">
+          <div class="dx-hero-main">
+            <strong class="dx-hero-name" id="invd-name">—</strong>
+            <small class="dx-hero-sub" id="invd-sub">—</small>
+          </div>
+          <span class="inv-status in" id="invd-status">موجود</span>
+        </section>
+
+        <div class="dx-stats">
+          <article class="dx-stat">
+            <span class="dx-stat-label">موجودی</span>
+            <strong class="dx-stat-value" id="invd-qty">—</strong>
+            <small class="dx-stat-note" id="invd-qty-note"></small>
+          </article>
+          <article class="dx-stat">
+            <span class="dx-stat-label">حد سفارش</span>
+            <strong class="dx-stat-value" id="invd-min">—</strong>
+            <small class="dx-stat-note" id="invd-min-note"></small>
+          </article>
+          <article class="dx-stat">
+            <span class="dx-stat-label">ارزش موجودی</span>
+            <strong class="dx-stat-value" id="invd-value">—</strong>
+            <small class="dx-stat-note">بر پایه بهای میانگین</small>
+          </article>
+          <article class="dx-stat">
+            <span class="dx-stat-label">تاریخ بروزرسانی</span>
+            <strong class="dx-stat-value dx-stat-value-sm" id="invd-updated">—</strong>
+            <small class="dx-stat-note" id="invd-updated-note"></small>
+          </article>
+        </div>
+
+        <div class="dx-cols">
+          <section class="dx-panel">
+            <h4 class="dx-panel-title">اطلاعات پایه</h4>
+            <dl class="dx-list">
+              <div><dt>دسته‌بندی</dt><dd id="invd-cat">—</dd></div>
+              <div><dt>موقعیت</dt><dd id="invd-loc">—</dd></div>
+              <div><dt>تامین‌کننده</dt><dd id="invd-supplier">—</dd></div>
+              <div><dt>کد بچ / سری ساخت</dt><dd id="invd-batch">—</dd></div>
+              <div><dt>تاریخ انقضا</dt><dd id="invd-expiry">—</dd></div>
+              <div><dt>یادداشت</dt><dd id="invd-notes">—</dd></div>
+            </dl>
+          </section>
+          <section class="dx-panel">
+            <h4 class="dx-panel-title">قیمت خرید و جزئیات تکمیلی</h4>
+            <dl class="dx-list">
+              <div><dt>آخرین بهای خرید هر واحد</dt><dd id="invd-last">—</dd></div>
+              <div><dt>میانگین بهای تمام‌شده هر واحد</dt><dd id="invd-avg">—</dd></div>
+              <div><dt>ارزش موجودی با آخرین بهای خرید</dt><dd id="invd-lastvalue">—</dd></div>
+              <div><dt>وضعیت انبار</dt><dd id="invd-state">—</dd></div>
+              <div><dt>کمبود تا حد سفارش</dt><dd id="invd-short">—</dd></div>
+            </dl>
+          </section>
+        </div>
+      </div>
+
+      <div class="dx-actions">
+        <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این قلم از انبار حذف شود؟')">
+          <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="kind" value="ingredient"><input type="hidden" name="id" id="invd-del-id" value=""><input type="hidden" name="return_page" value="ingredients">
+          <button type="submit" class="dx-btn is-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4.5 6h15M9.5 6V4.5h5V6M6.5 6l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/></svg>حذف</button>
+        </form>
+        <button type="button" class="dx-btn" onclick="invdEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l4 4"/></svg>ویرایش</button>
+        <button type="button" class="dx-btn" onclick="invdMove('outgoing', 'تسویه ضایعات')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 4h10M6 8h12l-1.2 12H7.2z"/><path d="M10 12v4M14 12v4"/></svg>ضایعات</button>
+        <button type="button" class="dx-btn" onclick="invdMove('outgoing', 'مصرف روزانه')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 19L19 5"/><path d="M14 5h5v5"/></svg>مصرف شد</button>
+        <button type="button" class="dx-btn" onclick="invdMove('incoming', 'رسید خرید')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M19 5L5 19"/><path d="M10 19H5v-5"/></svg>جنس رسید</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var detailRow = null;
+
+      // ── منوی «…» ردیف انبار: منوی شناور (fixed) تا overflow جدول نبُردش،
+      // بستن با کلیک بیرون، Esc و اسکرول.
+      window.invMenuCloseAll = function () {
+        var menus = document.querySelectorAll('.inv-menu.open');
+        for (var i = 0; i < menus.length; i++) {
+          menus[i].classList.remove('open');
+          menus[i].removeAttribute('style');
+          var wrap = menus[i].parentElement;
+          var trig = wrap ? wrap.querySelector('[data-menu-trigger]') : null;
+          if (trig) trig.setAttribute('aria-expanded', 'false');
+        }
+      };
+
+      window.invRowMenu = function (btn, ev) {
+        if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+        var wrap = btn.parentElement;
+        if (!wrap) return;
+        var menu = wrap.querySelector('.inv-menu');
+        if (!menu) return;
+        var willOpen = !menu.classList.contains('open');
+        window.invMenuCloseAll();
+        if (!willOpen) return;
+        menu.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+        var r = btn.getBoundingClientRect();
+        var mw = menu.offsetWidth || 236;
+        var mh = menu.offsetHeight || 220;
+        var gap = 6;
+        var pad = 10;
+        var top = r.bottom + gap;
+        if (top + mh > window.innerHeight - pad) top = Math.max(pad, r.top - mh - gap);
+        var left = r.right - mw;
+        left = Math.max(pad, Math.min(left, window.innerWidth - mw - pad));
+        menu.style.top = Math.round(top) + 'px';
+        menu.style.left = Math.round(left) + 'px';
+      };
+
+      if (!window.__invMenuDoc) {
+        window.__invMenuDoc = true;
+        document.addEventListener('click', function (e) {
+          if (e.target && e.target.closest && (e.target.closest('.inv-menu') || e.target.closest('[data-menu-trigger]'))) return;
+          window.invMenuCloseAll();
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') window.invMenuCloseAll();
+        });
+        window.addEventListener('scroll', function () { window.invMenuCloseAll(); }, true);
+        window.addEventListener('resize', function () { window.invMenuCloseAll(); });
+      }
+
+      function setText(id, value) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = (value === undefined || value === null || value === '') ? '—' : value;
+      }
+
+      window.invDetailOpen = function (btn) {
+        window.invMenuCloseAll();
+        var tr = btn && btn.closest ? btn.closest('tr.inv-row') : null;
+        if (!tr) return;
+        detailRow = tr;
+        var d = tr.dataset || {};
+        var unit = d.unit || '';
+
+        setText('invd-name', d.name);
+        var sub = [];
+        if (d.category) sub.push(d.category);
+        if (d.sku) sub.push(d.sku);
+        setText('invd-sub', sub.join(' • '));
+
+        var chip = document.getElementById('invd-status');
+        if (chip) {
+          chip.className = 'inv-status ' + (d.status || 'in');
+          chip.textContent = d.statusText || 'موجود';
+        }
+
+        setText('invd-qty', (d.qty || '') + (unit ? ' ' + unit : ''));
+        setText('invd-qty-note', d.unitLabel ? 'واحد شمارش: ' + d.unitLabel : '');
+        setText('invd-min', d.min ? d.min + (unit ? ' ' + unit : '') : 'بدون حد سفارش');
+        setText('invd-min-note', d.min ? 'زیر این مقدار، کم‌موجودی هشدار می‌گیرد' : '');
+        setText('invd-value', d.value);
+        setText('invd-updated', d.updated);
+        setText('invd-updated-note', d.rel);
+        setText('invd-cat', d.category);
+        setText('invd-loc', d.location);
+        setText('invd-supplier', d.supplier);
+        setText('invd-batch', d.batch);
+        setText('invd-expiry', d.expiry);
+        setText('invd-notes', d.notes);
+        setText('invd-last', d.last);
+        setText('invd-avg', d.avg);
+        setText('invd-lastvalue', d.lastvalue);
+        setText('invd-state', d.statusText);
+        setText('invd-short', d.shortfall ? d.shortfall + ' تا رسیدن به حد سفارش' : 'کمبودی ثبت نشده');
+        var delId = document.getElementById('invd-del-id');
+        if (delId) delId.value = d.id || '';
+        openDlg('dlg-inv-detail');
+      };
+
+      window.invdMove = function (direction, reason) {
+        if (!detailRow) return;
+        var id = detailRow.getAttribute('data-id');
+        var overlay = document.getElementById('dlg-inv-detail');
+        if (overlay) overlay.classList.remove('open');
+        window.invMovementFor(id, direction, '', reason);
+      };
+
+      window.invdEdit = function () {
+        if (!detailRow) return;
+        var url = '/?page=ingredient-form&id=' + encodeURIComponent(detailRow.getAttribute('data-id'));
+        var overlay = document.getElementById('dlg-inv-detail');
+        if (overlay) overlay.classList.remove('open');
+        if (window.htmx) {
+          window.htmx.ajax('GET', url, { target: '#main-view', swap: 'innerHTML' });
+        } else {
+          window.location.href = url;
+        }
+        if (window.history && window.history.pushState) window.history.pushState(null, '', url);
+      };
+    })();
+  </script>
+
         <script>
     (function() {
       var scenarios = {
@@ -3071,20 +3276,31 @@
         openDlg('dlg-inv-movement');
         if (qty) setTimeout(function() { qty.focus(); }, 50);
       };
-      window.invMovementFor = function(ingredientId, next, presetQty) {
+      window.invMovementFor = function(ingredientId, next, presetQty, presetReason) {
         var select = el('inv-movement-ingredient');
         if (select) select.value = ingredientId;
         window.invMovementOpen(next || 'incoming');
         // مقدار پیشنهادی (مثلاً کمبود نسبت به حد سفارش) در فیلد مقدار می‌نشیند
         // تا کاربر فقط تأیید کند؛ بعد از پاک شدن فیلد توسط invMovementOpen.
+        // دلیل هم می‌تواند از میان‌بر «ضایعات / مصرف شد / جنس رسید» بیاید.
         var preset = presetQty == null ? '' : String(presetQty);
-        if (preset !== '') {
+        var reason = presetReason == null ? '' : String(presetReason);
+        if (preset !== '' || reason !== '') {
           setTimeout(function() {
             var qty = el('inv-movement-qty');
-            if (!qty) return;
-            qty.value = preset;
-            window.invMovementSync();
-            qty.focus();
+            if (qty && preset !== '') {
+              qty.value = preset;
+              window.invMovementSync();
+              qty.focus();
+            }
+            if (reason !== '') {
+              var rs = el('inv-movement-reason');
+              if (rs) {
+                for (var i = 0; i < rs.options.length; i++) {
+                  if (rs.options[i].value === reason) { rs.value = reason; break; }
+                }
+              }
+            }
           }, 120);
         }
       };
@@ -5805,33 +6021,70 @@
   </div>
 
   <div class="dlg-overlay" id="dlg-purchase-detail">
-    <div class="dlg dlg-md" role="dialog" aria-modal="true">
-      <button type="button" class="dlg-x" onclick="closeDlg(this)" aria-label="بستن">×</button>
-      <h3>جزئیات فاکتور خرید</h3>
-      <dl class="dd-grid">
-        <div><dt>عنوان</dt><dd id="pd-title">—</dd></div>
-        <div><dt>شماره فاکتور</dt><dd id="pd-invoice">—</dd></div>
-        <div><dt>تأمین‌کننده</dt><dd id="pd-supplier">—</dd></div>
-        <div><dt>تاریخ فاکتور</dt><dd id="pd-date">—</dd></div>
-        <div><dt>مبلغ نهایی</dt><dd id="pd-total">—</dd></div>
-        <div><dt>وضعیت تسویه</dt><dd id="pd-status">—</dd></div>
-        <div><dt>یادداشت</dt><dd id="pd-note">—</dd></div>
-      </dl>
-      <div class="dlg-actions">
-        <button type="button" class="btn btn-primary" onclick="closeDlg(this)">بستن</button>
+    <div class="dlg dlg-detail" role="dialog" aria-modal="true" dir="rtl" aria-labelledby="pd-title">
+      <button type="button" class="dlg-close dx-close" onclick="closeDlg(this)" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div class="dx-scroll">
+        <header class="dx-head">
+          <h3 class="dx-title" id="pd-title">جزئیات فاکتور خرید</h3>
+          <p class="dx-sub">اطلاعات کامل فاکتور، تأمین‌کننده و وضعیت تسویه</p>
+        </header>
+
+        <section class="dx-hero">
+          <div class="dx-hero-main">
+            <strong class="dx-hero-name" id="pd-name">—</strong>
+            <small class="dx-hero-sub" id="pd-sub">—</small>
+          </div>
+          <span class="dx-chip" id="pd-status">—</span>
+        </section>
+
+        <div class="dx-amount">
+          <span>مبلغ نهایی فاکتور</span>
+          <strong id="pd-total">—</strong>
+        </div>
+
+        <div class="dx-cols">
+          <section class="dx-panel">
+            <h4 class="dx-panel-title">اطلاعات فاکتور</h4>
+            <dl class="dx-list">
+              <div><dt>شماره فاکتور</dt><dd id="pd-invoice">—</dd></div>
+              <div><dt>تأمین‌کننده</dt><dd id="pd-supplier">—</dd></div>
+              <div><dt>تاریخ فاکتور</dt><dd id="pd-date">—</dd></div>
+            </dl>
+          </section>
+          <section class="dx-panel">
+            <h4 class="dx-panel-title">تسویه و یادداشت</h4>
+            <dl class="dx-list">
+              <div><dt>وضعیت تسویه</dt><dd id="pd-status-text">—</dd></div>
+              <div><dt>یادداشت تحویل</dt><dd id="pd-note">—</dd></div>
+            </dl>
+          </section>
+        </div>
+      </div>
+
+      <div class="dx-actions is-end">
+        <button type="button" class="dx-btn is-ghost" onclick="closeDlg(this)">بستن</button>
       </div>
     </div>
   </div>
   <script>
     function purchaseDetail(btn) {
-      function set(id, v) { var el = document.getElementById(id); if (el) el.textContent = v || '—'; }
-      set('pd-title', btn.getAttribute('data-title'));
-      set('pd-invoice', btn.getAttribute('data-invoice'));
+      function set(id, v) { var el = document.getElementById(id); if (el) el.textContent = (v === undefined || v === null || v === '') ? '—' : v; }
+      var status = btn.getAttribute('data-status') || '';
+      var invoice = btn.getAttribute('data-invoice') || '';
+      set('pd-name', btn.getAttribute('data-title'));
+      set('pd-sub', invoice ? 'فاکتور شماره ' + invoice : 'بدون شماره فاکتور');
+      set('pd-invoice', invoice);
       set('pd-supplier', btn.getAttribute('data-supplier'));
       set('pd-date', btn.getAttribute('data-date'));
       set('pd-total', btn.getAttribute('data-total'));
-      set('pd-status', btn.getAttribute('data-status'));
+      set('pd-status-text', status);
       set('pd-note', btn.getAttribute('data-note'));
+      var chip = document.getElementById('pd-status');
+      if (chip) {
+        var tone = status === 'تسویه شده' ? ' is-paid' : (status === 'پرداخت بخشی' ? ' is-partial' : ' is-pending');
+        chip.className = 'dx-chip' + tone;
+        chip.textContent = status || 'نامشخص';
+      }
       openDlg('dlg-purchase-detail');
     }
   </script>
@@ -7347,7 +7600,7 @@
 {{end}}
 
 {{define "inv-row"}}
-              <tr class="inv-row{{if .Negative}} inv-row-negative{{end}}">
+              <tr class="inv-row{{if .Negative}} inv-row-negative{{end}}" data-id="{{.Entity.ID}}" data-name="{{.Entity.Label}}" data-sku="{{.SKU}}" data-category="{{.Category}}" data-location="{{.Location}}" data-supplier="{{.Supplier}}" data-batch="{{.BatchCode}}" data-expiry="{{.ExpiryFa}}" data-notes="{{.Notes}}" data-qty="{{.QtyDisplay}}" data-unit="{{.UnitShort}}" data-unit-label="{{.UnitLabel}}" data-min="{{.MinOrderFa}}" data-value="{{.ValueToman}}" data-avg="{{.AverageCostToman}}" data-last="{{.LastCostToman}}" data-lastvalue="{{.LastValueToman}}" data-updated="{{.UpdatedFa}}" data-rel="{{.UpdatedRel}}" data-status="{{.StatusKey}}" data-status-text="{{.StatusText}}" data-image="{{.Image}}"{{if .HasShortfall}} data-shortfall="{{.ShortfallFa}} {{.UnitShort}}"{{end}}>
                 <td>
                   <div class="inv-item">
                     {{if .Entity.Field "image"}}<img src="{{.Entity.Field "image"}}" alt="{{.Entity.Label}}" class="inv-thumb">{{else}}<span class="inv-thumb inv-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>{{end}}
@@ -7371,19 +7624,32 @@
                   <div class="inv-ops">
                     <button type="button" class="btn-inv-add" onclick="invMovementFor('{{.Entity.ID}}', 'incoming')">+ افزودن</button>
                     <button type="button" class="btn-inv-sub" onclick="invMovementFor('{{.Entity.ID}}', 'outgoing')">کاهش</button>
-                    <details class="row-more">
-                      <summary class="icon-btn" title="عملیات بیشتر" aria-label="عملیات بیشتر"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
-                      <div class="row-more-menu">
-                        <span class="row-more-note">ارزش موجودی: {{.ValueToman}}</span>
-                        <a href="/?page=ingredient-form&id={{.Entity.ID}}" hx-get="/?page=ingredient-form&id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true">ویرایش قلم</a>
-                        <a href="/?page=inv-purchases" hx-get="/?page=inv-purchases" hx-target="#main-view" hx-push-url="true">فاکتور خرید</a>
-                        <a href="/?page=ingredients&istatus=negative" hx-get="/?page=ingredients&istatus=negative" hx-target="#main-view" hx-push-url="true">اقلام دارای کمبود</a>
+                    <div class="row-more">
+                      <button type="button" class="icon-btn row-more-btn" data-menu-trigger onclick="invRowMenu(this, event)" aria-haspopup="menu" aria-expanded="false" title="عملیات بیشتر" aria-label="عملیات بیشتر"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
+                      <div class="inv-menu" role="menu">
+                        <div class="inv-menu-head"><span>ارزش موجودی</span><strong>{{.ValueToman}}</strong></div>
+                        <button type="button" class="inv-menu-item" role="menuitem" onclick="invDetailOpen(this)">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                          <span>مشاهده جزئیات</span>
+                        </button>
+                        <a class="inv-menu-item" role="menuitem" href="/?page=ingredient-form&id={{.Entity.ID}}" hx-get="/?page=ingredient-form&id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l4 4"/></svg>
+                          <span>ویرایش مشخصات</span>
+                        </a>
+                        <a class="inv-menu-item" role="menuitem" href="/?page=inv-purchases" hx-get="/?page=inv-purchases" hx-target="#main-view" hx-push-url="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9.5 8h5M9.5 11.5h5"/></svg>
+                          <span>فاکتور خرید</span>
+                        </a>
+                        <div class="inv-menu-sep"></div>
                         <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این قلم از انبار حذف شود؟')">
                           <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="kind" value="ingredient"><input type="hidden" name="id" value="{{.Entity.ID}}"><input type="hidden" name="return_page" value="ingredients">
-                          <button type="submit" class="row-more-danger">حذف قلم</button>
+                          <button type="submit" class="inv-menu-item is-danger" role="menuitem">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4.5 6h15M9.5 6V4.5h5V6M6.5 6l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/></svg>
+                            <span>حذف قلم</span>
+                          </button>
                         </form>
                       </div>
-                    </details>
+                    </div>
                   </div>
                 </td>
               </tr>

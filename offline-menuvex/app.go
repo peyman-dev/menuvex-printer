@@ -2059,10 +2059,22 @@ type InvRow struct {
 	// CSRF برای فرم حذف داخل ردیف؛ در نمودار گروهی و جدول ساده هر دو لازم است.
 	CSRF string
 	// کمبود نسبت به حد سفارش: برای دکمهٔ «چه چیزی کم است؟» در جدول انبار.
-	HasShortfall         bool
-	ShortfallFa          string
-	ShortfallQty         string
-	ShortfallValueToman  string
+	HasShortfall        bool
+	ShortfallFa         string
+	ShortfallQty        string
+	ShortfallValueToman string
+
+	// اطلاعات دیالوگ «جزئیات قلم انبار»: قیمت خرید، ارزش موجودی و
+	// مشخصات تکمیلی قلم. همهٔ مبالغ از پیش به تومان تبدیل شده‌اند.
+	Supplier         string
+	UnitLabel        string
+	AverageCostToman string
+	LastCostToman    string
+	LastValueToman   string
+	BatchCode        string
+	ExpiryFa         string
+	Notes            string
+	Image            string
 }
 
 // InvGroupRow یک گروه «موجودی به تفکیک دسته‌بندی» است (نمای دسته‌بندی‌ها
@@ -3052,6 +3064,26 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				row.QtyDisplay = stockText
 				row.UnitShort = shortUnitLabel(ing.UnitLabel())
 				row.SKU = ing.Field("sku")
+				row.Supplier = strings.TrimSpace(ing.Field("supplier"))
+				row.UnitLabel = ing.UnitLabel()
+				row.Image = ing.Field("image")
+				row.BatchCode = strings.TrimSpace(ing.Field("batch_code"))
+				row.Notes = strings.TrimSpace(ing.Field("notes"))
+				if exp := strings.TrimSpace(ing.Field("expiry_date")); exp != "" {
+					row.ExpiryFa = FormatJalaliShort(exp)
+				}
+				if avg := strings.TrimSpace(ing.Field("average_cost")); avg != "" {
+					row.AverageCostToman = store.FormatIRRToToman(avg)
+				}
+				if last := strings.TrimSpace(ing.Field("last_purchase_cost")); last != "" {
+					row.LastCostToman = store.FormatIRRToToman(last)
+					if lc := parseIRRBig(last); lc.Sign() > 0 && stock > 0 {
+						lv := new(big.Float).Mul(big.NewFloat(stock), new(big.Float).SetInt(lc))
+						if lvInt, _ := lv.Int(nil); lvInt != nil {
+							row.LastValueToman = store.FormatIRRToToman(lvInt.String())
+						}
+					}
+				}
 				minOrder := strings.TrimSpace(ing.Field("reorder_point"))
 				if minOrder == "" {
 					minOrder = strings.TrimSpace(ing.Field("minimum_stock"))
