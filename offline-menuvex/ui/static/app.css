@@ -3073,12 +3073,39 @@ button.pos-tile-low { font-size: 10.5px; }
 .shortage-row.is-blocking { border-color: #FDA29B; background: #FFF7F6; }
 .shortage-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .shortage-row-head strong { font-size: 12.5px; font-weight: 700; color: #101828; }
-.shortage-tag { padding: 1px 8px; border-radius: 999px; background: #FEE4E2; color: #B42318; font-size: 10.5px; font-weight: 700; }
+.shortage-tag { padding: 2px 9px; border-radius: 999px; background: #FEE4E2; color: #B42318; font-size: 10.5px; font-weight: 700; white-space: nowrap; flex: none; line-height: 1.6; }
 .shortage-tag.is-soft { background: #FFFAEB; color: #B54708; }
-.shortage-row-nums { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 11.5px; color: #667085; }
+.shortage-row-nums { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 11.5px; color: #667085; }
+.shortage-row-nums span { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
 .shortage-row-nums b { color: #101828; font-weight: 700; }
 .shortage-row-nums .is-danger, .shortage-row-nums .is-danger b { color: #B42318; }
 .shortage-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid #E3EDF7; border-radius: 10px; background: #F9FCFF; font-size: 12px; color: #667085; }
 .shortage-line strong { font-size: 12.5px; font-weight: 700; color: #101828; }
 .shortage-line.is-danger { border-color: #FDA29B; background: #FEF3F2; color: #B42318; }
 .shortage-line.is-danger strong { color: #B42318; }
+
+/* ════════════════════════════════════════════════════════════════════
+   دکمه‌های فوتر دیالوگ: لینک‌هایی مثل «رفتن به انبار» قبلاً display:inline
+   بودند و ارتفاع ثابت ۴۴px نمی‌گرفتند؛ نتیجه‌اش دکمه‌ای بلندتر و ناهم‌تراز
+   با «بستن» بود. حالا لینک و باتن دقیقاً یک‌شکل رندر می‌شوند.
+   ════════════════════════════════════════════════════════════════════ */
+.dlg-actions { align-items: center; }
+.dlg-actions a[class*="btn-dlg"] {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  box-sizing: border-box; text-decoration: none; line-height: 1;
+}
+.dlg-actions .btn-dlg-primary svg,
+.dlg-actions .btn-dlg-cancel svg { width: 15px; height: 15px; flex: none; }
+
+/* فوتر دیالوگ‌های کمبود (صندوق و انبار) */
+.shortage-actions { margin-top: 14px; padding-top: 14px; border-top: 1px solid #EEF2F7; gap: 10px; }
+.shortage-actions .btn-dlg-primary,
+.shortage-actions .btn-dlg-cancel {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 40px; min-width: 118px; padding: 0 18px; border-radius: 10px;
+  box-sizing: border-box; font-size: 12.5px; font-weight: 700; line-height: 1;
+}
+.shortage-actions .btn-dlg-primary { background: #2468CC; color: #fff; box-shadow: 0 6px 14px rgba(36, 104, 204, .22); text-decoration: none; }
+.shortage-actions .btn-dlg-primary:hover { background: #1D57AC; box-shadow: 0 4px 10px rgba(36, 104, 204, .28); }
+.shortage-actions .btn-dlg-cancel { border: 1px solid #E3EDF7; background: #fff; color: #475467; }
+.shortage-actions .btn-dlg-cancel:hover { background: #F6FAFD; border-color: #CFE0F2; color: #1D4F8C; }

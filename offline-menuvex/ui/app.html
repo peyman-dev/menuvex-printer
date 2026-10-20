@@ -201,9 +201,12 @@
         <p class="dlg-desc" id="shortage-desc"></p>
       </div>
       <div class="shortage-list" id="shortage-rows"></div>
-      <div class="dlg-actions">
+      <div class="dlg-actions shortage-actions">
         <button type="button" class="btn-dlg-cancel" onclick="closeDlg(this)">بستن</button>
-        <a class="btn-dlg-primary" id="shortage-go" href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" onclick="closeDlg(this)">رفتن به انبار</a>
+        <a class="btn-dlg-primary" id="shortage-go" href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" onclick="closeDlg(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+          رفتن به انبار
+        </a>
       </div>
     </div>
   </div>
