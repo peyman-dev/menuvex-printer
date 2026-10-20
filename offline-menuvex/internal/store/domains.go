@@ -1423,6 +1423,13 @@ func (s *Store) VoidWasteEvent(ctx context.Context, wasteID string) error {
 
 // SettleDebtorPayment records a partial or full payment on a debtor account.
 func (s *Store) SettleDebtorPayment(ctx context.Context, debtorID, amountIRR string) error {
+	return s.SettleDebtorPaymentWithNote(ctx, debtorID, amountIRR, "")
+}
+
+// SettleDebtorPaymentWithNote applies a payment and writes an immutable
+// debtor_payment ledger row so the "وصول این ماه" figure on the debtors page
+// comes from real receipts instead of guessing from the updated_at timestamp.
+func (s *Store) SettleDebtorPaymentWithNote(ctx context.Context, debtorID, amountIRR, note string) error {
 	payBig := parseBigIntSafe(amountIRR)
 	if payBig.Cmp(big.NewInt(0)) <= 0 {
 		return errors.New("مبلغ تسویه باید بزرگ‌تر از صفر باشد")
@@ -1440,7 +1447,12 @@ func (s *Store) SettleDebtorPayment(ctx context.Context, debtorID, amountIRR str
 		ent := Entity{ID: dEnt.ID, Type: dEnt.Type, Version: dEnt.Version, Payload: dEnt.Payload}
 		remBig := parseBigIntSafe(ent.Field("remaining"))
 		paidBig := parseBigIntSafe(ent.Field("paid"))
+		if remBig.Sign() <= 0 {
+			return errors.New("این حساب قبلاً تسویه شده است")
+		}
+		applied := new(big.Int).Set(payBig)
 		if payBig.Cmp(remBig) >= 0 {
+			applied = new(big.Int).Set(remBig)
 			paidBig.Add(paidBig, remBig)
 			remBig = big.NewInt(0)
 			dm["status"] = "paid"
@@ -1449,9 +1461,10 @@ func (s *Store) SettleDebtorPayment(ctx context.Context, debtorID, amountIRR str
 			remBig.Sub(remBig, payBig)
 			dm["status"] = "partial"
 		}
+		now := time.Now().UTC().Format(time.RFC3339)
 		dm["paid"] = paidBig.String()
 		dm["remaining"] = remBig.String()
-		dm["updated_at"] = time.Now().UTC().Format(time.RFC3339)
+		dm["updated_at"] = now
 		b, err := json.Marshal(dm)
 		if err != nil {
 			return err
@@ -1459,6 +1472,23 @@ func (s *Store) SettleDebtorPayment(ctx context.Context, debtorID, amountIRR str
 		dEnt.Version++
 		dEnt.Payload = b
 		st.Entities[key] = dEnt
+
+		payID, uErr := UUID()
+		if uErr != nil {
+			return uErr
+		}
+		payPayload, mErr := json.Marshal(map[string]any{
+			"id":         payID,
+			"debtor_id":  debtorID,
+			"amount_irr": applied.String(),
+			"note":       strings.TrimSpace(note),
+			"created_at": now,
+			"version":    1,
+		})
+		if mErr != nil {
+			return mErr
+		}
+		st.Entities[entityKey("debtor_payment", payID)] = storedEntity{ID: payID, Type: "debtor_payment", Version: 1, Payload: payPayload}
 		return nil
 	})
 }

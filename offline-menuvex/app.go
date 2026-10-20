@@ -22,6 +22,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -173,6 +174,32 @@ type View struct {
 	FinMonthExpFa    string
 	FinMonthProfitFa string
 	DebtorRows       []DebtorRow
+	// صفحه «بدهکاران و تسویه» هم‌طراز وب: تب فعال، کارت‌های خلاصه، فیلترها،
+	// گزارش گروه‌ها و کاتالوگ محصولات برای انتخاب آیتم‌های بدهی دستی.
+	DebtorTab             string
+	DebtorCount           int
+	DebtorKPIRemainingFa  string
+	DebtorKPIOpenFa       string
+	DebtorKPIOverdueFa    string
+	DebtorKPICollectedFa  string
+	DebtorKPIOverdueSumFa string
+	DebtorQuery           string
+	DebtorStatusFilter    string
+	DebtorSourceFilter    string
+	DebtorAccountFilter   string
+	DebtorSortFilter      string
+	DebtorGroupFilter     string
+	DebtorFromShamsi      string
+	DebtorToShamsi        string
+	DebtorFromISO         string
+	DebtorToISO           string
+	DebtorGroups          []store.Entity
+	DebtorGroupRows       []DebtorGroupRow
+	DebtorProductsJSON    template.JS
+	DebtorRowsJSON        template.JS
+	DebtorTodayShamsi     string
+	DebtorFiltered        int
+	DebtorFilterQuery     string
 	TopProducts      []TopProduct
 	ProductRows      []ProductRow
 	// ضایعات (waste-page وب): ردیف‌های نمایشی + تجمیع دلیل/اقلام
@@ -1039,6 +1066,7 @@ type POSRecentRow struct {
 
 // DebtorRow ردیف بدهکار با جزئیات کامل سفارش پیوندخورده برای دیالوگ جزئیات:
 // چه چیزی سفارش داده، چقدر بدهی دارد، توضیحات و تاریخ/ساعت دقیق سفارش.
+// فیلدهای قالبی صفحه «بدهکاران و تسویه» عین ستون‌های نسخه وب هستند.
 type DebtorRow struct {
 	Entity      store.Entity
 	ItemsText   string // اقلام سفارش پیوندخورده (نام × تعداد)
@@ -1048,7 +1076,175 @@ type DebtorRow struct {
 	NoteText    string
 	OtherDebts  string // خلاصه سایر بدهی‌های همان شخص
 	OtherCount  int
+
+	// ستون‌ها و جزئیات صفحهٔ بدهکاران (هم‌طراز لیست وب)
+	Phone        string
+	GroupLabel   string
+	AccountKey   string // personal | company
+	AccountLabel string
+	SourceKey    string // pos | manual
+	SourceLabel  string
+	TotalFa      string
+	PaidFa       string
+	RemainingFa  string
+	RemainingIRR string
+	DateFa       string
+	TimeFa       string
+	StatusKey    string // open | partial | paid | overdue
+	StatusLabel  string
+	StatusClass  string
+	Overdue      bool
+	IsNew        bool
+	ItemCount    int
+	HasDocument  bool
+	PaymentFa    string // جمع پرداخت‌های ثبت‌شده برای این حساب
+	PaymentCount int
+	Payments     []DebtorPaymentRow
+	CreatedISO   string
+	DueISO       string
 }
+
+// DebtorPaymentRow یک سطر پرداخت ثبت‌شده روی حساب دفتری (دفتر وصولی).
+type DebtorPaymentRow struct {
+	AmountFa string
+	DateFa   string
+	Note     string
+}
+
+// DebtorGroupRow گزارش بدهی گروه‌های سازمانی: تعداد حساب‌ها و مانده بدهی.
+type DebtorGroupRow struct {
+	Entity       store.Entity
+	Name         string
+	Accounts     int
+	Members      int
+	TotalFa      string
+	RemainingFa  string
+	OverdueCount int
+	StatusKey    string
+	StatusLabel  string
+}
+
+// webDigitsFa ارقام لاتین را فارسی و جداکننده هزارگان را کاما می‌گذارد؛
+// دقیقاً همان شکل عددی نسخه وب (۲۴,۱۹۵,۰۰۰).
+func webDigitsFa(digits string) string {
+	digits = strings.TrimSpace(digits)
+	if digits == "" {
+		return "۰"
+	}
+	neg := strings.HasPrefix(digits, "-")
+	if neg {
+		digits = strings.TrimPrefix(digits, "-")
+	}
+	var b strings.Builder
+	for i, r := range digits {
+		if i > 0 && (len(digits)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(r)
+	}
+	out := store.ToPersianDigits(b.String())
+	if neg {
+		return "-" + out
+	}
+	return out
+}
+
+// tomanFaWeb مبلغ ریالی را به «۲۴,۱۹۵,۰۰۰ تومان» تبدیل می‌کند.
+func tomanFaWeb(irr string) string {
+	bi := parseIRRBig(irr)
+	bi.Quo(bi, big.NewInt(10))
+	return webDigitsFa(bi.String()) + " تومان"
+}
+
+// tomanFaWebInt همان tomanFaWeb برای مبالغ ریالی big.Int.
+func tomanFaWebInt(irr *big.Int) string {
+	if irr == nil {
+		return webDigitsFa("0") + " تومان"
+	}
+	return tomanFaWeb(irr.String())
+}
+
+// debtorStatusOf وضعیت نمایشی حساب را یک‌جا تعیین می‌کند تا لیست، فیلتر و
+// شمارنده‌های بالای صفحه همیشه یک پاسخ بدهند.
+func debtorStatusOf(remaining *big.Int, rawStatus string, overdue bool) (string, string, string) {
+	status := strings.ToLower(strings.TrimSpace(rawStatus))
+	if remaining.Sign() <= 0 || status == "paid" {
+		return "paid", "تسویه شده", "status-ok"
+	}
+	if overdue {
+		return "overdue", "سررسید گذشته", "status-danger"
+	}
+	if status == "partial" {
+		return "partial", "پرداخت بخشی از بدهی", "status-info"
+	}
+	return "open", "بدهکار (باز)", "status-warn"
+}
+
+// debtorDueInfo تاریخ سررسید ذخیره‌شده (ISO یا شمسی یا متن آزاد) را برای
+// نمایش و مقایسه برمی‌گرداند. نتیجه: ISO، نمایش شمسی، سررسید گذشته.
+func debtorDueInfo(rawDue string, remaining *big.Int, now time.Time) (iso, label string, overdue bool) {
+	rawDue = strings.TrimSpace(rawDue)
+	if rawDue == "" {
+		return "", "", false
+	}
+	if t, ok := jalaliOrISODate(rawDue); ok {
+		iso = t.Format("2006-01-02")
+		label = ShamsiFromISO(iso)
+		y, m, d := now.In(tehranZone()).Date()
+		todayISO := time.Date(y, m, d, 0, 0, 0, 0, tehranZone()).Format("2006-01-02")
+		overdue = remaining.Sign() > 0 && iso < todayISO
+		return iso, label, overdue
+	}
+	return "", rawDue, false
+}
+
+// jalaliOrISODate ورودی تاریخ را از قالب ISO یا ۱۴۰۵/۰۷/۲۶ می‌خواند.
+func jalaliOrISODate(raw string) (time.Time, bool) {
+	if t, ok := JalaliTimeOf(raw); ok {
+		return t, true
+	}
+	return ParseJalali(raw)
+}
+
+// isoDateOrEmpty ورودی تاریخ (ISO یا شمسی) را فقط در صورت معتبر بودن به
+// 2006-01-02 تبدیل می‌کند تا مقایسه بازه تاریخ همیشه درست باشد.
+func isoDateOrEmpty(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if t, ok := jalaliOrISODate(raw); ok {
+		return t.Format("2006-01-02")
+	}
+	return ""
+}
+
+// debtorItemsFromPayload اقلام ثبت‌شده روی خود حساب (ثبت دستی بدهی) را
+// می‌خواند تا ستون «مستندات سفارش (سفارش چی بود؟)» خالی نماند.
+func debtorItemsFromPayload(e store.Entity) [][3]string {
+	var payload struct {
+		Items []struct {
+			Title        string          `json:"title"`
+			Qty          json.RawMessage `json:"qty"`
+			UnitPriceIRR json.RawMessage `json:"unit_price_irr"`
+		} `json:"items"`
+	}
+	if json.Unmarshal(e.Payload, &payload) != nil {
+		return nil
+	}
+	out := make([][3]string, 0, len(payload.Items))
+	for _, it := range payload.Items {
+		title := strings.TrimSpace(it.Title)
+		if title == "" {
+			continue
+		}
+		qty := strings.Trim(strings.TrimSpace(string(it.Qty)), `"`)
+		price := strings.Trim(strings.TrimSpace(string(it.UnitPriceIRR)), `"`)
+		out = append(out, [3]string{title, qty, price})
+	}
+	return out
+}
+
 
 // WasteRow یک ردیف نمایشی ضایعات: دلیل با برچسب وب و هزینه تقریبی
 // (مقدار × میانگین بهای ماده اولیه).
@@ -1903,6 +2099,8 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /local/waste-void", a.handleWasteVoid)
 	mux.HandleFunc("POST /local/recipe", a.handleSaveRecipe)
 	mux.HandleFunc("POST /local/debtor-pay", a.handleDebtorPay)
+	mux.HandleFunc("POST /local/debtor-create", a.handleDebtorCreate)
+	mux.HandleFunc("GET /local/debtors-export", a.handleDebtorsExport)
 	mux.HandleFunc("POST /local/task-toggle", a.handleTaskToggle)
 	mux.HandleFunc("POST /local/day-close", a.handleDayClose)
 	mux.HandleFunc("POST /local/printer-toggle", a.handlePrinterToggle)
@@ -3244,16 +3442,50 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 	case "debtors":
 		v.Debtors, err = a.store.Entities(ctx, "debtor")
 		v.Customers, _ = a.store.Entities(ctx, "customer")
+		v.DebtorGroups, _ = a.store.Entities(ctx, "customer_group")
 		v.Entities = v.Debtors
 		{
-			// جزئیات هر بدهی از سفارش پیوندخورده خوانده می‌شود تا در صفحه
-			// بدهکاران معلوم باشد مشتری چه سفارش داده، چقدر بدهکار است،
-			// چه توضیحی ثبت شده و سفارش دقیقاً چه تاریخ و ساعتی بوده است.
+			// صفحه «لیست بدهکاران، مستندات سفارش‌ها و خرید اعتباری» عین وب:
+			// کارت‌های خلاصه، فیلترهای همان جدول، ستون «مستندات سفارش
+			// (سفارش چی بود؟)»، تسویه و ثبت بدهی دستی با آیتم‌های محصول و
+			// تاریخ شمسی. همه ارقام از همین داده محلی محاسبه می‌شوند.
+			now := time.Now()
+			loc := now.In(tehranZone())
+			v.DebtorTab = strings.TrimSpace(r.URL.Query().Get("tab"))
+			if v.DebtorTab != "groups" {
+				v.DebtorTab = "list"
+			}
+			tjy, tjm, tjd := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+			v.DebtorTodayShamsi = store.ToPersianDigits(fmt.Sprintf("%04d/%02d/%02d", tjy, tjm, tjd))
+
+			groupLabels := map[string]string{}
+			for _, g := range v.DebtorGroups {
+				groupLabels[g.ID] = g.Label()
+			}
+			memberCounts := map[string]int{}
+			for _, c := range v.Customers {
+				if gid := strings.TrimSpace(c.Field("group_id")); gid != "" {
+					memberCounts[gid]++
+				}
+			}
+
+			// جزئیات هر بدهی از سفارش پیوندخورده (یا آیتم‌های ثبت دستی) خوانده
+			// می‌شود تا معلوم باشد مشتری چه سفارش داده، چقدر بدهکار است، چه
+			// توضیحی ثبت شده و سفارش دقیقاً چه تاریخ و ساعتی بوده است.
 			ordersByID := map[string]store.Entity{}
 			if allOrders, oErr := a.store.Entities(ctx, "order"); oErr == nil {
 				for _, o := range allOrders {
 					ordersByID[o.ID] = o
 				}
+			}
+			paymentsByDebtor := map[string][]store.Entity{}
+			allPayments, _ := a.store.Entities(ctx, "debtor_payment")
+			for _, p := range allPayments {
+				key := strings.TrimSpace(p.Field("debtor_id"))
+				if key == "" {
+					continue
+				}
+				paymentsByDebtor[key] = append(paymentsByDebtor[key], p)
 			}
 			byPerson := map[string][]store.Entity{}
 			for _, d := range v.Debtors {
@@ -3263,11 +3495,58 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				}
 				byPerson[key] = append(byPerson[key], d)
 			}
+
+			rows := make([]DebtorRow, 0, len(v.Debtors))
 			for _, d := range v.Debtors {
-				row := DebtorRow{Entity: d, DueLabel: strings.TrimSpace(d.Field("due_at")), NoteText: strings.TrimSpace(d.Field("note"))}
+				row := DebtorRow{Entity: d, NoteText: strings.TrimSpace(d.Field("note"))}
 				if row.NoteText == "" {
 					row.NoteText = strings.TrimSpace(d.Field("description"))
 				}
+				row.Phone = store.ToPersianDigits(strings.TrimSpace(d.Field("phone")))
+				row.AccountKey = "personal"
+				row.AccountLabel = "مشتری شخصی"
+				if strings.EqualFold(strings.TrimSpace(d.Field("account_type")), "company") {
+					row.AccountKey = "company"
+					row.AccountLabel = "حساب شرکتی / گروه"
+				}
+				if gid := strings.TrimSpace(d.Field("group_id")); gid != "" {
+					row.GroupLabel = groupLabels[gid]
+				}
+				row.SourceKey = strings.TrimSpace(d.Field("source"))
+				if row.SourceKey == "" {
+					if strings.TrimSpace(d.Field("order_id")) != "" {
+						row.SourceKey = "pos"
+					} else {
+						row.SourceKey = "manual"
+					}
+				}
+				if row.SourceKey == "pos" {
+					row.SourceLabel = "سفارش صندوق"
+				} else {
+					row.SourceLabel = "ثبت دستی"
+				}
+
+				totalIRR := parseIRRBig(d.Field("total"))
+				paidIRR := parseIRRBig(d.Field("paid"))
+				remainingIRR := parseIRRBig(d.Field("remaining"))
+				row.RemainingIRR = remainingIRR.String()
+				row.TotalFa = tomanFaWebInt(totalIRR)
+				row.PaidFa = tomanFaWebInt(paidIRR)
+				row.RemainingFa = tomanFaWebInt(remainingIRR)
+
+				dueISO, dueLabel, overdue := debtorDueInfo(d.Field("due_at"), remainingIRR, now)
+				row.DueISO = dueISO
+				row.DueLabel = dueLabel
+				row.Overdue = overdue
+				row.StatusKey, row.StatusLabel, row.StatusClass = debtorStatusOf(remainingIRR, d.Field("status"), overdue)
+
+				row.CreatedISO = strings.TrimSpace(d.Field("created_at"))
+				if ct, ok := JalaliTimeOf(row.CreatedISO); ok {
+					row.DateFa = ShamsiFromISO(row.CreatedISO)
+					row.TimeFa = store.ToPersianDigits(ct.Format("15:04"))
+					row.IsNew = now.Sub(ct) < 72*time.Hour
+				}
+
 				if oid := strings.TrimSpace(d.Field("order_id")); oid != "" {
 					if o, ok := ordersByID[oid]; ok {
 						row.OrderNumber = displayOrderNumber(o.Field("order_number"))
@@ -3276,16 +3555,51 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 							parts = append(parts, it.ProductName+" ×"+store.FormatPersianNumber(strconv.Itoa(it.Quantity)))
 						}
 						row.ItemsText = strings.Join(parts, "، ")
+						row.ItemCount = len(o.OrderItems())
 						if ct, pErr := time.Parse(time.RFC3339, o.Field("created_at")); pErr == nil {
 							row.OrderWhen = FormatJalaliFull(ct)
 						}
 					}
 				}
+				if row.ItemsText == "" {
+					if items := debtorItemsFromPayload(d); len(items) > 0 {
+						var parts []string
+						for _, it := range items {
+							qty := store.FormatPersianNumber(it[1])
+							if strings.TrimSpace(it[1]) == "" {
+								qty = store.FormatPersianNumber("1")
+							}
+							parts = append(parts, it[0]+" ×"+qty)
+						}
+						row.ItemsText = strings.Join(parts, "، ")
+						row.ItemCount = len(items)
+					}
+				}
+				row.HasDocument = row.ItemsText != "" || row.OrderNumber != ""
 				if row.OrderWhen == "" {
 					if ct, pErr := time.Parse(time.RFC3339, d.Field("created_at")); pErr == nil {
 						row.OrderWhen = FormatJalaliFull(ct)
 					}
 				}
+
+				// پرداخت‌های ثبت‌شده این حساب (دفتر وصولی) برای دیالوگ جزئیات.
+				paySum := big.NewInt(0)
+				pays := paymentsByDebtor[d.ID]
+				sort.SliceStable(pays, func(i, j int) bool { return pays[i].Field("created_at") > pays[j].Field("created_at") })
+				for _, p := range pays {
+					amt := parseIRRBig(p.Field("amount_irr"))
+					paySum.Add(paySum, amt)
+					row.Payments = append(row.Payments, DebtorPaymentRow{
+						AmountFa: tomanFaWebInt(amt),
+						DateFa:   ShamsiFromISO(p.Field("created_at")),
+						Note:     strings.TrimSpace(p.Field("note")),
+					})
+				}
+				if len(row.Payments) > 0 {
+					row.PaymentFa = tomanFaWebInt(paySum)
+					row.PaymentCount = len(row.Payments)
+				}
+
 				key := strings.TrimSpace(d.Field("phone"))
 				if key == "" {
 					key = strings.TrimSpace(d.Label())
@@ -3303,7 +3617,309 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				if others > 0 {
 					row.OtherDebts = store.FormatPersianNumber(strconv.Itoa(others)) + " بدهی دیگر به مبلغ " + store.FormatIRRToToman(otherRemain.String())
 				}
+				rows = append(rows, row)
+			}
+
+			// کارت‌های خلاصه بالای صفحه: همه بدهی‌ها، حساب‌های باز، سررسید
+			// گذشته و وصول همین ماه شمسی (از دفتر پرداخت‌های ثبت‌شده).
+			remainingSum := big.NewInt(0)
+			overdueSum := big.NewInt(0)
+			openCount, overdueCount := 0, 0
+			for _, row := range rows {
+				rem := parseIRRBig(row.Entity.Field("remaining"))
+				remainingSum.Add(remainingSum, rem)
+				if row.StatusKey == "paid" {
+					continue
+				}
+				openCount++
+				if row.Overdue {
+					overdueCount++
+					overdueSum.Add(overdueSum, rem)
+				}
+			}
+			collected := big.NewInt(0)
+			for _, p := range allPayments {
+				pt, ok := JalaliTimeOf(p.Field("created_at"))
+				if !ok {
+					continue
+				}
+				py, pm, _ := GregorianToJalali(pt.Year(), int(pt.Month()), pt.Day())
+				if py == tjy && pm == tjm {
+					collected.Add(collected, parseIRRBig(p.Field("amount_irr")))
+				}
+			}
+			v.DebtorCount = len(rows)
+			v.DebtorKPIRemainingFa = tomanFaWebInt(remainingSum)
+			v.DebtorKPIOpenFa = store.FormatPersianNumber(strconv.Itoa(openCount))
+			v.DebtorKPIOverdueFa = store.FormatPersianNumber(strconv.Itoa(overdueCount))
+			v.DebtorKPIOverdueSumFa = tomanFaWebInt(overdueSum)
+			v.DebtorKPICollectedFa = tomanFaWebInt(collected)
+
+			// گزارش بدهی گروه‌ها (سازمانی) — تب دوم.
+			for _, g := range v.DebtorGroups {
+				grow := DebtorGroupRow{Entity: g, Name: g.Label(), Members: memberCounts[g.ID]}
+				total := big.NewInt(0)
+				remain := big.NewInt(0)
+				for _, row := range rows {
+					if strings.TrimSpace(row.Entity.Field("group_id")) != g.ID {
+						continue
+					}
+					grow.Accounts++
+					total.Add(total, parseIRRBig(row.Entity.Field("total")))
+					remain.Add(remain, parseIRRBig(row.Entity.Field("remaining")))
+					if row.Overdue {
+						grow.OverdueCount++
+					}
+				}
+				grow.TotalFa = tomanFaWebInt(total)
+				grow.RemainingFa = tomanFaWebInt(remain)
+				switch {
+				case grow.OverdueCount > 0:
+					grow.StatusKey, grow.StatusLabel = "overdue", "سررسید گذشته"
+				case remain.Sign() > 0:
+					grow.StatusKey, grow.StatusLabel = "open", "بدهی باز"
+				default:
+					grow.StatusKey, grow.StatusLabel = "paid", "تسویه شده"
+				}
+				v.DebtorGroupRows = append(v.DebtorGroupRows, grow)
+			}
+			sort.SliceStable(v.DebtorGroupRows, func(i, j int) bool {
+				return v.DebtorGroupRows[i].Name < v.DebtorGroupRows[j].Name
+			})
+
+			// فیلترهای همان نوار وب (وضعیت، منبع ثبت، حساب، گروه، بازه تاریخ
+			// شمسی و مرتب‌سازی).
+			q := strings.TrimSpace(r.URL.Query().Get("q"))
+			v.DebtorQuery = q
+			v.DebtorStatusFilter = strings.TrimSpace(r.URL.Query().Get("status"))
+			switch v.DebtorStatusFilter {
+			case "open", "partial", "paid", "overdue":
+			default:
+				v.DebtorStatusFilter = "all"
+			}
+			v.DebtorSourceFilter = strings.TrimSpace(r.URL.Query().Get("source"))
+			if v.DebtorSourceFilter != "pos" && v.DebtorSourceFilter != "manual" {
+				v.DebtorSourceFilter = "all"
+			}
+			v.DebtorAccountFilter = strings.TrimSpace(r.URL.Query().Get("account"))
+			if v.DebtorAccountFilter != "personal" && v.DebtorAccountFilter != "company" {
+				v.DebtorAccountFilter = "all"
+			}
+			v.DebtorGroupFilter = strings.TrimSpace(r.URL.Query().Get("group"))
+			if v.DebtorGroupFilter == "all" {
+				v.DebtorGroupFilter = ""
+			}
+			v.DebtorSortFilter = strings.TrimSpace(r.URL.Query().Get("sort"))
+			switch v.DebtorSortFilter {
+			case "created", "remaining", "due", "name":
+			default:
+				v.DebtorSortFilter = "updated"
+			}
+			v.DebtorFromISO = isoDateOrEmpty(r.URL.Query().Get("from"))
+			v.DebtorToISO = isoDateOrEmpty(r.URL.Query().Get("to"))
+			v.DebtorFromShamsi = ShamsiFromISO(v.DebtorFromISO)
+			v.DebtorToShamsi = ShamsiFromISO(v.DebtorToISO)
+
+			needle := strings.ToLower(normalizeDigits(q))
+			for _, row := range rows {
+				if needle != "" {
+					haystack := strings.ToLower(normalizeDigits(row.Entity.Label() + " " + row.Entity.Field("phone") + " " +
+						row.GroupLabel + " " + row.ItemsText + " " + row.Entity.Field("description") + " " + row.OrderNumber))
+					if !strings.Contains(haystack, needle) {
+						continue
+					}
+				}
+				if v.DebtorStatusFilter != "all" && row.StatusKey != v.DebtorStatusFilter {
+					continue
+				}
+				if v.DebtorSourceFilter != "all" && row.SourceKey != v.DebtorSourceFilter {
+					continue
+				}
+				if v.DebtorAccountFilter != "all" && row.AccountKey != v.DebtorAccountFilter {
+					continue
+				}
+				if v.DebtorGroupFilter != "" && strings.TrimSpace(row.Entity.Field("group_id")) != v.DebtorGroupFilter {
+					continue
+				}
+				createdDay := ""
+				if ct, ok := JalaliTimeOf(row.CreatedISO); ok {
+					createdDay = ct.Format("2006-01-02")
+				}
+				if v.DebtorFromISO != "" && (createdDay == "" || createdDay < v.DebtorFromISO) {
+					continue
+				}
+				if v.DebtorToISO != "" && (createdDay == "" || createdDay > v.DebtorToISO) {
+					continue
+				}
 				v.DebtorRows = append(v.DebtorRows, row)
+			}
+			switch v.DebtorSortFilter {
+			case "remaining":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					return parseIRRBig(v.DebtorRows[i].Entity.Field("remaining")).Cmp(parseIRRBig(v.DebtorRows[j].Entity.Field("remaining"))) > 0
+				})
+			case "due":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					di, dj := v.DebtorRows[i].DueISO, v.DebtorRows[j].DueISO
+					if di == "" || dj == "" {
+						return dj != "" && di == ""
+					}
+					return di < dj
+				})
+			case "name":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					return v.DebtorRows[i].Entity.Label() < v.DebtorRows[j].Entity.Label()
+				})
+			case "created":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					return v.DebtorRows[i].CreatedISO > v.DebtorRows[j].CreatedISO
+				})
+			default:
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					ui := v.DebtorRows[i].Entity.Field("updated_at")
+					if ui == "" {
+						ui = v.DebtorRows[i].CreatedISO
+					}
+					uj := v.DebtorRows[j].Entity.Field("updated_at")
+					if uj == "" {
+						uj = v.DebtorRows[j].CreatedISO
+					}
+					if ui == uj {
+						return v.DebtorRows[i].CreatedISO > v.DebtorRows[j].CreatedISO
+					}
+					return ui > uj
+				})
+			}
+			v.DebtorFiltered = len(v.DebtorRows)
+
+			// فیلترهای فعال به‌صورت query نگه داشته می‌شوند تا بعد از ثبت/تسویه
+			// کاربر دوباره روی همان نمای فیلترشده برگردد (رفتار وب).
+			filterQ := url.Values{}
+			if v.DebtorTab != "list" {
+				filterQ.Set("tab", v.DebtorTab)
+			}
+			if q != "" {
+				filterQ.Set("q", q)
+			}
+			if v.DebtorStatusFilter != "all" {
+				filterQ.Set("status", v.DebtorStatusFilter)
+			}
+			if v.DebtorSourceFilter != "all" {
+				filterQ.Set("source", v.DebtorSourceFilter)
+			}
+			if v.DebtorAccountFilter != "all" {
+				filterQ.Set("account", v.DebtorAccountFilter)
+			}
+			if v.DebtorGroupFilter != "" {
+				filterQ.Set("group", v.DebtorGroupFilter)
+			}
+			if v.DebtorSortFilter != "updated" {
+				filterQ.Set("sort", v.DebtorSortFilter)
+			}
+			if v.DebtorFromISO != "" {
+				filterQ.Set("from", v.DebtorFromISO)
+			}
+			if v.DebtorToISO != "" {
+				filterQ.Set("to", v.DebtorToISO)
+			}
+			v.DebtorFilterQuery = filterQ.Encode()
+
+			// کاتالوگ محصولات برای «ثبت با نام محصولات سفارش»: کاربر آیتم را از
+			// فهرست واقعی محصولات جستجو و اضافه می‌کند، نه تایپ آزاد.
+			type debtorProductJSON struct {
+				ID       string `json:"id"`
+				Title    string `json:"title"`
+				Price    int64  `json:"price"`
+				Category string `json:"category"`
+			}
+			catLabel := map[string]string{}
+			if cats, cErr := a.store.Entities(ctx, "category"); cErr == nil {
+				for _, c := range cats {
+					catLabel[c.ID] = c.Label()
+				}
+			}
+			options := []debtorProductJSON{}
+			if products, pErr := a.store.Entities(ctx, "product"); pErr == nil {
+				for _, p := range products {
+					priceToman := parseIRRBig(p.PriceIRR())
+					priceToman.Quo(priceToman, big.NewInt(10))
+					price, _ := priceToman.Int64()
+					options = append(options, debtorProductJSON{
+						ID:       p.ID,
+						Title:    p.Label(),
+						Price:    price,
+						Category: catLabel[p.Field("category_id")],
+					})
+				}
+			}
+			sort.SliceStable(options, func(i, j int) bool { return options[i].Title < options[j].Title })
+			if raw, mErr := json.Marshal(options); mErr == nil {
+				v.DebtorProductsJSON = template.JS(raw)
+			} else {
+				v.DebtorProductsJSON = template.JS("[]")
+			}
+
+			// داده دیالوگ‌های «جزئیات حساب» و «ثبت پرداخت»: کل ردیف‌های فیلترشده
+			// با همه پرداخت‌ها، تا صفحه بدون درخواست اضافه و بدون data-attribute
+			// شکننده کار کند.
+			type debtorPayJSON struct {
+				Amount string `json:"amount"`
+				Date   string `json:"date"`
+				Note   string `json:"note"`
+			}
+			type debtorRowJSON struct {
+				ID           string          `json:"id"`
+				Name         string          `json:"name"`
+				Phone        string          `json:"phone"`
+				Account      string          `json:"account"`
+				Group        string          `json:"group"`
+				Items        string          `json:"items"`
+				OrderNumber  string          `json:"order_number"`
+				When         string          `json:"when"`
+				Total        string          `json:"total"`
+				Paid         string          `json:"paid"`
+				Remaining    string          `json:"remaining"`
+				RemainingIRR string          `json:"remaining_irr"`
+				Due          string          `json:"due"`
+				Note         string          `json:"note"`
+				Status       string          `json:"status"`
+				StatusKey    string          `json:"status_key"`
+				Source       string          `json:"source"`
+				Other        string          `json:"other"`
+				Payments     []debtorPayJSON `json:"payments"`
+			}
+			rowJSON := make([]debtorRowJSON, 0, len(v.DebtorRows))
+			for _, row := range v.DebtorRows {
+				item := debtorRowJSON{
+					ID:           row.Entity.ID,
+					Name:         row.Entity.Label(),
+					Phone:        row.Phone,
+					Account:      row.AccountLabel,
+					Group:        row.GroupLabel,
+					Items:        row.ItemsText,
+					OrderNumber:  row.OrderNumber,
+					When:         row.OrderWhen,
+					Total:        row.TotalFa,
+					Paid:         row.PaidFa,
+					Remaining:    row.RemainingFa,
+					RemainingIRR: row.RemainingIRR,
+					Due:          row.DueLabel,
+					Note:         row.NoteText,
+					Status:       row.StatusLabel,
+					StatusKey:    row.StatusKey,
+					Source:       row.SourceLabel,
+					Other:        row.OtherDebts,
+					Payments:     []debtorPayJSON{},
+				}
+				for _, p := range row.Payments {
+					item.Payments = append(item.Payments, debtorPayJSON{Amount: p.AmountFa, Date: p.DateFa, Note: p.Note})
+				}
+				rowJSON = append(rowJSON, item)
+			}
+			if raw, mErr := json.Marshal(rowJSON); mErr == nil {
+				v.DebtorRowsJSON = template.JS(raw)
+			} else {
+				v.DebtorRowsJSON = template.JS("[]")
 			}
 		}
 	case "finance":
@@ -5533,12 +6149,230 @@ func (a *Application) handlePrintTest(w http.ResponseWriter, r *http.Request) {
 	a.navigatePage(w, r, retPage, message)
 }
 
+// handleDebtorPay ثبت پرداخت (کامل یا اقساطی) روی حساب دفتری؛ همان دکمه‌های
+// «تسویه کامل» و «ثبت پرداخت» نسخه وب. مبلغ تومانی فرم به ریال تبدیل می‌شود و
+// پرداخت در دفتر وصولی ثبت می‌گردد.
 func (a *Application) handleDebtorPay(w http.ResponseWriter, r *http.Request) {
-	if err := a.store.SettleDebtorPayment(r.Context(), r.Form.Get("debtor_id"), r.Form.Get("amount_irr")); err != nil {
+	debtorID := strings.TrimSpace(r.Form.Get("debtor_id"))
+	amount := strings.TrimSpace(r.Form.Get("amount_irr"))
+	full := r.Form.Get("pay_mode") == "full" || r.Form.Get("full") == "1"
+	if full && debtorID != "" {
+		if ent, err := a.store.Entity(r.Context(), "debtor", debtorID); err == nil {
+			amount = strings.TrimSpace(ent.Field("remaining"))
+		}
+	}
+	if amount == "" {
+		if irr, ok := tomanFormToIRR(r.Form.Get("amount_toman")); ok {
+			amount = irr
+		}
+	}
+	if amount == "" || parseIRRBig(amount).Sign() <= 0 {
+		a.navigatePage(w, r, "debtors", "مبلغ پرداخت باید بزرگ‌تر از صفر باشد.")
+		return
+	}
+	if err := a.store.SettleDebtorPaymentWithNote(r.Context(), debtorID, amount, r.Form.Get("note")); err != nil {
 		a.navigatePage(w, r, "debtors", err.Error())
 		return
 	}
 	a.navigatePage(w, r, "debtors", "مبلغ پرداختی با موفقیت از مانده بدهی کسر گردید.")
+}
+
+// handleDebtorCreate ثبت حساب دفتری جدید (دکمه «ثبت بدهی دستی (جدید)»):
+// یا با اقلام محصول انتخاب‌شده از فهرست محصولات، یا با مبلغ کل بدهی.
+func (a *Application) handleDebtorCreate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	accountKind := strings.TrimSpace(r.Form.Get("account_kind"))
+	if accountKind != "company" {
+		accountKind = "personal"
+	}
+	name := strings.TrimSpace(r.Form.Get("full_name"))
+	groupID := strings.TrimSpace(r.Form.Get("group_id"))
+	if accountKind == "company" {
+		if groupID == "" {
+			a.navigatePage(w, r, "debtors", "برای حساب شرکتی، گروه یا شرکت را انتخاب کنید.")
+			return
+		}
+		g, gErr := a.store.Entity(ctx, "customer_group", groupID)
+		if gErr != nil {
+			a.navigatePage(w, r, "debtors", "گروه انتخاب‌شده یافت نشد.")
+			return
+		}
+		if name == "" {
+			name = g.Label()
+		}
+	} else {
+		groupID = ""
+	}
+	if len([]rune(name)) < 2 {
+		a.navigatePage(w, r, "debtors", "نام مشتری باید حداقل ۲ نویسه باشد.")
+		return
+	}
+	phone := normalizeDigits(strings.TrimSpace(r.Form.Get("phone")))
+	if phone != "" && (len(phone) < 10 || len(phone) > 15) {
+		a.navigatePage(w, r, "debtors", "شماره موبایل معتبر نیست.")
+		return
+	}
+	if accountKind == "personal" && phone == "" {
+		a.navigatePage(w, r, "debtors", "شماره موبایل مشتری الزامی است.")
+		return
+	}
+
+	mode := strings.TrimSpace(r.Form.Get("mode"))
+	if mode != "amount" {
+		mode = "items"
+	}
+	total := big.NewInt(0)
+	items := []map[string]any{}
+	if mode == "amount" {
+		irr, ok := tomanFormToIRR(r.Form.Get("total_toman"))
+		if !ok {
+			a.navigatePage(w, r, "debtors", "مبلغ کل بدهی را به تومان وارد کنید.")
+			return
+		}
+		if _, ok := total.SetString(irr, 10); !ok {
+			a.navigatePage(w, r, "debtors", "مبلغ کل بدهی معتبر نیست.")
+			return
+		}
+	} else {
+		titles := r.Form["item_title"]
+		qtys := r.Form["item_qty"]
+		prices := r.Form["item_price"]
+		ids := r.Form["item_product_id"]
+		for i, rawTitle := range titles {
+			title := strings.TrimSpace(rawTitle)
+			if title == "" {
+				continue
+			}
+			qty := 1
+			if i < len(qtys) {
+				if n, qErr := strconv.Atoi(normalizeDigits(strings.TrimSpace(qtys[i]))); qErr == nil && n > 0 && n <= 9999 {
+					qty = n
+				}
+			}
+			unit := big.NewInt(0)
+			if i < len(prices) {
+				if irr, ok := tomanFormToIRR(prices[i]); ok {
+					if _, ok := unit.SetString(irr, 10); !ok {
+						unit = big.NewInt(0)
+					}
+				}
+			}
+			if unit.Sign() <= 0 {
+				a.navigatePage(w, r, "debtors", "برای هر آیتم، قیمت واحد را وارد کنید.")
+				return
+			}
+			lineTotal := new(big.Int).Mul(unit, big.NewInt(int64(qty)))
+			productID := ""
+			if i < len(ids) {
+				productID = strings.TrimSpace(ids[i])
+			}
+			items = append(items, map[string]any{
+				"product_id":     productID,
+				"title":          title,
+				"qty":            qty,
+				"unit_price_irr": unit.String(),
+				"line_total_irr": lineTotal.String(),
+			})
+			total.Add(total, lineTotal)
+		}
+		if len(items) == 0 {
+			a.navigatePage(w, r, "debtors", "حداقل یک آیتم از فهرست محصولات اضافه کنید یا حالت «فقط مبلغ کل بدهی» را انتخاب کنید.")
+			return
+		}
+	}
+	if total.Sign() <= 0 {
+		a.navigatePage(w, r, "debtors", "مبلغ بدهی باید بزرگ‌تر از صفر باشد.")
+		return
+	}
+
+	dueISO := isoDateOrEmpty(r.Form.Get("due_at"))
+	note := strings.TrimSpace(r.Form.Get("note"))
+	fields := map[string]any{
+		"full_name":      name,
+		"phone":          phone,
+		"account_type":   accountKind,
+		"total":          total.String(),
+		"paid":           "0",
+		"remaining":      total.String(),
+		"currency":       "IRR",
+		"status":         "open",
+		"source":         "manual",
+		"entry_mode":     mode,
+		"description":    note,
+		"note":           note,
+		"order_id":       "",
+		"group_id":       groupID,
+		"due_at":         dueISO,
+		"items_count":    len(items),
+	}
+	if mode == "items" {
+		fields["items"] = items
+	}
+	if _, sErr := a.store.SaveLocalRecord(ctx, "debtor", "", fields); sErr != nil {
+		a.navigatePage(w, r, "debtors", "ثبت بدهی انجام نشد: "+sErr.Error())
+		return
+	}
+	a.navigatePage(w, r, "debtors", "حساب بدهی «"+name+"» با مبلغ "+tomanFaWeb(total.String())+" ثبت شد.")
+}
+// handleDebtorsExport خروجی CSV فهرست بدهکاران (دکمه «خروجی CSV» نسخه وب).
+// مبالغ به تومان و بدون جداکننده نوشته می‌شوند تا در اکسل عدد بمانند.
+func (a *Application) handleDebtorsExport(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	debtors, err := a.store.Entities(ctx, "debtor")
+	if err != nil {
+		http.Error(w, "cannot read debtors", http.StatusInternalServerError)
+		return
+	}
+	groupLabels := map[string]string{}
+	if groups, gErr := a.store.Entities(ctx, "customer_group"); gErr == nil {
+		for _, g := range groups {
+			groupLabels[g.ID] = g.Label()
+		}
+	}
+	now := time.Now()
+	sort.SliceStable(debtors, func(i, j int) bool { return debtors[i].Label() < debtors[j].Label() })
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=menuvex-debtors.csv")
+	w.Header().Set("Cache-Control", "no-store")
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"نام طرف حساب", "موبایل", "گروه", "نوع حساب", "منبع ثبت", "مبلغ کل (تومان)", "پرداخت‌شده (تومان)", "مانده بدهی (تومان)", "سررسید", "وضعیت", "توضیحات"})
+	for _, d := range debtors {
+		remaining := parseIRRBig(d.Field("remaining"))
+		_, dueLabel, overdue := debtorDueInfo(d.Field("due_at"), remaining, now)
+		_, statusLabel, _ := debtorStatusOf(remaining, d.Field("status"), overdue)
+		account := "مشتری شخصی"
+		if strings.EqualFold(strings.TrimSpace(d.Field("account_type")), "company") {
+			account = "حساب شرکتی / گروه"
+		}
+		source := "ثبت دستی"
+		if strings.TrimSpace(d.Field("order_id")) != "" {
+			source = "سفارش صندوق"
+		}
+		note := strings.TrimSpace(d.Field("note"))
+		if note == "" {
+			note = strings.TrimSpace(d.Field("description"))
+		}
+		totalToman := parseIRRBig(d.Field("total"))
+		totalToman.Quo(totalToman, big.NewInt(10))
+		paidToman := parseIRRBig(d.Field("paid"))
+		paidToman.Quo(paidToman, big.NewInt(10))
+		remToman := new(big.Int).Set(remaining)
+		remToman.Quo(remToman, big.NewInt(10))
+		_ = cw.Write([]string{
+			d.Label(),
+			store.ToPersianDigits(strings.TrimSpace(d.Field("phone"))),
+			groupLabels[strings.TrimSpace(d.Field("group_id"))],
+			account,
+			source,
+			totalToman.String(),
+			paidToman.String(),
+			remToman.String(),
+			dueLabel,
+			statusLabel,
+			note,
+		})
+	}
+	cw.Flush()
 }
 
 func (a *Application) handleTaskToggle(w http.ResponseWriter, r *http.Request) {

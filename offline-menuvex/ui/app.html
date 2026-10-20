@@ -398,6 +398,280 @@
 </script>
 <script>
 (function () {
+  // ═══ تقویم شمسی (جلالی) — DatePicker ایرانی ═══
+  // پاپ‌اور تقویم ماهانه با ارقام فارسی، انتخاب ماه/سال، دکمه‌های «امروز» و
+  // «پاک کردن». مقدار ذخیره‌شده در input مخفی همیشه ISO میلادی (YYYY-MM-DD)
+  // است تا سمت سرور ذخیره و مقایسه شود؛ نمایش همیشه شمسی است.
+  if (window.__jdpInstalled) return;
+  window.__jdpInstalled = true;
+  var MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+  var WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+  var FA = '۰۱۲۳۴۵۶۷۸۹';
+  function faNum(n) { return String(n).replace(/[0-9]/g, function (d) { return FA[Number(d)]; }); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function toJalali(gy, gm, gd) {
+    var gdm = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    var gy2 = gm > 2 ? gy + 1 : gy;
+    var days = 355666 + 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) + gd + gdm[gm - 1];
+    var jy = -1595 + 33 * Math.floor(days / 12053);
+    days %= 12053;
+    jy += 4 * Math.floor(days / 1461);
+    days %= 1461;
+    if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+    var jm = days < 186 ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+    var jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+    return [jy, jm, jd];
+  }
+  function toGregorian(jy, jm, jd) {
+    var jy2 = jy + 1595;
+    var days = -355668 + 365 * jy2 + Math.floor(jy2 / 33) * 8 + Math.floor(((jy2 % 33) + 3) / 4) + jd;
+    days += jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186;
+    var gy = 400 * Math.floor(days / 146097);
+    days %= 146097;
+    if (days > 36524) {
+      days--;
+      gy += 100 * Math.floor(days / 36524);
+      days %= 36524;
+      if (days >= 365) days++;
+    }
+    gy += 4 * Math.floor(days / 1461);
+    days %= 1461;
+    if (days > 365) { gy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+    var gd = days + 1;
+    var months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if ((gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0) months[1] = 29;
+    var gm = 0;
+    while (gm < 12 && gd > months[gm]) { gd -= months[gm]; gm++; }
+    return [gy, gm + 1, gd];
+  }
+  function monthLen(jy, jm) {
+    if (jm <= 6) return 31;
+    if (jm <= 11) return 30;
+    var g = toGregorian(jy, 12, 30);
+    var back = toJalali(g[0], g[1], g[2]);
+    return back[1] === 12 && back[2] === 30 ? 30 : 29;
+  }
+  function todayJalali() {
+    var d = new Date();
+    return toJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  }
+  function parseISO(v) {
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(v || '').trim());
+    return m ? [+m[1], +m[2], +m[3]] : null;
+  }
+  function isoOf(jy, jm, jd) {
+    var g = toGregorian(jy, jm, jd);
+    return g[0] + '-' + pad(g[1]) + '-' + pad(g[2]);
+  }
+  function jLabelOf(iso) {
+    var g = parseISO(iso);
+    if (!g) return '';
+    var j = toJalali(g[0], g[1], g[2]);
+    return faNum(j[0]) + '/' + faNum(pad(j[1])) + '/' + faNum(pad(j[2]));
+  }
+  function weekdayIndex(jy, jm, jd) {
+    var g = toGregorian(jy, jm, jd);
+    var dow = new Date(g[0], g[1] - 1, g[2]).getDay();
+    return (dow + 1) % 7;
+  }
+  function closePops(except) {
+    var pops = document.querySelectorAll('[data-jdp-pop]');
+    for (var i = 0; i < pops.length; i++) {
+      if (pops[i] !== except) pops[i].hidden = true;
+    }
+  }
+  function positionPop(pop, trigger) {
+    pop.hidden = false;
+    pop.style.position = 'fixed';
+    pop.style.visibility = 'hidden';
+    pop.style.right = 'auto';
+    var r = trigger.getBoundingClientRect();
+    var w = pop.offsetWidth || 276;
+    var h = pop.offsetHeight || 320;
+    var left = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - w - 8));
+    var top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+    pop.style.visibility = '';
+  }
+  function setValue(picker, iso, opts) {
+    var valueInput = picker.querySelector('[data-jdp-value]');
+    var trigger = picker.querySelector('[data-jdp-trigger]');
+    var label = picker.querySelector('[data-jdp-label]');
+    if (!valueInput || !trigger) return;
+    valueInput.value = iso || '';
+    trigger.classList.toggle('has-value', !!iso);
+    if (label) label.textContent = iso ? jLabelOf(iso) : (trigger.__ph || 'انتخاب تاریخ');
+    if (!opts || opts.quiet !== true) {
+      var evt;
+      try { evt = new Event('change', { bubbles: true }); } catch (e) { evt = document.createEvent('Event'); evt.initEvent('change', true, true); }
+      valueInput.dispatchEvent(evt);
+      if (picker.hasAttribute('data-jdp-auto')) {
+        var form = picker.closest('form');
+        if (form && form.requestSubmit) form.requestSubmit();
+      }
+    }
+  }
+  function renderPop(picker) {
+    var pop = picker.querySelector('[data-jdp-pop]');
+    var valueInput = picker.querySelector('[data-jdp-value]');
+    if (!pop || !valueInput) return;
+    var grid = pop.querySelector('[data-jdp-grid]');
+    var monthSel = pop.querySelector('[data-jdp-month]');
+    var yearSel = pop.querySelector('[data-jdp-year]');
+    if (!grid || !monthSel || !yearSel) return;
+    var today = todayJalali();
+    var current = parseISO(valueInput.value);
+    var cur = current ? toJalali(current[0], current[1], current[2]) : null;
+    var view = picker.__view || (cur ? [cur[0], cur[1]] : [today[0], today[1]]);
+    picker.__view = view;
+    var jy = view[0], jm = view[1];
+    var days = monthLen(jy, jm);
+    var lead = weekdayIndex(jy, jm, 1);
+    var html = '';
+    for (var i = 0; i < lead; i++) html += '<button type="button" class="jdp-day is-empty" tabindex="-1"></button>';
+    for (var d = 1; d <= days; d++) {
+      var cls = 'jdp-day';
+      if (cur && cur[0] === jy && cur[1] === jm && cur[2] === d) cls += ' is-selected';
+      if (today[0] === jy && today[1] === jm && today[2] === d) cls += ' is-today';
+      html += '<button type="button" class="' + cls + '" data-jdp-day="' + d + '">' + faNum(d) + '</button>';
+    }
+    grid.innerHTML = html;
+    // پرکردن سلکت‌های ماه/سال (بومی و مستثنا از سلکت سفارشی برنامه)
+    if (!monthSel.options.length) {
+      for (var mi = 0; mi < 12; mi++) {
+        var o = document.createElement('option');
+        o.value = mi + 1;
+        o.textContent = MONTHS[mi];
+        monthSel.appendChild(o);
+      }
+    }
+    var startYear = today[0] - 6, endYear = today[0] + 5;
+    if (jy < startYear) startYear = jy - 1;
+    if (jy > endYear) endYear = jy + 1;
+    yearSel.innerHTML = '';
+    for (var y = startYear; y <= endYear; y++) {
+      var yo = document.createElement('option');
+      yo.value = y;
+      yo.textContent = faNum(y);
+      yearSel.appendChild(yo);
+    }
+    monthSel.value = jm;
+    yearSel.value = jy;
+    pop.__picker = picker;
+  }
+  function openPop(picker) {
+    var pop = picker.querySelector('[data-jdp-pop]');
+    var trigger = picker.querySelector('[data-jdp-trigger]');
+    if (!pop || !trigger) return;
+    closePops(pop);
+    renderPop(picker);
+    positionPop(pop, trigger);
+  }
+  function initOne(picker) {
+    if (picker.__jdpInit) return;
+    var trigger = picker.querySelector('[data-jdp-trigger]');
+    var pop = picker.querySelector('[data-jdp-pop]');
+    var valueInput = picker.querySelector('[data-jdp-value]');
+    var label = picker.querySelector('[data-jdp-label]');
+    if (!trigger || !pop || !valueInput) return;
+    picker.__jdpInit = true;
+    trigger.__ph = (label ? label.textContent : '').trim() || 'انتخاب تاریخ';
+    if (valueInput.value) trigger.classList.add('has-value');
+    pop.innerHTML =
+      '<div class="jdp-head">' +
+        '<button type="button" class="jdp-nav" data-jdp-prev aria-label="ماه قبل">›</button>' +
+        '<span class="jdp-selects">' +
+          '<select data-jdp-month data-native-select aria-label="ماه"></select>' +
+          '<select data-jdp-year data-native-select aria-label="سال"></select>' +
+        '</span>' +
+        '<button type="button" class="jdp-nav" data-jdp-next aria-label="ماه بعد">‹</button>' +
+      '</div>' +
+      '<div class="jdp-week">' + WEEKDAYS.map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>' +
+      '<div class="jdp-grid" data-jdp-grid></div>' +
+      '<div class="jdp-foot">' +
+        '<button type="button" class="jdp-link" data-jdp-today>امروز</button>' +
+        '<button type="button" class="jdp-link muted" data-jdp-clear>پاک کردن</button>' +
+      '</div>';
+    trigger.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!pop.hidden) { pop.hidden = true; return; }
+      openPop(picker);
+    });
+    pop.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var t = e.target;
+      if (t.closest('[data-jdp-prev]')) {
+        picker.__view = [picker.__view[1] === 1 ? picker.__view[0] - 1 : picker.__view[0], picker.__view[1] === 1 ? 12 : picker.__view[1] - 1];
+        renderPop(picker);
+        positionPop(pop, trigger);
+        return;
+      }
+      if (t.closest('[data-jdp-next]')) {
+        picker.__view = [picker.__view[1] === 12 ? picker.__view[0] + 1 : picker.__view[0], picker.__view[1] === 12 ? 1 : picker.__view[1] + 1];
+        renderPop(picker);
+        positionPop(pop, trigger);
+        return;
+      }
+      if (t.closest('[data-jdp-today]')) {
+        var td = todayJalali();
+        setValue(picker, isoOf(td[0], td[1], td[2]));
+        pop.hidden = true;
+        return;
+      }
+      if (t.closest('[data-jdp-clear]')) {
+        setValue(picker, '');
+        pop.hidden = true;
+        return;
+      }
+      var dayBtn = t.closest('[data-jdp-day]');
+      if (dayBtn) {
+        var d = Number(dayBtn.getAttribute('data-jdp-day'));
+        var v = picker.__view || todayJalali();
+        setValue(picker, isoOf(v[0], v[1], d));
+        pop.hidden = true;
+      }
+    });
+    pop.addEventListener('change', function (e) {
+      var sel = e.target;
+      var v = picker.__view || todayJalali();
+      if (sel.hasAttribute('data-jdp-month')) {
+        picker.__view = [v[0], Number(sel.value)];
+      } else if (sel.hasAttribute('data-jdp-year')) {
+        picker.__view = [Number(sel.value), v[1]];
+      } else {
+        return;
+      }
+      renderPop(picker);
+      positionPop(pop, trigger);
+    });
+  }
+  window.initJalaliDatePickers = function (root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    if (!scope.querySelectorAll) return;
+    var list = scope.querySelectorAll('[data-jdp]');
+    for (var i = 0; i < list.length; i++) initOne(list[i]);
+  };
+  window.resetJalaliDatePicker = function (picker) {
+    if (!picker) return;
+    picker.__view = null;
+    setValue(picker, '', { quiet: false });
+  };
+  document.addEventListener('click', function () { closePops(null); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closePops(null);
+  });
+  window.addEventListener('resize', function () { closePops(null); });
+  document.addEventListener('scroll', function () { closePops(null); }, true);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { window.initJalaliDatePickers(document); });
+  else window.initJalaliDatePickers(document);
+  document.addEventListener('htmx:afterSwap', function () { setTimeout(function () { window.initJalaliDatePickers(document); }, 10); });
+})();
+</script>
+<script>
+(function () {
   // باز/بستن عمومی دراپ‌داون‌ها (.dd-toggle → .dd-menu) — مثلاً منوی «پرینترها»ی صندوق.
   if (window.__ddToggleInstalled) return;
   window.__ddToggleInstalled = true;
@@ -1062,7 +1336,7 @@ document.addEventListener('htmx:afterSwap', function (e) {
 </html>{{end}}
 
 {{define "content"}}
-{{if ne .Page "pos"}}<header class="topbar no-print">
+{{if and (ne .Page "pos") (ne .Page "debtors")}}<header class="topbar no-print">
   <div>
     <h1 class="page-heading">
       {{if eq .Page "home"}}پیشخوان مدیریتی کافه
@@ -1085,7 +1359,6 @@ document.addEventListener('htmx:afterSwap', function (e) {
       {{else if eq .Page "club-groups"}}گروه‌های باشگاه مشتریان
       {{else if eq .Page "club-group-form"}}{{if eq .Action "update"}}ویرایش گروه مشتریان{{else}}گروه جدید باشگاه{{end}}
       {{else if eq .Page "club-group"}}جزئیات گروه مشتریان
-      {{else if eq .Page "debtors"}}دفتر حساب‌های دفتری و نسیه
       {{else if eq .Page "finance"}}امور مالی، هزینه‌ها و حسابداری دوبل
       {{else if eq .Page "staff"}}مدیریت کارکنان
       {{else if eq .Page "staff-checklist"}}چک‌لیست اجرایی روزانه و شیفت‌ها

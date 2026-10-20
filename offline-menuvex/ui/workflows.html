@@ -3672,142 +3672,873 @@
   {{end}}
 
   {{else if eq .Page "debtors"}}
-  <div class="layout-sidebar-main">
-    <section class="panel-card">
-      <div class="panel-header">
-        <div>
-          <h2>ثبت حساب دفتری / نسیه جدید</h2>
-          <p>حساب‌های ماهانه شرکت‌ها و مشتریان</p>
-        </div>
-      </div>
-      <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="form-grid">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <input type="hidden" name="kind" value="debtor">
-        <input type="hidden" name="return_page" value="debtors">
-        <label>نام شخص یا شرکت طرف حساب
-          <input name="full_name" placeholder="مثلاً: دفتر معماری پارس" required>
-        </label>
-        <label>شماره تماس
-          <input name="phone" placeholder="09121112233">
-        </label>
-        <label>مبلغ بدهی (ریال)
-          <input name="total" placeholder="15000000" inputmode="numeric" required>
-        </label>
-        <label>شرح فاکتور دفتری
-          <input name="description" placeholder="پذیرایی جلسات ماهانه">
-        </label>
-        <button type="submit" class="btn btn-primary">+ ثبت در دفتر حساب دفتری</button>
-      </form>
-    </section>
+  <!-- ═══ بدهکاران و تسویه — عین صفحه وب «لیست بدهکاران، مستندات سفارش‌ها و
+       خرید اعتباری»: سربرگ با اقدام‌های اصلی، تب‌ها، کارت‌های خلاصه، نوار
+       فیلتر با تاریخ شمسی، جدول مستندات سفارش و دو دیالوگ ثبت/تسویه. همه
+       اعداد از داده محلی همین سیستم محاسبه می‌شوند. ═══ -->
+  <section class="dbk-head">
+    <div class="dbk-head-text">
+      <h2 class="dbk-title">لیست بدهکاران، مستندات سفارش‌ها و خرید اعتباری <span class="dbk-new">جدید</span></h2>
+      <p class="dbk-sub">مشاهده مستندات کامل سفارش‌های پرداخت‌نشده (چه سفارشی، چه تاریخی)، ثبت بدهی دستی و گزارش بدهی گروه‌ها</p>
+    </div>
+    <div class="dbk-head-actions">
+      <button type="button" class="btn btn-primary dbk-new-btn" onclick="dbkOpenCreate()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>ثبت بدهی دستی</span>
+        <span class="dbk-new dbk-new-inverse">جدید</span>
+      </button>
+      <a class="btn btn-outline" href="/?page=debtors&tab={{.DebtorTab}}{{if .DebtorFilterQuery}}&{{.DebtorFilterQuery}}{{end}}" hx-get="/?page=debtors&tab={{.DebtorTab}}{{if .DebtorFilterQuery}}&{{.DebtorFilterQuery}}{{end}}" hx-target="#main-view" hx-push-url="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 3v4h-4"/></svg>
+        <span>بروزرسانی</span>
+      </a>
+      <a class="btn btn-outline" href="/local/debtors-export">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>
+        <span>خروجی CSV</span>
+      </a>
+    </div>
+  </section>
 
-    <section class="panel-card">
-      <div class="panel-header">
-        <div>
-          <h2>فهرست بدهکاران و مطالبات ({{toman .Analytics.TotalReceivablesIRR}})</h2>
-          <p>امکان ثبت پرداخت اقساطی یا تسویه کامل</p>
-        </div>
+  <nav class="dbk-tabs" aria-label="بخش‌های بدهکاران">
+    <a class="dbk-tab {{if eq .DebtorTab "list"}}is-active{{end}}" href="/?page=debtors&tab=list{{if .DebtorFilterQuery}}&{{.DebtorFilterQuery}}{{end}}" hx-get="/?page=debtors&tab=list{{if .DebtorFilterQuery}}&{{.DebtorFilterQuery}}{{end}}" hx-target="#main-view" hx-push-url="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+      <span>فهرست بدهکاران و مستندات سفارش‌ها</span>
+      <span class="dbk-new">جدید</span>
+    </a>
+    <a class="dbk-tab {{if eq .DebtorTab "groups"}}is-active{{end}}" href="/?page=debtors&tab=groups" hx-get="/?page=debtors&tab=groups" hx-target="#main-view" hx-push-url="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+      <span>گزارش بدهی گروه‌ها (سازمانی)</span>
+      <span class="dbk-new dbk-new-soft">جدید</span>
+    </a>
+  </nav>
+
+  <section class="dbk-kpis">
+    <article class="dbk-kpi">
+      <span class="dbk-kpi-icon tone-blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7l8 6 8-6"/></svg>
+      </span>
+      <div class="dbk-kpi-body">
+        <p>مانده بدهی</p>
+        <strong>{{.DebtorKPIRemainingFa}}</strong>
       </div>
-      {{if .Debtors}}
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>نام طرف حساب</th>
-              <th>مبلغ کل</th>
-              <th>پرداخت‌شده</th>
-              <th>مانده بدهی</th>
-              <th>وضعیت</th>
-              <th>تسویه حساب</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{range .DebtorRows}}
-            <tr>
-              <td>
-                <strong>{{.Entity.Label}}</strong>{{if eq (.Entity.Field "account_type") "company"}} <span class="badge">حساب شرکتی / گروه</span>{{end}}
-                <div class="row-sub">{{faDigits (.Entity.Field "phone")}} • {{.Entity.Field "description"}}</div>
-              </td>
-              <td>{{toman (.Entity.Field "total")}}</td>
-              <td>{{toman (.Entity.Field "paid")}}</td>
-              <td><strong class="price-tag">{{toman (.Entity.Field "remaining")}}</strong></td>
-              <td><span class="badge {{.Entity.StatusClass}}">{{.Entity.StatusLabel}}</span></td>
-              <td>
-                <div class="row-actions">
-                <button type="button" class="btn btn-outline btn-sm" onclick="debtorDetail(this)"
-                  data-name="{{.Entity.Label}}" data-phone="{{faDigits (.Entity.Field "phone")}}"
-                  data-items="{{.ItemsText}}" data-order-number="{{.OrderNumber}}" data-when="{{.OrderWhen}}"
-                  data-total="{{toman (.Entity.Field "total")}}" data-paid="{{toman (.Entity.Field "paid")}}"
-                  data-remaining="{{toman (.Entity.Field "remaining")}}" data-due="{{.DueLabel}}"
-                  data-note="{{.NoteText}}" data-other="{{.OtherDebts}}">جزئیات</button>
-                {{if ne (.Entity.Field "status") "paid"}}
-                <form method="post" action="/local/debtor-pay" hx-post="/local/debtor-pay" hx-target="#main-view" class="inline-form">
-                  <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                  <input type="hidden" name="debtor_id" value="{{.Entity.ID}}">
-                  <input type="hidden" name="amount_irr" value="{{.Entity.Field "remaining"}}">
-                  <button type="submit" class="btn btn-primary btn-sm">تسویه کامل</button>
-                </form>
-                {{else}}
-                <span class="row-sub">تسویه شده</span>
-                {{end}}
-                </div>
-              </td>
-            </tr>
-            {{end}}
-          </tbody>
-        </table>
+    </article>
+    <article class="dbk-kpi">
+      <span class="dbk-kpi-icon tone-sky">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 19v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V19"/><circle cx="9" cy="7" r="3.4"/><path d="M17.5 14.6a3.6 3.6 0 0 1 3 3.4V19M15.6 4.3a3.2 3.2 0 0 1 0 5.6"/></svg>
+      </span>
+      <div class="dbk-kpi-body">
+        <p>بدهکاران باز</p>
+        <strong>{{.DebtorKPIOpenFa}}</strong>
       </div>
-      {{else}}
-      <p class="empty-text">حساب دفتری بازی وجود ندارد.</p>
+    </article>
+    <article class="dbk-kpi">
+      <span class="dbk-kpi-icon tone-red">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 4.5L21 20H3z"/><path d="M12 10v4.2m0 2.6v.01"/></svg>
+      </span>
+      <div class="dbk-kpi-body">
+        <p>سررسید گذشته</p>
+        <strong>{{.DebtorKPIOverdueFa}}</strong>
+        <small>{{.DebtorKPIOverdueSumFa}}</small>
+      </div>
+    </article>
+    <article class="dbk-kpi">
+      <span class="dbk-kpi-icon tone-green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 4v10m0 0l-3.6-3.6M12 14l3.6-3.6"/><path d="M5 17.5V20h14v-2.5"/></svg>
+      </span>
+      <div class="dbk-kpi-body">
+        <p>وصول این ماه</p>
+        <strong>{{.DebtorKPICollectedFa}}</strong>
+      </div>
+    </article>
+  </section>
+
+  {{if eq .DebtorTab "groups"}}
+  <section class="dbk-card">
+    <div class="dbk-card-head">
+      <div>
+        <h3>گزارش بدهی گروه‌ها (سازمانی)</h3>
+        <p>جمع بدهی حساب‌های شرکتی هر گروه، بر اساس همان حساب‌های ثبت‌شده در دفتر</p>
+      </div>
+      <a class="btn btn-outline btn-sm" href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true">مدیریت گروه‌ها</a>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table dbk-table">
+        <thead>
+          <tr>
+            <th>گروه / شرکت</th>
+            <th>اعضای باشگاه</th>
+            <th>حساب‌های بدهکار</th>
+            <th>مبلغ کل</th>
+            <th>مانده بدهی</th>
+            <th>وضعیت</th>
+            <th>مستندات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .DebtorGroupRows}}
+          <tr>
+            <td><strong>{{.Name}}</strong></td>
+            <td>{{faInt .Members}} نفر</td>
+            <td>{{faInt .Accounts}} حساب</td>
+            <td>{{.TotalFa}}</td>
+            <td><strong class="dbk-remain">{{.RemainingFa}}</strong></td>
+            <td>
+              <span class="badge {{if eq .StatusKey "overdue"}}status-danger{{else if eq .StatusKey "open"}}status-warn{{else}}status-ok{{end}}">{{.StatusLabel}}</span>
+            </td>
+            <td>
+              <a class="dbk-action" href="/?page=debtors&tab=list&group={{.Entity.ID}}" hx-get="/?page=debtors&tab=list&group={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true">مشاهده حساب‌ها</a>
+            </td>
+          </tr>
+          {{end}}
+          {{if not .DebtorGroupRows}}
+          <tr class="dbk-empty-row"><td colspan="7">هنوز گروه سازمانی (حساب شرکتی) ثبت نشده است.</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {{else}}
+  <form class="dbk-filters" method="get" action="/" hx-get="/" hx-target="#main-view" hx-push-url="true" role="search">
+    <input type="hidden" name="page" value="debtors">
+    <label class="dbk-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" name="q" value="{{.DebtorQuery}}" placeholder="جستجو نام یا شماره موبایل..." aria-label="جستجو نام یا شماره موبایل">
+    </label>
+    <select name="status" aria-label="وضعیت" onchange="this.form.requestSubmit()">
+      <option value="all" {{if eq .DebtorStatusFilter "all"}}selected{{end}}>همه وضعیت‌ها</option>
+      <option value="open" {{if eq .DebtorStatusFilter "open"}}selected{{end}}>بدهکار (باز)</option>
+      <option value="partial" {{if eq .DebtorStatusFilter "partial"}}selected{{end}}>پرداخت بخشی</option>
+      <option value="overdue" {{if eq .DebtorStatusFilter "overdue"}}selected{{end}}>سررسید گذشته</option>
+      <option value="paid" {{if eq .DebtorStatusFilter "paid"}}selected{{end}}>تسویه شده</option>
+    </select>
+    <select name="source" aria-label="منبع ثبت" onchange="this.form.requestSubmit()">
+      <option value="all" {{if eq .DebtorSourceFilter "all"}}selected{{end}}>همه منابع ثبت</option>
+      <option value="pos" {{if eq .DebtorSourceFilter "pos"}}selected{{end}}>سفارش صندوق</option>
+      <option value="manual" {{if eq .DebtorSourceFilter "manual"}}selected{{end}}>ثبت دستی</option>
+    </select>
+    <select name="account" aria-label="نوع حساب" onchange="this.form.requestSubmit()">
+      <option value="all" {{if eq .DebtorAccountFilter "all"}}selected{{end}}>همه حساب‌ها</option>
+      <option value="personal" {{if eq .DebtorAccountFilter "personal"}}selected{{end}}>مشتری شخصی</option>
+      <option value="company" {{if eq .DebtorAccountFilter "company"}}selected{{end}}>حساب شرکتی / گروه</option>
+    </select>
+    <select name="sort" aria-label="مرتب‌سازی" onchange="this.form.requestSubmit()">
+      <option value="updated" {{if eq .DebtorSortFilter "updated"}}selected{{end}}>آخرین به‌روزرسانی</option>
+      <option value="created" {{if eq .DebtorSortFilter "created"}}selected{{end}}>جدیدترین ثبت</option>
+      <option value="remaining" {{if eq .DebtorSortFilter "remaining"}}selected{{end}}>بیشترین مانده بدهی</option>
+      <option value="due" {{if eq .DebtorSortFilter "due"}}selected{{end}}>نزدیک‌ترین سررسید</option>
+      <option value="name" {{if eq .DebtorSortFilter "name"}}selected{{end}}>نام طرف حساب</option>
+    </select>
+    <select name="group" aria-label="گروه" onchange="this.form.requestSubmit()">
+      <option value="all" {{if eq .DebtorGroupFilter ""}}selected{{end}}>همه گروه‌ها</option>
+      {{range .DebtorGroups}}
+      <option value="{{.ID}}" {{if eq $.DebtorGroupFilter .ID}}selected{{end}}>{{.Label}}</option>
       {{end}}
-    </section>
+    </select>
+    <div class="dbk-daterange" data-jdp data-jdp-auto>
+      <button type="button" class="dbk-date-trigger {{if .DebtorFromISO}}has-value{{end}}" data-jdp-trigger aria-label="از تاریخ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+        <span data-jdp-label>{{if .DebtorFromShamsi}}{{.DebtorFromShamsi}}{{else}}از تاریخ{{end}}</span>
+        <svg class="dbk-date-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <input type="hidden" name="from" value="{{.DebtorFromISO}}" data-jdp-value>
+      <div class="jdp-pop" data-jdp-pop hidden></div>
+    </div>
+    <div class="dbk-daterange" data-jdp data-jdp-auto>
+      <button type="button" class="dbk-date-trigger {{if .DebtorToISO}}has-value{{end}}" data-jdp-trigger aria-label="تا تاریخ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+        <span data-jdp-label>{{if .DebtorToShamsi}}{{.DebtorToShamsi}}{{else}}تا تاریخ{{end}}</span>
+        <svg class="dbk-date-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <input type="hidden" name="to" value="{{.DebtorToISO}}" data-jdp-value>
+      <div class="jdp-pop" data-jdp-pop hidden></div>
+    </div>
+    {{if or .DebtorQuery (ne .DebtorStatusFilter "all") (ne .DebtorSourceFilter "all") (ne .DebtorAccountFilter "all") .DebtorGroupFilter .DebtorFromISO .DebtorToISO}}
+    <a class="dbk-clear" href="/?page=debtors" hx-get="/?page=debtors" hx-target="#main-view" hx-push-url="true">حذف فیلترها</a>
+    {{end}}
+  </form>
+
+  <section class="dbk-card">
+    <div class="table-wrap">
+      <table class="data-table dbk-table">
+        <thead>
+          <tr>
+            <th>نام مشتری / طرف حساب</th>
+            <th>موبایل / گروه</th>
+            <th>مستندات سفارش (سفارش چی بود؟)</th>
+            <th>مبلغ کل</th>
+            <th>پرداخت‌شده</th>
+            <th>مانده بدهی</th>
+            <th>تاریخ و ساعت ثبت</th>
+            <th>وضعیت</th>
+            <th>عملیات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .DebtorRows}}
+          <tr>
+            <td>
+              <div class="dbk-name">
+                <strong>{{.Entity.Label}}</strong>
+                {{if .IsNew}}<span class="dbk-new">جدید</span>{{end}}
+              </div>
+              <small class="dbk-muted">{{.AccountLabel}}{{if .NoteText}} • {{.NoteText}}{{end}}</small>
+            </td>
+            <td>
+              <span class="dbk-phone" dir="ltr">{{if .Phone}}{{.Phone}}{{else}}—{{end}}</span>
+              <small class="dbk-muted">{{if .GroupLabel}}{{.GroupLabel}}{{else}}{{.SourceLabel}}{{end}}</small>
+            </td>
+            <td>
+              {{if .ItemsText}}
+              <span class="dbk-doc">{{.ItemsText}}</span>
+              {{else}}
+              <span class="dbk-muted">فقط مبلغ کل بدهی</span>
+              {{end}}
+              {{if .OrderNumber}}<small class="dbk-muted">سفارش {{ordno .OrderNumber}}</small>{{end}}
+            </td>
+            <td>{{.TotalFa}}</td>
+            <td>{{.PaidFa}}</td>
+            <td><strong class="dbk-remain {{if .Overdue}}is-overdue{{end}}">{{.RemainingFa}}</strong></td>
+            <td>
+              <span class="dbk-date">{{if .DateFa}}{{.DateFa}}{{else}}—{{end}}</span>
+              {{if .TimeFa}}<small class="dbk-muted">{{.TimeFa}}</small>{{end}}
+            </td>
+            <td><span class="badge {{.StatusClass}}">{{.StatusLabel}}</span></td>
+            <td>
+              <div class="dbk-actions">
+                <button type="button" class="dbk-action" data-dbk-detail="{{.Entity.ID}}">جزئیات</button>
+                {{if ne .StatusKey "paid"}}
+                <button type="button" class="dbk-action is-primary" data-dbk-pay="{{.Entity.ID}}">ثبت پرداخت</button>
+                {{else}}
+                <span class="dbk-muted">تسویه شده</span>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+          {{end}}
+          {{if not .DebtorRows}}
+          <tr class="dbk-empty-row"><td colspan="9">بدهکاری مطابق این فیلتر پیدا نشد.</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{if .DebtorRows}}
+    <div class="dbk-foot">
+      <span>{{faInt .DebtorFiltered}} از {{faInt .DebtorCount}} حساب نمایش داده شد</span>
+      <span>همه مبالغ به تومان</span>
+    </div>
+    {{end}}
+  </section>
+
+  {{end}}
+
+  <!-- ═══ دیالوگ «ثبت بدهکار جدید» — عین دیالوگ وب: نوع حساب، جستجوی محصول از
+       فهرست واقعی، تعداد و قیمت واحد، جمع کل زنده، سررسید شمسی و یادداشت ═══ -->
+  <div class="dlg-overlay" id="dbk-create">
+    <div class="dlg-card dbk-create-card" role="dialog" aria-modal="true" aria-labelledby="dbk-create-title">
+      <button type="button" class="dlg-close" data-dbk-close aria-label="بستن">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="dbk-create-head">
+        <h3 id="dbk-create-title">ثبت بدهکار جدید <span class="dbk-new">جدید</span></h3>
+        <p>مشخصات مشتری و اقلام سفارش یا مبلغ بدهی را وارد کنید.</p>
+      </div>
+      <form method="post" action="/local/debtor-create{{if .DebtorFilterQuery}}?{{.DebtorFilterQuery}}{{end}}" hx-post="/local/debtor-create{{if .DebtorFilterQuery}}?{{.DebtorFilterQuery}}{{end}}" hx-target="#main-view" class="dbk-form" id="dbk-create-form" novalidate>
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="account_kind" value="personal" data-dbk-kind>
+        <div class="dbk-seg" role="tablist" aria-label="نوع حساب">
+          <button type="button" class="dbk-seg-btn is-active" data-dbk-tab="personal" role="tab" aria-selected="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.9-3.9 3.9-5.6 7.5-5.6s6.6 1.7 7.5 5.6"/></svg>
+            مشتری شخصی
+          </button>
+          <button type="button" class="dbk-seg-btn" data-dbk-tab="company" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h2m4 0h.01M9 11h2m4 0h.01M9 15h2m4 0h.01"/></svg>
+            حساب شرکتی / گروه
+          </button>
+        </div>
+
+        <div class="dbk-grid-2" data-dbk-personal>
+          <label class="dbk-field">
+            <span>نام مشتری <i class="req">*</i></span>
+            <input type="text" name="full_name" placeholder="مثلاً سارا محمدی" autocomplete="off">
+          </label>
+          <label class="dbk-field">
+            <span>شماره موبایل <i class="req">*</i></span>
+            <input type="tel" name="phone" dir="ltr" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" autocomplete="off">
+          </label>
+        </div>
+        <label class="dbk-field" data-dbk-company hidden>
+          <span>گروه / شرکت <i class="req">*</i></span>
+          {{if .DebtorGroups}}
+          <select name="group_id">
+            {{range .DebtorGroups}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
+          </select>
+          {{else}}
+          <p class="dbk-hint">هنوز گروه سازمانی ثبت نشده است؛ از <a href="/?page=club-group-form" hx-get="/?page=club-group-form" hx-target="#main-view" hx-push-url="true">گروه جدید باشگاه</a> یک گروه بسازید یا از تب «مشتری شخصی» استفاده کنید.</p>
+          {{end}}
+        </label>
+
+        <div class="dbk-seg dbk-seg-blue" role="tablist" aria-label="روش ثبت بدهی">
+          <button type="button" class="dbk-seg-btn is-active" data-dbk-mode="items" role="tab" aria-selected="true">ثبت با نام محصولات سفارش</button>
+          <button type="button" class="dbk-seg-btn" data-dbk-mode="amount" role="tab" aria-selected="false">فقط مبلغ کل بدهی</button>
+        </div>
+        <input type="hidden" name="mode" value="items" data-dbk-mode-input>
+
+        <div data-dbk-items-wrap>
+          <div class="dbk-items-head">
+            <span>نام محصول / آیتم سفارش</span>
+            <span>تعداد</span>
+            <span>قیمت واحد (تومان)</span>
+            <span></span>
+          </div>
+          <div class="dbk-items" data-dbk-rows></div>
+          <button type="button" class="dbk-add-item" data-dbk-add>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            افزودن آیتم دیگر
+          </button>
+          <div class="dbk-total">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 7h8M8 11h2m4 0h2M8 15h2m4 0h2M8 19h8"/></svg>
+            <span>جمع کل:</span>
+            <strong data-dbk-total>۰ تومان</strong>
+          </div>
+        </div>
+
+        <div data-dbk-amount-wrap hidden>
+          <label class="dbk-field">
+            <span>مبلغ کل بدهی (تومان) <i class="req">*</i></span>
+            <div class="dbk-money">
+              <input type="text" name="total_toman" inputmode="numeric" placeholder="۰" data-dbk-amount autocomplete="off">
+              <span>تومان</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="dbk-grid-2">
+          <div class="dbk-field">
+            <span>سررسید پرداخت (اختیاری)</span>
+            <div class="dbk-datefield" data-jdp>
+              <button type="button" class="dbk-date-trigger" data-jdp-trigger aria-label="سررسید پرداخت">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+                <span data-jdp-label>بدون سررسید</span>
+                <svg class="dbk-date-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <input type="hidden" name="due_at" value="" data-jdp-value>
+              <div class="jdp-pop" data-jdp-pop hidden></div>
+            </div>
+          </div>
+          <label class="dbk-field">
+            <span>یادداشت کوتاه (اختیاری)</span>
+            <input type="text" name="note" placeholder="مثلاً: نسیه میز ۸" autocomplete="off">
+          </label>
+        </div>
+
+        <p class="dlg-error" data-dbk-error hidden></p>
+        <div class="dbk-modal-actions">
+          <button type="submit" class="btn btn-primary dbk-submit">ثبت بدهی</button>
+          <button type="button" class="btn btn-outline" data-dbk-cancel>انصراف</button>
+        </div>
+      </form>
+    </div>
   </div>
 
-  <!-- دیالوگ جزئیات بدهکار: اقلام سفارش، مبالغ، توضیحات و تاریخ/ساعت دقیق -->
-  <div class="dlg-overlay" id="dlg-debtor-detail">
-    <div class="dlg" role="dialog" aria-modal="true" dir="rtl">
-      <button type="button" class="dlg-close" onclick="closeDlg(this)" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="dlg-head">
-        <h3 class="dlg-title" id="dd-name">جزئیات بدهی</h3>
-        <p class="dlg-desc" id="dd-phone"></p>
+  <!-- الگوی ردیف آیتم: فقط با انتخاب از فهرست محصولات پر می‌شود (جستجوی محصول) -->
+  <template id="dbk-item-tpl">
+    <div class="dbk-item">
+      <div class="dbk-combo">
+        <input type="text" name="item_title" placeholder="مثلاً لاته یا کیک شکلاتی" autocomplete="off" data-dbk-item-title aria-label="نام محصول">
+        <input type="hidden" name="item_product_id" value="" data-dbk-item-id>
+        <div class="dbk-combo-pop" data-dbk-combo-pop hidden></div>
       </div>
-      <div class="defer-summary">
-        <div class="defer-total-row"><span>مانده بدهی:</span><strong id="dd-remaining"></strong></div>
-        <div class="defer-item"><span>مبلغ کل سفارش</span><strong id="dd-total"></strong></div>
-        <div class="defer-item"><span>پرداخت‌شده تا امروز</span><strong id="dd-paid"></strong></div>
+      <input type="text" name="item_qty" value="1" inputmode="numeric" data-dbk-item-qty aria-label="تعداد">
+      <div class="dbk-money">
+        <input type="text" name="item_price" inputmode="numeric" placeholder="۰" data-dbk-item-price aria-label="قیمت واحد به تومان">
+        <span>تومان</span>
       </div>
-      <label class="dlg-label">چه سفارش داده بود؟</label>
-      <p class="dd-box" id="dd-items">—</p>
-      <div class="dd-grid">
-        <div><label class="dlg-label">شماره سفارش</label><p class="dd-box" id="dd-order-number">—</p></div>
-        <div><label class="dlg-label">تاریخ و ساعت دقیق سفارش</label><p class="dd-box" id="dd-when">—</p></div>
-        <div><label class="dlg-label">سررسید پرداخت</label><p class="dd-box" id="dd-due">—</p></div>
-        <div><label class="dlg-label">سایر بدهی‌های این شخص</label><p class="dd-box" id="dd-other">ندارد</p></div>
+      <button type="button" class="dbk-remove" data-dbk-remove aria-label="حذف آیتم">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l.9 13h9.2l.9-13M10 11v5.5M14 11v5.5"/></svg>
+      </button>
+    </div>
+  </template>
+
+  <!-- دیالوگ جزئیات حساب: مستندات سفارش، مبالغ، سررسید، یادداشت و دفتر پرداخت‌ها -->
+  <div class="dlg-overlay" id="dbk-detail">
+    <div class="dlg-card dbk-detail-card" role="dialog" aria-modal="true" aria-labelledby="dbk-detail-title">
+      <button type="button" class="dlg-close" data-dbk-close aria-label="بستن">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="dbk-create-head">
+        <h3 id="dbk-detail-title" data-dbk-d-name>جزئیات حساب</h3>
+        <p data-dbk-d-sub></p>
       </div>
-      <label class="dlg-label">توضیحات ثبت‌شده</label>
-      <p class="dd-box" id="dd-note">—</p>
-      <div class="dlg-actions">
-        <button type="button" class="btn-dlg-cancel" onclick="closeDlg(this)">بستن</button>
+      <div class="dbk-summary">
+        <div><span>مانده بدهی</span><strong data-dbk-d-remaining></strong></div>
+        <div><span>مبلغ کل</span><strong data-dbk-d-total></strong></div>
+        <div><span>پرداخت‌شده</span><strong data-dbk-d-paid></strong></div>
+      </div>
+      <div class="dbk-detail-grid">
+        <div><span class="dbk-label">مستندات سفارش (سفارش چی بود؟)</span><p class="dbk-box" data-dbk-d-items>—</p></div>
+        <div><span class="dbk-label">شماره سفارش / تاریخ و ساعت</span><p class="dbk-box" data-dbk-d-when>—</p></div>
+        <div><span class="dbk-label">سررسید پرداخت</span><p class="dbk-box" data-dbk-d-due>—</p></div>
+        <div><span class="dbk-label">سایر بدهی‌های همین شخص</span><p class="dbk-box" data-dbk-d-other>ندارد</p></div>
+      </div>
+      <div><span class="dbk-label">یادداشت ثبت‌شده</span><p class="dbk-box" data-dbk-d-note>—</p></div>
+      <div>
+        <span class="dbk-label">دفتر پرداخت‌های این حساب</span>
+        <div class="dbk-pays" data-dbk-d-payments></div>
+      </div>
+      <div class="dbk-modal-actions">
+        <button type="button" class="btn btn-primary dbk-submit" data-dbk-d-pay-btn>ثبت پرداخت</button>
+        <button type="button" class="btn btn-outline" data-dbk-close>بستن</button>
       </div>
     </div>
   </div>
-  <script>
-    function debtorDetail(btn) {
-      function set(id, val) { document.getElementById(id).textContent = val || '—'; }
-      set('dd-name', btn.getAttribute('data-name'));
-      set('dd-phone', btn.getAttribute('data-phone'));
-      set('dd-items', btn.getAttribute('data-items'));
-      set('dd-order-number', btn.getAttribute('data-order-number'));
-      set('dd-when', btn.getAttribute('data-when'));
-      set('dd-total', btn.getAttribute('data-total'));
-      set('dd-paid', btn.getAttribute('data-paid'));
-      set('dd-remaining', btn.getAttribute('data-remaining'));
-      set('dd-due', btn.getAttribute('data-due'));
-      set('dd-note', btn.getAttribute('data-note'));
-      set('dd-other', btn.getAttribute('data-other') || 'ندارد');
-      openDlg('dlg-debtor-detail');
-    }
-  </script>
 
+  <!-- دیالوگ ثبت پرداخت: کامل یا مبلغ دلخواه با پیش‌نمایش مانده -->
+  <div class="dlg-overlay" id="dbk-pay">
+    <div class="dlg-card dbk-pay-card" role="dialog" aria-modal="true" aria-labelledby="dbk-pay-title">
+      <button type="button" class="dlg-close" data-dbk-close aria-label="بستن">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="dbk-create-head">
+        <h3 id="dbk-pay-title">ثبت پرداخت بدهی</h3>
+        <p data-dbk-p-name></p>
+      </div>
+      <form method="post" action="/local/debtor-pay{{if .DebtorFilterQuery}}?{{.DebtorFilterQuery}}{{end}}" hx-post="/local/debtor-pay{{if .DebtorFilterQuery}}?{{.DebtorFilterQuery}}{{end}}" hx-target="#main-view" class="dbk-form" id="dbk-pay-form" novalidate>
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="debtor_id" value="" data-dbk-p-id>
+        <input type="hidden" name="amount_irr" value="">
+        <div class="dbk-summary">
+          <div><span>مانده بدهی</span><strong data-dbk-p-remaining></strong></div>
+          <div><span>پس از این پرداخت</span><strong data-dbk-p-after>—</strong></div>
+        </div>
+        <label class="dbk-field">
+          <span>مبلغ پرداخت (تومان) <i class="req">*</i></span>
+          <div class="dbk-money">
+            <input type="text" name="amount_toman" inputmode="numeric" placeholder="۰" data-dbk-p-amount autocomplete="off">
+            <span>تومان</span>
+          </div>
+        </label>
+        <div class="dbk-chips">
+          <button type="button" class="dbk-chip" data-dbk-pct="25">۲۵٪</button>
+          <button type="button" class="dbk-chip" data-dbk-pct="50">۵۰٪</button>
+          <button type="button" class="dbk-chip" data-dbk-pct="100">تسویه کامل</button>
+        </div>
+        <label class="dbk-field">
+          <span>توضیح کوتاه (اختیاری)</span>
+          <input type="text" name="note" placeholder="مثلاً: کارت به کارت — پیگیری شد" autocomplete="off">
+        </label>
+        <p class="dlg-error" data-dbk-p-error hidden></p>
+        <div class="dbk-modal-actions">
+          <button type="submit" class="btn btn-primary dbk-submit">ثبت پرداخت</button>
+          <button type="button" class="btn btn-outline" data-dbk-close>انصراف</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  // داده صفحه (همان الگوی POS_SPLIT_BILLS): فهرست محصولات برای جستجو و یک ردیف
+  // کامل برای هر بدهی تا دیالوگ‌ها بدون درخواست اضافه کار کنند. با هر swap
+  // دوباره از سرور پر می‌شود.
+  window.DBK_DATA = { products: {{.DebtorProductsJSON}}, rows: {{.DebtorRowsJSON}} };
+  </script>
+  <script>
+  (function () {
+    // شنونده‌ها فقط یک‌بار روی document نصب می‌شوند و هر بار عناصر صفحه فعلی را
+    // زنده می‌خوانند؛ چون صفحه با htmx داخل #main-view جایگزین می‌شود، نگه‌داشتن
+    // ارجاع به عناصر قدیمی باعث می‌شد «افزودن آیتم» و جمع کل از کار بیفتد.
+    if (window.__dbkInstalled) {
+      // بعد از هر swap فقط ردیف پیش‌فرض و تقویم‌ها را از نو آماده می‌کنیم؛
+      // شنونده‌های نصب‌شده خودشان عناصر صفحه فعلی را زنده می‌خوانند.
+      if (window.__dbkRefresh) window.__dbkRefresh();
+      return;
+    }
+    if (!document.getElementById('dbk-create')) return;
+    window.__dbkInstalled = true;
+    window.__dbkRefresh = function () {
+      ensureDefaultRow();
+      if (window.initJalaliDatePickers) window.initJalaliDatePickers(document);
+    };
+
+    var FA = '۰۱۲۳۴۵۶۷۸۹';
+    function faDigits(s) { return String(s == null ? '' : s).replace(/[0-9]/g, function (d) { return FA[Number(d)]; }); }
+    function enDigits(s) { return String(s == null ? '' : s).replace(/[۰-۹]/g, function (d) { return '0123456789'[FA.indexOf(d)]; }); }
+    function numOf(s) { var n = Number(enDigits(s).replace(/[^\d]/g, '')); return isFinite(n) ? n : 0; }
+    function groupFa(n) { return faDigits(String(Math.max(0, Math.round(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',')); }
+    function tomanFa(n) { return groupFa(n) + ' تومان'; }
+    function $(sel) { return document.querySelector(sel); }
+    // داده JSON صفحه؛ با هر swap تازه از سرور می‌آید و اینجا فقط خوانده می‌شود.
+    function blob() {
+      var data = window.DBK_DATA || {};
+      return { products: Array.isArray(data.products) ? data.products : [], rows: Array.isArray(data.rows) ? data.rows : [] };
+    }
+    function products() { return blob().products; }
+    function rowByID(id) {
+      var rows = blob().rows;
+      for (var i = 0; i < rows.length; i++) if (rows[i] && rows[i].id === id) return rows[i];
+      return null;
+    }
+    function escapeHTML(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function rowsBox() { return $('[data-dbk-rows]'); }
+    function totalEl() { return $('[data-dbk-total]'); }
+    function createForm() { return document.getElementById('dbk-create-form'); }
+    function payForm() { return document.getElementById('dbk-pay-form'); }
+
+    function openOverlay(id) {
+      if (typeof window.openDlg === 'function') { window.openDlg(id); return; }
+      var el = document.getElementById(id);
+      if (el) el.classList.add('open');
+    }
+    function closeOverlay(el) {
+      var box = el && el.closest ? el.closest('.dlg-overlay') : null;
+      if (box) box.classList.remove('open');
+    }
+
+    // ── نوع حساب (شخصی / شرکتی) و روش ثبت (آیتم / مبلغ کل) ──
+    function setKind(kind) {
+      var kindInput = $('[data-dbk-kind]');
+      if (kindInput) kindInput.value = kind;
+      var tabs = document.querySelectorAll('[data-dbk-tab]');
+      for (var i = 0; i < tabs.length; i++) {
+        var on = tabs[i].getAttribute('data-dbk-tab') === kind;
+        tabs[i].classList.toggle('is-active', on);
+        tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
+      }
+      var personalBox = $('[data-dbk-personal]');
+      var companyBox = $('[data-dbk-company]');
+      if (personalBox) personalBox.hidden = kind !== 'personal';
+      if (companyBox) companyBox.hidden = kind !== 'company';
+    }
+    function setMode(mode) {
+      var modeInput = $('[data-dbk-mode-input]');
+      if (modeInput) modeInput.value = mode;
+      var btns = document.querySelectorAll('[data-dbk-mode]');
+      for (var i = 0; i < btns.length; i++) {
+        var on = btns[i].getAttribute('data-dbk-mode') === mode;
+        btns[i].classList.toggle('is-active', on);
+        btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
+      }
+      var itemsWrap = $('[data-dbk-items-wrap]');
+      var amountWrap = $('[data-dbk-amount-wrap]');
+      if (itemsWrap) itemsWrap.hidden = mode !== 'items';
+      if (amountWrap) amountWrap.hidden = mode !== 'amount';
+    }
+
+    // ── ردیف‌های آیتم + جمع کل ──
+    function rowTotal(row) {
+      var qtyEl = row.querySelector('[data-dbk-item-qty]');
+      var priceEl = row.querySelector('[data-dbk-item-price]');
+      return (numOf(qtyEl ? qtyEl.value : '') || 0) * (numOf(priceEl ? priceEl.value : '') || 0);
+    }
+    function syncTotal() {
+      var sum = 0;
+      var box = rowsBox();
+      if (box) {
+        var rows = box.querySelectorAll('.dbk-item');
+        for (var i = 0; i < rows.length; i++) sum += rowTotal(rows[i]);
+      }
+      var el = totalEl();
+      if (el) el.textContent = tomanFa(sum);
+    }
+    function fillItem(row, product) {
+      if (!row) return;
+      var title = row.querySelector('[data-dbk-item-title]');
+      var id = row.querySelector('[data-dbk-item-id]');
+      var price = row.querySelector('[data-dbk-item-price]');
+      if (title) title.value = product.title || '';
+      if (id) id.value = product.id || '';
+      if (price) price.value = groupFa(Number(product.price || 0));
+    }
+    function addItem(product) {
+      var box = rowsBox();
+      var tpl = document.getElementById('dbk-item-tpl');
+      if (!box || !tpl) return null;
+      var row = tpl.content.cloneNode(true).querySelector('.dbk-item');
+      box.appendChild(row);
+      if (product) fillItem(row, product);
+      syncTotal();
+      return row;
+    }
+    function ensureDefaultRow() {
+      var box = rowsBox();
+      if (box && !box.querySelector('.dbk-item')) addItem(null);
+    }
+    function removeItem(btn) {
+      var row = btn.closest('.dbk-item');
+      if (row && row.parentNode) row.parentNode.removeChild(row);
+      syncTotal();
+    }
+
+    // ── جستجوی محصول از فهرست واقعی محصولات ──
+    function closeCombos(except) {
+      var pops = document.querySelectorAll('[data-dbk-combo-pop]');
+      for (var i = 0; i < pops.length; i++) if (pops[i] !== except) pops[i].hidden = true;
+    }
+    function renderCombo(input) {
+      var row = input.closest('.dbk-item');
+      var pop = row ? row.querySelector('[data-dbk-combo-pop]') : null;
+      if (!pop) return;
+      var q = String(input.value || '').trim().toLowerCase();
+      var all = products();
+      var list = [];
+      for (var j = 0; j < all.length && list.length < 60; j++) {
+        var p = all[j] || {};
+        if (!q || String(p.title || '').toLowerCase().indexOf(q) >= 0) list.push(p);
+      }
+      var html = '';
+      for (var i = 0; i < list.length; i++) {
+        html += '<button type="button" class="dbk-combo-item" data-dbk-product="' + i + '">' +
+          '<span class="dbk-combo-title">' + escapeHTML(list[i].title) + '</span>' +
+          '<span class="dbk-combo-price">' + tomanFa(list[i].price) + '</span>' +
+          '</button>';
+      }
+      if (!list.length) html = '<p class="dbk-combo-empty">محصولی با این نام پیدا نشد؛ نام را تغییر دهید.</p>';
+      pop.innerHTML = html;
+      pop.__dbkList = list;
+      pop.hidden = false;
+    }
+
+    // ── دیالوگ‌ها ──
+    window.dbkOpenCreate = function () {
+      var form = createForm();
+      if (form) {
+        form.reset();
+        setKind('personal');
+        setMode('items');
+        var box = rowsBox();
+        if (box) box.innerHTML = '';
+        addItem(null);
+        var err = form.querySelector('[data-dbk-error]');
+        if (err) { err.hidden = true; err.textContent = ''; }
+        var jdp = form.querySelector('[data-jdp]');
+        if (jdp && window.resetJalaliDatePicker) window.resetJalaliDatePicker(jdp);
+      }
+      openOverlay('dbk-create');
+      var first = $('#dbk-create-form [name="full_name"]');
+      if (first) setTimeout(function () { first.focus(); }, 60);
+    };
+
+    function fillDetail(row) {
+      function set(sel, val) {
+        var el = document.querySelector(sel);
+        if (el) el.textContent = val || '—';
+      }
+      set('[data-dbk-d-name]', row.name);
+      set('[data-dbk-d-sub]', [row.phone, row.account, row.group, row.status].filter(Boolean).join(' • '));
+      set('[data-dbk-d-remaining]', row.remaining);
+      set('[data-dbk-d-total]', row.total);
+      set('[data-dbk-d-paid]', row.paid);
+      set('[data-dbk-d-items]', row.items || 'فقط مبلغ کل بدهی');
+      set('[data-dbk-d-when]', [row.order_number ? 'سفارش ' + faDigits(row.order_number) : '', row.when].filter(Boolean).join(' • ') || '—');
+      set('[data-dbk-d-due]', row.due || 'بدون سررسید');
+      set('[data-dbk-d-other]', row.other || 'ندارد');
+      set('[data-dbk-d-note]', row.note || '—');
+      var pays = document.querySelector('[data-dbk-d-payments]');
+      if (pays) {
+        if (!row.payments || !row.payments.length) {
+          pays.innerHTML = '<p class="dbk-box">هنوز پرداختی برای این حساب ثبت نشده است.</p>';
+        } else {
+          var html = '';
+          for (var i = 0; i < row.payments.length; i++) {
+            var p = row.payments[i] || {};
+            html += '<div class="dbk-pay-row"><strong>' + escapeHTML(p.amount) + '</strong><span>' + escapeHTML(p.date) + '</span>' +
+              (p.note ? '<small>' + escapeHTML(p.note) + '</small>' : '') + '</div>';
+          }
+          pays.innerHTML = html;
+        }
+      }
+      var payBtn = document.querySelector('[data-dbk-d-pay-btn]');
+      if (payBtn) {
+        payBtn.hidden = row.status_key === 'paid';
+        payBtn.onclick = function () { closeOverlay(payBtn); openPay(row.id); };
+      }
+    }
+    function openDetail(id) {
+      var row = rowByID(id);
+      if (!row) return;
+      fillDetail(row);
+      openOverlay('dbk-detail');
+    }
+    function syncPay() {
+      var form = payForm();
+      if (!form || !form.__dbkRow) return;
+      var row = form.__dbkRow;
+      var remainToman = Math.round(Number(row.remaining_irr || 0) / 10);
+      var input = form.querySelector('[data-dbk-p-amount]');
+      var amount = numOf(input ? input.value : '');
+      var afterEl = form.querySelector('[data-dbk-p-after]');
+      var remEl = form.querySelector('[data-dbk-p-remaining]');
+      if (remEl) remEl.textContent = row.remaining;
+      if (afterEl) afterEl.textContent = amount > 0 ? tomanFa(Math.max(0, remainToman - amount)) : '—';
+    }
+    function openPay(id) {
+      var row = rowByID(id);
+      var form = payForm();
+      if (!row || !form) return;
+      form.reset();
+      form.__dbkRow = row;
+      var idEl = form.querySelector('[data-dbk-p-id]');
+      if (idEl) idEl.value = row.id;
+      var sub = form.querySelector('[data-dbk-p-name]');
+      if (sub) sub.textContent = row.name + (row.remaining ? ' — مانده ' + row.remaining : '');
+      var err = form.querySelector('[data-dbk-p-error]');
+      if (err) { err.hidden = true; err.textContent = ''; }
+      var amountEl = form.querySelector('[data-dbk-p-amount]');
+      if (amountEl) amountEl.value = '';
+      syncPay();
+      openOverlay('dbk-pay');
+      if (amountEl) setTimeout(function () { amountEl.focus(); }, 60);
+    }
+
+    // ── شنونده‌های سراسری (یک‌بار) ──
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest) return;
+      var closer = e.target.closest('[data-dbk-close]');
+      if (closer) { closeOverlay(closer); return; }
+      var tab = e.target.closest('[data-dbk-tab]');
+      if (tab) { setKind(tab.getAttribute('data-dbk-tab')); return; }
+      var mb = e.target.closest('[data-dbk-mode]');
+      if (mb) { setMode(mb.getAttribute('data-dbk-mode')); return; }
+      var rm = e.target.closest('[data-dbk-remove]');
+      if (rm) { removeItem(rm); return; }
+      var add = e.target.closest('[data-dbk-add]');
+      if (add) {
+        var row = addItem(null);
+        if (row) { var t = row.querySelector('[data-dbk-item-title]'); if (t) t.focus(); }
+        return;
+      }
+      var pick = e.target.closest('[data-dbk-product]');
+      if (pick) {
+        var pop = pick.closest('[data-dbk-combo-pop]');
+        var list = (pop && pop.__dbkList) || [];
+        var product = list[Number(pick.getAttribute('data-dbk-product'))];
+        var itemRow = pick.closest('.dbk-item');
+        if (itemRow && product) {
+          fillItem(itemRow, product);
+          if (pop) pop.hidden = true;
+          syncTotal();
+          var qty = itemRow.querySelector('[data-dbk-item-qty]');
+          if (qty) qty.focus();
+        }
+        return;
+      }
+      var pct = e.target.closest('[data-dbk-pct]');
+      if (pct) {
+        var form = payForm();
+        if (!form || !form.__dbkRow) return;
+        var remainToman = Math.round(Number(form.__dbkRow.remaining_irr || 0) / 10);
+        var p = Number(pct.getAttribute('data-dbk-pct')) || 0;
+        var amountEl = form.querySelector('[data-dbk-p-amount]');
+        if (amountEl) amountEl.value = groupFa(Math.round(remainToman * p / 100));
+        syncPay();
+        return;
+      }
+      var det = e.target.closest('[data-dbk-detail]');
+      if (det) { openDetail(det.getAttribute('data-dbk-detail')); return; }
+      var pay = e.target.closest('[data-dbk-pay]');
+      if (pay) { openPay(pay.getAttribute('data-dbk-pay')); return; }
+      var openCreate = e.target.closest('[data-dbk-create-open]');
+      if (openCreate) { window.dbkOpenCreate(); return; }
+      if (!e.target.closest('.dbk-combo')) closeCombos(null);
+    });
+
+    document.addEventListener('input', function (e) {
+      var t = e.target;
+      if (!t || !t.matches) return;
+      if (t.matches('[data-dbk-item-title]')) { renderCombo(t); return; }
+      if (t.matches('[data-dbk-item-qty]') || t.matches('[data-dbk-item-price]')) { syncTotal(); return; }
+      if (t.matches('[data-dbk-p-amount]')) { syncPay(); return; }
+    });
+    document.addEventListener('focusin', function (e) {
+      var t = e.target;
+      if (t && t.matches && t.matches('[data-dbk-item-title]')) renderCombo(t);
+    });
+
+    // ── اعتبارسنجی سمت کاربر پیش از ارسال (همان پیام‌های وب) ──
+    // فاز capture: htmx شنونده submit را روی خود فرم دارد و باید *بعد* از
+    // اعتبارسنجی اجرا شود، وگرنه فرم نامعتبر هم ارسال می‌شود.
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form || !form.id) return;
+      if (form.id === 'dbk-create-form') {
+        var err = form.querySelector('[data-dbk-error]');
+        function fail(msg) {
+          e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          if (err) { err.hidden = false; err.textContent = msg; }
+          return false;
+        }
+        if (err) { err.hidden = true; }
+        var kindEl = $('[data-dbk-kind]');
+        var kind = kindEl ? kindEl.value : 'personal';
+        if (kind === 'personal') {
+          var nameEl = form.querySelector('[name="full_name"]');
+          var phoneEl = form.querySelector('[name="phone"]');
+          var name = nameEl ? nameEl.value.trim() : '';
+          var phone = enDigits(phoneEl ? phoneEl.value : '').replace(/\D/g, '');
+          if (name.length < 2) return fail('نام مشتری را وارد کنید.');
+          if (phone.length < 10) return fail('شماره موبایل معتبر وارد کنید.');
+        }
+        var modeEl = $('[data-dbk-mode-input]');
+        var mode = modeEl ? modeEl.value : 'items';
+        var amountInput = $('[data-dbk-amount]');
+        if (mode === 'amount') {
+          if (numOf(amountInput ? amountInput.value : '') <= 0) return fail('مبلغ کل بدهی را به تومان وارد کنید.');
+        } else {
+          var box = rowsBox();
+          var rows = box ? box.querySelectorAll('.dbk-item') : [];
+          var valid = 0;
+          for (var i = 0; i < rows.length; i++) {
+            var titleEl = rows[i].querySelector('[data-dbk-item-title]');
+            var priceEl = rows[i].querySelector('[data-dbk-item-price]');
+            var title = titleEl ? titleEl.value.trim() : '';
+            var price = numOf(priceEl ? priceEl.value : '');
+            if (!title) continue;
+            if (price <= 0) return fail('برای هر آیتم، قیمت واحد را وارد کنید.');
+            valid++;
+          }
+          if (!valid) return fail('حداقل یک آیتم از فهرست محصولات اضافه کنید یا حالت «فقط مبلغ کل بدهی» را انتخاب کنید.');
+          // مبالغ با ارقام لاتین و بدون جداکننده به سرور می‌روند.
+          for (var j = 0; j < rows.length; j++) {
+            var pEl = rows[j].querySelector('[data-dbk-item-price]');
+            if (pEl) pEl.value = String(numOf(pEl.value));
+            var qEl = rows[j].querySelector('[data-dbk-item-qty]');
+            if (qEl) qEl.value = String(numOf(qEl.value) || 1);
+          }
+        }
+        if (amountInput) amountInput.value = String(numOf(amountInput.value));
+        return true;
+      }
+      if (form.id === 'dbk-pay-form') {
+        var pErr = form.querySelector('[data-dbk-p-error]');
+        var payInput = form.querySelector('[data-dbk-p-amount]');
+        var amount = numOf(payInput ? payInput.value : '');
+        if (amount <= 0) {
+          e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          if (pErr) { pErr.hidden = false; pErr.textContent = 'مبلغ پرداخت باید بزرگ‌تر از صفر باشد.'; }
+          return false;
+        }
+        if (pErr) { pErr.hidden = true; }
+        if (payInput) payInput.value = String(amount);
+        return true;
+      }
+    }, true);
+
+    // ردیف پیش‌فرض آیتم پس از هر بار جایگزینی صفحه (htmx یا بارگذاری کامل).
+    document.addEventListener('htmx:afterSwap', function () {
+      if (document.getElementById('dbk-create')) ensureDefaultRow();
+    });
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { window.__dbkRefresh(); });
+    } else {
+      window.__dbkRefresh();
+    }
+  })();
+  </script>
 {{else if eq .Page "finance"}}
   <!-- حساب و گزارش — ساختار accounting وب: تب‌های نمای کلی/هزینه‌ها/اسناد حسابداری/حساب‌ها/سود و زیان -->
   <div class="waste-head">
