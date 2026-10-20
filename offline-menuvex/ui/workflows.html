@@ -170,9 +170,11 @@
             {{range .POSGroups}}
             <div class="pos-ghead" data-ghead="{{.ID}}"><strong>{{.Label}}</strong><span></span></div>
             {{range .Products}}
-            <article class="pos-tile-card" data-cat="{{.Field "category_id"}}" data-title="{{.Label}}" data-id="{{.ID}}" data-price="{{.PriceIRR}}" data-img="{{.Field "image"}}" onclick="posTileAdd(this)" onkeydown="posTileKey(event, this)" tabindex="0" role="button" aria-label="افزودن {{.Label}}">
+            {{$avail := index $.POSStock .ID}}
+            <article class="pos-tile-card{{if $avail.Out}} is-out{{end}}" data-cat="{{.Field "category_id"}}" data-title="{{.Label}}" data-id="{{.ID}}" data-price="{{.PriceIRR}}" data-img="{{.Field "image"}}" data-out="{{if $avail.Out}}1{{end}}" data-portions="{{$avail.Portions}}" data-missing="{{$avail.Missing}}" onclick="posTileAdd(this)" onkeydown="posTileKey(event, this)" tabindex="0" role="button" aria-label="{{if $avail.Out}}{{.Label}} ناموجود است{{else}}افزودن {{.Label}}{{end}}" aria-disabled="{{if $avail.Out}}true{{else}}false{{end}}">
               <div class="pos-tile-photo">
                 {{if .Field "image"}}<img src="{{.Field "image"}}" alt="{{.Label}}">{{else}}<span class="pos-tile-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17.5l5-4.5 4 3.5 3-2.8 4 3.8"/></svg></span>{{end}}
+                {{if $avail.Out}}<span class="pos-tile-out"{{if $avail.Missing}} title="کمبود: {{$avail.Missing}}"{{end}}>ناموجود</span>{{else if and (gt $avail.Portions 0) (le $avail.Portions 5)}}<span class="pos-tile-low" title="موجودی محدود مواد اولیه">تا {{faInt $avail.Portions}} پرس</span>{{end}}
                 <span class="pos-tile-badge" data-badge-for="{{.ID}}" hidden>۰</span>
               </div>
               <div class="pos-tile-body">
@@ -715,10 +717,30 @@
       window.posCart.push({ id: id, title: title, price: price, qty: 1, note: '', img: img || '' });
       posRenderCart();
     }
+    // سقف تعداد قابل ثبت برای یک محصول بر پایه موجودی مواد اولیه (رسپی).
+    // data-portions = -1 یعنی رسپی ندارد و محدودیتی از سمت انبار نیست.
+    function posTileLimit(el) {
+      var raw = el ? el.getAttribute('data-portions') : null;
+      if (raw === null || raw === '') return -1;
+      var n = Number(raw);
+      return isNaN(n) ? -1 : n;
+    }
     // کلیک روی کل کارت محصول (مانند وب) = افزودن به سبد
     function posTileAdd(el) {
       if (!el) return;
-      posAddToCart(el.getAttribute('data-id'), el.getAttribute('data-title'), el.getAttribute('data-price'), el.getAttribute('data-img'));
+      var id = el.getAttribute('data-id');
+      var title = el.getAttribute('data-title') || 'این محصول';
+      if (el.getAttribute('data-out') === '1') {
+        var missing = el.getAttribute('data-missing') || '';
+        posToast('«' + title + '» ناموجود است' + (missing ? ' — کمبود ' + missing : '') + '؛ تا شارژ انبار قابل ثبت نیست.');
+        return;
+      }
+      var limit = posTileLimit(el);
+      if (limit >= 0 && posCartQty(id) >= limit) {
+        posToast('موجودی «' + title + '» کافی نیست؛ حداکثر ' + toFaDigits(String(limit)) + ' عدد قابل ثبت است.');
+        return;
+      }
+      posAddToCart(id, title, el.getAttribute('data-price'), el.getAttribute('data-img'));
     }
     function posTileKey(e, el) {
       if (e.target !== el) return;
@@ -736,6 +758,16 @@
     }
     function posChangeQty(idx, delta) {
       if (!window.posCart[idx]) return;
+      if (delta > 0) {
+        // همان سقف «موجودی مواد اولیه» برای دکمهٔ + داخل سبد هم اعمال می‌شود.
+        var line = window.posCart[idx];
+        var tile = document.querySelector('.pos-tile-card[data-id="' + line.id + '"]');
+        var limit = tile ? posTileLimit(tile) : -1;
+        if (limit >= 0 && line.qty + delta > limit) {
+          posToast('موجودی «' + (line.title || 'این محصول') + '» کافی نیست؛ حداکثر ' + toFaDigits(String(limit)) + ' عدد قابل ثبت است.');
+          return;
+        }
+      }
       window.posCart[idx].qty += delta;
       if (window.posCart[idx].qty <= 0) window.posCart.splice(idx, 1);
       posRenderCart();
@@ -2188,7 +2220,7 @@
                 {{range $.Ingredients}}<option value="{{.ID}}" data-unit-label="{{.UnitLabel}}" {{if eq .ID $line.IngredientID}}selected{{end}}>{{.Label}} ({{.UnitLabel}})</option>{{end}}
               </select>
               <span class="pf-qty-wrap">
-                <input name="recipe_quantity" class="pf-recipe-qty" type="number" min="0" step="0.01" inputmode="decimal" value="{{$line.Quantity}}" placeholder="مقدار" oninput="pfRecipeSync()">
+                <input name="recipe_quantity" class="pf-recipe-qty" type="text" inputmode="decimal" autocomplete="off" dir="ltr" value="{{$line.Quantity}}" placeholder="مثلاً ۵۰" oninput="pfRecipeSync()">
                 <span class="pf-unit-badge">{{unitLabel $line.Unit}}</span>
               </span>
               <button type="button" class="btn btn-subtle btn-sm danger" onclick="pfRecipeDel(this)">حذف</button>
@@ -2200,7 +2232,7 @@
                 {{range $.Ingredients}}<option value="{{.ID}}" data-unit-label="{{.UnitLabel}}">{{.Label}} ({{.UnitLabel}})</option>{{end}}
               </select>
               <span class="pf-qty-wrap">
-                <input name="recipe_quantity" class="pf-recipe-qty" type="number" min="0" step="0.01" inputmode="decimal" placeholder="مقدار" oninput="pfRecipeSync()">
+                <input name="recipe_quantity" class="pf-recipe-qty" type="text" inputmode="decimal" autocomplete="off" dir="ltr" placeholder="مثلاً ۵۰" oninput="pfRecipeSync()">
                 <span class="pf-unit-badge">واحد</span>
               </span>
               <button type="button" class="btn btn-subtle btn-sm danger" onclick="pfRecipeDel(this)">حذف</button>
@@ -2283,7 +2315,7 @@
       div.className = 'pf-recipe-line';
       div.innerHTML =
         '<select name="recipe_ingredient_id" class="pf-recipe-ing" onchange="pfRecipeSync()">' + pfRecipeOptionsHTML() + '</select>' +
-        '<span class="pf-qty-wrap"><input name="recipe_quantity" class="pf-recipe-qty" type="number" min="0" step="0.01" inputmode="decimal" placeholder="مقدار" oninput="pfRecipeSync()">' +
+        '<span class="pf-qty-wrap"><input name="recipe_quantity" class="pf-recipe-qty" type="text" inputmode="decimal" autocomplete="off" dir="ltr" placeholder="مثلاً ۵۰" oninput="pfRecipeSync()">' +
         '<span class="pf-unit-badge">واحد</span></span>' +
         '<button type="button" class="btn btn-subtle btn-sm danger" onclick="pfRecipeDel(this)">حذف</button>';
       wrap.appendChild(div);
@@ -2294,6 +2326,17 @@
       btn.closest('.pf-recipe-line').remove();
       pfRecipeSync();
     }
+    // مقدار رسپی ممکن است با جداکننده هزارگان یا ارقام فارسی نوشته شود؛
+    // برای محاسبه و ارسال، همیشه به عدد انگلیسی تمیز تبدیل می‌شود.
+    function pfRecipeQty(raw) {
+      var s = String(raw == null ? '' : raw)
+        .replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+        .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+        .replace(/[٬,\s]/g, '')
+        .replace(/٫/g, '.');
+      var n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    }
     function pfRecipeSync() {
       var hasRecipe = false;
       document.querySelectorAll('#pf-recipe-lines .pf-recipe-line').forEach(function (line) {
@@ -2302,7 +2345,7 @@
         var badge = line.querySelector('.pf-unit-badge');
         var opt = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
         if (badge) badge.textContent = (opt && opt.getAttribute('data-unit-label')) || 'واحد';
-        if (sel && sel.value && qty && parseFloat(qty.value) > 0) hasRecipe = true;
+        if (sel && sel.value && qty && pfRecipeQty(qty.value) > 0) hasRecipe = true;
       });
       var stock = document.getElementById('pf-stock');
       var note = document.getElementById('pf-stock-note');
@@ -2435,7 +2478,7 @@
   <section class="prod-toolbar-card">
     <div class="prod-toolbar-text">
       <h2>مدیریت انبار</h2>
-      <p>کنترل موجودی، هشدار کمبود، ثبت ورود و خروج و مدیریت اقلام مصرفی کافه. <span class="meta-chip">کل اقلام: {{faInt .InvTotal}}</span> <span class="meta-chip">کم‌موجودی: {{faInt .InvLow}}</span></p>
+      <p>کنترل موجودی، هشدار کمبود، ثبت ورود و خروج و مدیریت اقلام مصرفی کافه. <span class="meta-chip">کل اقلام: {{faInt .InvTotal}}</span> <span class="meta-chip">کم‌موجودی: {{faInt .InvLow}}</span>{{if .InvNegative}} <span class="meta-chip meta-chip-danger">موجودی منفی: {{faInt .InvNegative}}</span>{{end}}</p>
     </div>
     <div class="prod-toolbar-actions">
       <a href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">بازنشانی</a>
@@ -2450,7 +2493,7 @@
   </section>
 
   <section class="prod-stats">
-    <article class="prod-stat"><span class="stat-tile danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5l5 5m0-5l-5 5"/></svg></span><div><p>پایان‌یافته</p><strong>{{faInt .InvOut}} قلم</strong><small>نیازمند اقدام فوری</small></div></article>
+    <article class="prod-stat"><span class="stat-tile danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5l5 5m0-5l-5 5"/></svg></span><div><p>پایان‌یافته</p><strong>{{faInt .InvOut}} قلم</strong><small>{{if .InvNegative}}{{faInt .InvNegative}} قلم موجودی منفی دارد{{else}}نیازمند اقدام فوری{{end}}</small></div></article>
     <article class="prod-stat"><span class="stat-tile warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9m8 10V5m8 14v-8"/></svg></span><div><p>در آستانه اتمام</p><strong>{{faInt .InvEndingSoon}} قلم</strong><small>در ۳۰ روز آینده</small></div></article>
     <article class="prod-stat"><span class="stat-tile warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4L21 20H3z"/><path d="M12 10v4.5m0 2.5v.01"/></svg></span><div><p>اقلام کم موجودی</p><strong>{{faInt .InvLow}} قلم</strong><small>در نقطه سفارش</small></div></article>
     <article class="prod-stat"><span class="stat-tile info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10m2.8-8.2c-.6-.5-1.6-.8-2.8-.8-1.9 0-3.2 1-3.2 2.2 0 3 6.4 1.6 6.4 4.4 0 1.3-1.5 2.4-3.2 2.4-1.3 0-2.4-.4-3.1-1"/></svg></span><div><p>ارزش کل موجودی</p><strong>{{.InvValueToman}}</strong><small>بر پایه میانگین موزون بهای تمام‌شده</small></div></article>
@@ -2476,6 +2519,7 @@
         <option value="in" {{if eq .InvStatus "in"}}selected{{end}}>موجود</option>
         <option value="low" {{if eq .InvStatus "low"}}selected{{end}}>کم‌موجودی</option>
         <option value="out" {{if eq .InvStatus "out"}}selected{{end}}>پایان‌یافته</option>
+        <option value="negative" {{if eq .InvStatus "negative"}}selected{{end}}>موجودی منفی (کمبود انبار)</option>
       </select>
       <select name="isort" aria-label="مرتب‌سازی">
         <option value="" {{if eq .InvSort ""}}selected{{end}}>آخرین بروزرسانی</option>
@@ -2499,10 +2543,10 @@
             <thead><tr><th>قلم</th><th>موقعیت</th><th>موجودی</th><th>وضعیت</th><th>ارزش موجودی</th><th>عملیات</th></tr></thead>
             <tbody>
               {{range .InvRows}}
-              <tr>
+              <tr{{if .Negative}} class="inv-row-negative"{{end}}>
                 <td><div class="prod-name">{{if .Entity.Field "image"}}<img src="{{.Entity.Field "image"}}" alt="{{.Entity.Label}}" class="prod-thumb">{{else}}<span class="prod-thumb prod-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>{{end}}<div><strong>{{.Entity.Label}}</strong><small>{{if .Entity.Field "sku"}}کد {{.Entity.Field "sku"}} • {{end}}{{.Category}}</small></div></div></td>
                 <td>{{.Location}}</td>
-                <td><strong class="stock-number">{{.StockDisplay}}</strong><small class="row-sub">حداقل: {{faNum (.Entity.Field "minimum_stock")}}</small></td>
+                <td><strong class="stock-number{{if .Negative}} is-negative{{end}}"><bdi dir="ltr">{{.StockDisplay}}</bdi></strong>{{if .Negative}}<span class="inv-neg-chip">منفی</span>{{end}}<small class="row-sub">حداقل: {{faNum (.Entity.Field "minimum_stock")}}</small></td>
                 <td><span class="badge {{if eq .StatusKey "in"}}status-ok{{else if eq .StatusKey "low"}}status-warn{{else}}status-danger{{end}}">{{.StatusText}}</span></td>
                 <td>{{.ValueToman}}</td>
                 <td>
@@ -2719,7 +2763,7 @@
           <p class="hint-text">اقلامی که باید سریع‌تر سفارش‌گذاری شوند</p>
           {{if .InvAlerts}}
           <div class="mini-list">
-            {{range .InvAlerts}}<div class="mini-row"><strong>{{.Entity.Label}}</strong><small>{{.StockDisplay}} • <span class="badge {{if eq .StatusKey "out"}}status-danger{{else}}status-warn{{end}}">{{.StatusText}}</span></small></div>{{end}}
+            {{range .InvAlerts}}<div class="mini-row{{if .Negative}} mini-row-negative{{end}}"><strong>{{.Entity.Label}}</strong><small><bdi dir="ltr">{{.StockDisplay}}</bdi> • <span class="badge {{if or (eq .StatusKey "out") (eq .StatusKey "negative")}}status-danger{{else}}status-warn{{end}}">{{.StatusText}}</span></small></div>{{end}}
           </div>
           {{else}}<p class="empty-text">هشدار فعالی وجود ندارد.</p>{{end}}
         </section>

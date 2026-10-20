@@ -135,6 +135,9 @@ type View struct {
 
 	POSFormToken        string
 	POSGroups           []POSGroup
+	// POSStock موجودی قابل تهیهٔ هر محصول (از رسپی) است؛ کارت‌های «ناموجود»
+	// صندوق از همین نقشه ساخته می‌شوند و ثبت سفارش هم سمت سرور کنترل می‌شود.
+	POSStock map[string]store.ProductPortion
 	POSTables           []POSTableRow
 	POSRecent           []POSRecentRow
 	POSLastOrderID      string
@@ -246,6 +249,7 @@ type View struct {
 	InvTotal                            int
 	InvOut                              int
 	InvLow                              int
+	InvNegative                         int
 	InvEndingSoon                       int
 	InvValueToman                       string
 	InvCategories                       []string
@@ -478,10 +482,16 @@ func (a *Application) fillDashboard(v *View, r *http.Request) {
 			if len(v.DashLowItems) < 4 {
 				stock, _ := strconv.ParseFloat(ing.Field("current_stock"), 64)
 				key := "low"
-				if stock <= 0 {
+				if stock < 0 {
+					key = "negative"
+				} else if stock == 0 {
 					key = "out"
 				}
-				v.DashLowItems = append(v.DashLowItems, InvRow{Entity: ing, StatusKey: key, StockDisplay: store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64)) + " " + ing.UnitLabel()})
+				stockText := store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64))
+				if stock < 0 {
+					stockText = "−" + strings.TrimPrefix(stockText, "-")
+				}
+				v.DashLowItems = append(v.DashLowItems, InvRow{Entity: ing, Negative: stock < 0, StatusKey: key, StockDisplay: stockText + " " + ing.UnitLabel()})
 			}
 		}
 	}
@@ -1977,6 +1987,9 @@ func normalizeNumInput(v string) string {
 			b.WriteRune('0' + (r - '۰'))
 		case r >= '٠' && r <= '٩':
 			b.WriteRune('0' + (r - '٠'))
+		case r == '٫':
+			// ممیز فارسی (U+066B) — برای ParseFloat به نقطه تبدیل می‌شود.
+			b.WriteRune('.')
 		case r == ' ' || r == '‌':
 		default:
 			b.WriteRune(r)
@@ -2007,7 +2020,8 @@ type ProductRow struct {
 // InvRow ردیف لیست موجودی هم‌تراز با جدول انبار داشبورد وب.
 type InvRow struct {
 	Entity       store.Entity
-	StatusKey    string // in | low | out
+	StatusKey    string // in | low | out | negative
+	Negative     bool   // موجودی زیر صفر است (کمبود واقعی انبار)
 	StockDisplay string
 	ValueToman   string
 	Location     string
@@ -2027,6 +2041,8 @@ type InvCategoryRow struct {
 // StatusText برچسب وضعیت موجودی قلم انبار مانند نسخه وب.
 func (r InvRow) StatusText() string {
 	switch r.StatusKey {
+	case "negative":
+		return "موجودی منفی"
 	case "low":
 		return "کم‌موجودی"
 	case "out":
@@ -2384,6 +2400,24 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		}
 		v.Categories, _ = a.store.Entities(ctx, "category")
 		v.Products, _ = a.store.Entities(ctx, "product")
+		// «ناموجودی» صندوق: محصولی که مواد اولیهٔ رسپی‌اش در انبار کافی نیست
+		// (یا مستقیم غیرفعال/بدون موجودی است) نباید قابل افزودن به سبد باشد.
+		v.POSStock = a.store.ProductPortions(ctx)
+		for _, pr := range v.Products {
+			// پیش‌فرض: بدون رسپی = بدون محدودیت مواد اولیه.
+			if _, seen := v.POSStock[pr.ID]; !seen {
+				v.POSStock[pr.ID] = store.ProductPortion{Portions: -1}
+			}
+			if pr.Field("is_available") == "false" || strings.EqualFold(pr.Field("status"), "inactive") {
+				v.POSStock[pr.ID] = store.ProductPortion{Portions: 0, Missing: "غیرفعال در منو"}
+				continue
+			}
+			if raw := strings.TrimSpace(pr.Field("stock")); raw != "" {
+				if st, stErr := strconv.ParseFloat(raw, 64); stErr == nil && st <= 0 {
+					v.POSStock[pr.ID] = store.ProductPortion{Portions: 0, Missing: "موجودی محصول"}
+				}
+			}
+		}
 		v.Tables, _ = a.store.Entities(ctx, "table")
 		v.Customers, _ = a.store.Entities(ctx, "customer")
 		// گروه‌های باشگاه برای تب «حساب شرکتی / گروه» دیالوگ بدهکاران صندوق
@@ -2858,9 +2892,18 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				catSet[row.Category] = true
 				locSet[row.Location] = true
 				stock, _ := strconv.ParseFloat(ing.Field("current_stock"), 64)
-				row.StockDisplay = store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64)) + " " + ing.UnitLabel()
+				row.Negative = stock < 0
+				stockText := store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64))
+				// موجودی منفی با علامت واضح و جدا از «پایان‌یافته» نشان داده
+				// می‌شود تا کمبود واقعی انبار (مثلاً ۳ کیلو زیر صفر) گم نشود.
+				if row.Negative {
+					stockText = "−" + strings.TrimPrefix(stockText, "-")
+				}
+				row.StockDisplay = stockText + " " + ing.UnitLabel()
 				switch {
-				case stock <= 0:
+				case stock < 0:
+					row.StatusKey = "negative"
+				case stock == 0:
 					row.StatusKey = "out"
 				case ing.NeedsReorder():
 					row.StatusKey = "low"
@@ -2873,6 +2916,9 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				totalValue.Add(totalValue, valInt)
 				row.ValueToman = store.FormatIRRToToman(valInt.String())
 				switch row.StatusKey {
+				case "negative":
+					v.InvOut++
+					v.InvNegative++
 				case "out":
 					v.InvOut++
 				case "low":
@@ -2898,7 +2944,10 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 					continue
 				}
 				if v.InvStatus != "" && row.StatusKey != v.InvStatus {
-					continue
+					// فیلتر «پایان‌یافته» اقلام منفی را هم شامل می‌شود (موجودی ≤ ۰).
+					if !(v.InvStatus == "out" && row.StatusKey == "negative") {
+						continue
+					}
 				}
 				v.InvRows = append(v.InvRows, row)
 			}
@@ -2943,6 +2992,21 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			case "name":
 				sort.SliceStable(v.InvRows, func(i, j int) bool { return v.InvRows[i].Entity.Label() < v.InvRows[j].Entity.Label() })
 			}
+			// در کارت «هشدارهای فوری» اول اقلام منفی (کمبود واقعی) می‌آیند.
+			alertRank := func(k string) int {
+				switch k {
+				case "negative":
+					return 0
+				case "out":
+					return 1
+				case "low":
+					return 2
+				}
+				return 3
+			}
+			sort.SliceStable(v.InvAlerts, func(i, j int) bool {
+				return alertRank(v.InvAlerts[i].StatusKey) < alertRank(v.InvAlerts[j].StatusKey)
+			})
 			if len(v.Movements) > 8 {
 				v.InvMovements = v.Movements[:8]
 			} else {
@@ -5041,11 +5105,14 @@ func (a *Application) handleLocalSave(w http.ResponseWriter, r *http.Request) {
 			if iid == "" || i >= len(qtys) {
 				continue
 			}
-			qtyStr := strings.ReplaceAll(normalizeNumInput(qtys[i]), ",", "")
+			qtyStr := strings.NewReplacer(",", "", "٬", "", " ", "").Replace(normalizeNumInput(qtys[i]))
 			qty, qErr := strconv.ParseFloat(qtyStr, 64)
 			if qErr != nil || qty <= 0 {
 				continue
 			}
+			// مقدار مصرف همیشه به شکل عددی تمیز ذخیره می‌شود (نه متن ورودی
+			// با جداکنندهٔ هزارگان/ارقام فارسی) تا کسر خودکار انبار درست کار کند.
+			qtyStored := strconv.FormatFloat(qty, 'f', -1, 64)
 			ingEnt, iErr := a.store.Entity(r.Context(), "ingredient", iid)
 			if iErr != nil {
 				continue
@@ -5053,7 +5120,7 @@ func (a *Application) handleLocalSave(w http.ResponseWriter, r *http.Request) {
 			productRecipeItems = append(productRecipeItems, map[string]any{
 				"ingredient_id":   iid,
 				"ingredient_name": ingEnt.Label(),
-				"quantity":        strings.TrimSpace(qtys[i]),
+				"quantity":        qtyStored,
 				"unit":            ingEnt.Field("base_unit"),
 			})
 		}
@@ -5937,10 +6004,17 @@ func (a *Application) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		if iErr != nil {
 			continue
 		}
+		// مقدار مصرف همیشه عددی تمیز ذخیره می‌شود تا کسر خودکار انبار
+		// (که parseFloat روی همین رشته انجام می‌شود) درست کار کند.
+		qtyStr := strings.NewReplacer(",", "", "٬", "", " ", "").Replace(normalizeNumInput(qtys[i]))
+		qty, qErr := strconv.ParseFloat(qtyStr, 64)
+		if qErr != nil || qty <= 0 {
+			continue
+		}
 		items = append(items, map[string]any{
 			"ingredient_id":   iid,
 			"ingredient_name": ingEnt.Label(),
-			"quantity":        strings.TrimSpace(qtys[i]),
+			"quantity":        strconv.FormatFloat(qty, 'f', -1, 64),
 			"unit":            ingEnt.Field("base_unit"),
 		})
 	}

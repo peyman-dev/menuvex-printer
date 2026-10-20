@@ -92,3 +92,62 @@ func TestLocalImageUpload(t *testing.T) {
 		t.Fatal("path traversal into arbitrary files must not be served")
 	}
 }
+
+// TestPosMarksProductsUnavailableWithoutIngredientStock کارت «ناموجود» صندوق
+// و کنترل سمت سرور را قفل می‌کند: ۵۰ گرم قهوه لازم است ولی موجودی انبار
+// کمتر است، پس کارت محصول باید ناموجود باشد و افزودن به سبد هم مسدود شود.
+func TestPosMarksProductsUnavailableWithoutIngredientStock(t *testing.T) {
+	a := testApp(t)
+	ctx := context.Background()
+	ingID, err := a.store.SaveLocalRecord(ctx, "ingredient", "", map[string]any{
+		"name": "قهوه تست صندوق", "base_unit": "g", "current_stock": "30", "average_cost": "1000",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prodID, err := a.store.SaveLocalRecord(ctx, "product", "", map[string]any{
+		"title": "اسپرسو تست صندوق", "price": "960000",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.store.SaveLocalRecord(ctx, "recipe", "", map[string]any{
+		"title": "رسپی اسپرسو تست", "product_id": prodID, "yield_qty": "1",
+		"items": []map[string]any{
+			{"ingredient_id": ingID, "ingredient_name": "قهوه تست صندوق", "quantity": "50", "unit": "g"},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest("GET", "http://localhost/?page=pos", nil)
+	w := httptest.NewRecorder()
+	a.Handler().ServeHTTP(w, r)
+	html := w.Body.String()
+	if !strings.Contains(html, `data-out="1"`) {
+		t.Fatal("POS tile for a product without ingredient stock is not marked unavailable")
+	}
+	if !strings.Contains(html, "ناموجود") {
+		t.Fatal("POS page missing ناموجود badge")
+	}
+}
+
+// TestInventoryMarksNegativeStock موجودی منفی باید واضح (علامت منفی + برچسب
+// «موجودی منفی») نمایش داده شود، نه عددی که شبیه موجودی مثبت است.
+func TestInventoryMarksNegativeStock(t *testing.T) {
+	a := testApp(t)
+	ctx := context.Background()
+	if _, err := a.store.SaveLocalRecord(ctx, "ingredient", "", map[string]any{
+		"name": "شیر تست منفی", "base_unit": "ml", "current_stock": "-3000", "average_cost": "500",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest("GET", "http://localhost/?page=ingredients", nil)
+	w := httptest.NewRecorder()
+	a.Handler().ServeHTTP(w, r)
+	html := w.Body.String()
+	for _, want := range []string{"موجودی منفی", "inv-neg-chip", "is-negative"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("inventory page missing %q for negative stock", want)
+		}
+	}
+}

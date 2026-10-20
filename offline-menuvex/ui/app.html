@@ -1068,18 +1068,30 @@ document.addEventListener('htmx:afterSwap', function (e) {
     if (parts.length>1) out += '.' + parts[1].replace(/[^0-9]/g,'');
     return out;
   }
+  // input[type=number] مقدار دارای جداکنندهٔ هزارگان (۱٬۰۰۰ یا 1,000) را
+  // نمی‌پذیرد و مرورگر آن را «پاک» می‌کند؛ همین باعث می‌شد کاربر در فیلدهای
+  // عددی بیشتر از ۳ رقم نتواند وارد کند. آن‌ها از قالب‌بندی مستثنا هستند.
+  function isNativeNumber(el){ return !!el && String(el.type).toLowerCase() === 'number'; }
   function apply(scope){
     var els = (scope||document).querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]');
-    for (var i=0;i<els.length;i++){ var el=els[i]; if (el.value) el.value = grouped(el.value); el.setAttribute('dir','ltr'); }
+    for (var i=0;i<els.length;i++){
+      var el=els[i];
+      el.setAttribute('dir','ltr');
+      if (isNativeNumber(el)) continue;
+      if (el.value) el.value = grouped(el.value);
+    }
   }
   document.addEventListener('input', function(e){
     var el = e.target;
-    if (el && el.matches && el.matches('input[inputmode="numeric"], input[inputmode="decimal"]')) el.value = grouped(el.value);
+    if (!el || !el.matches) return;
+    if (!el.matches('input[inputmode="numeric"], input[inputmode="decimal"]')) return;
+    if (isNativeNumber(el)) return;
+    el.value = grouped(el.value);
   });
   document.addEventListener('submit', function(e){
     var form = e.target;
     var els = form.querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]');
-    for (var i=0;i<els.length;i++) els[i].value = rawOf(els[i].value);
+    for (var i=0;i<els.length;i++) if (!isNativeNumber(els[i])) els[i].value = rawOf(els[i].value);
   }, true);
   document.addEventListener('htmx:afterSwap', function(){ apply(document); });
   apply(document);

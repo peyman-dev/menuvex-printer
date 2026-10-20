@@ -339,6 +339,7 @@ code, pre { direction: ltr; text-align: left; font-family: ui-monospace, SFMono-
   font-weight: 500;
 }
 .meta-chip.ok { background: var(--teal-soft); color: var(--teal); border-color: var(--color-brand-gold-soft); }
+.meta-chip-danger { background: #FEF3F2; color: #B42318; border-color: #FDA29B; font-weight: 700; }
 
 .topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
@@ -578,6 +579,14 @@ input::placeholder, textarea::placeholder { color: #98A2B3; }
 .mini-table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .table-tile { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; background: #ffffff; }
 .stock-number { font-weight: 800; }
+.stock-number.is-negative { color: #B42318; }
+.inv-neg-chip {
+  display: inline-block; margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px;
+  background: #FEE4E2; color: #B42318; font-size: 10.5px; font-weight: 800; vertical-align: middle;
+}
+.inv-row-negative td { background: #FFFBFB; }
+.inv-row-negative td:first-child { box-shadow: inset -3px 0 0 #F04438; }
+.mini-row-negative { background: #FFF7F6; border-color: #FDA29B; }
 
 /* ─── رسپی ─── */
 .recipe-pills { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -1165,6 +1174,24 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pos-tile-card { display: flex; flex-direction: column; height: 100%; background: #fff; border: 1px solid #E3EDF7; border-radius: 16px; overflow: hidden; cursor: pointer; box-shadow: 0 1px 2px rgba(15,27,45,.05); text-align: right; transition: border-color .12s ease; }
 .pos-tile-card:hover { border-color: #2F6FB5; }
 .pos-tile-card.in-cart { border-color: #1D4F8C; }
+/* محصول «ناموجود» (موجودی مواد اولیه کافی نیست) — قابل افزودن به سبد نیست */
+.pos-tile-card.is-out { cursor: not-allowed; background: #FBFCFE; }
+.pos-tile-card.is-out:hover { border-color: #E3EDF7; }
+.pos-tile-card.is-out .pos-tile-photo img,
+.pos-tile-card.is-out .pos-tile-empty { filter: grayscale(1); opacity: .55; }
+.pos-tile-card.is-out .pos-tile-price { color: #98A2B3; }
+.pos-tile-card.is-out .pos-qbtn,
+.pos-tile-card.is-out .pos-qnum { opacity: .45; pointer-events: none; }
+.pos-tile-out {
+  position: absolute; inset-inline-start: 8px; bottom: 8px; z-index: 2;
+  background: #B42318; color: #fff; font-size: 11px; font-weight: 800;
+  padding: 3px 9px; border-radius: 999px; box-shadow: 0 4px 12px rgba(180, 35, 24, .28);
+}
+.pos-tile-low {
+  position: absolute; inset-inline-start: 8px; bottom: 8px; z-index: 2;
+  background: #F79009; color: #fff; font-size: 10.5px; font-weight: 800;
+  padding: 3px 8px; border-radius: 999px;
+}
 .pos-tile-card:focus-visible { outline: 2px solid #2F6FB5; outline-offset: 1px; }
 /* تصویر کارت محصول — وب: مربع تمام‌عرض (aspect-square w-full) بدون سقف ارتفاع */
 .pos-tile-photo { position: relative; aspect-ratio: 1 / 1; width: 100%; background: #F6FAFD; overflow: hidden; flex: none; }
@@ -2267,9 +2294,25 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pf-add-btn{border-style:dashed}
 .pf-recipe-line{display:flex;gap:9px;align-items:center;flex-wrap:wrap;border:1px solid #E7ECF2;border-radius:13px;padding:10px;background:#fff;margin-bottom:9px}
 .pf-recipe-line .ui-select{flex:1;min-width:200px}
-.pf-qty-wrap{position:relative;display:inline-flex;align-items:center}
-.pf-recipe-qty{width:150px;height:42px;border:1px solid #D9E2EC;border-radius:10px;padding:0 64px 0 12px;font:inherit;font-size:13px}
-.pf-unit-badge{position:absolute;inset-inline-end:10px;font-size:11px;font-weight:700;color:#98A2B3;pointer-events:none}
+/* کادر مقدار + نشان واحد در یک قاب واحد؛ نشان کنار عدد می‌نشیند و هرگز
+   روی مقدار/placeholder نمی‌افتد (قبلاً با padding و position:absolute
+   روی هم می‌افتادند). */
+.pf-qty-wrap{
+  display:inline-flex;align-items:center;flex:none;height:42px;background:#fff;
+  border:1px solid #D9E2EC;border-radius:10px;overflow:hidden;
+  transition:border-color .12s, box-shadow .12s;
+}
+.pf-qty-wrap:focus-within{border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.12)}
+.pf-recipe-qty{
+  width:96px;height:100%;min-width:0;border:0;background:transparent;outline:none;
+  padding:0 10px;font:inherit;font-size:13px;font-weight:600;color:#101828;text-align:center;
+}
+.pf-recipe-qty::placeholder{color:#98A2B3;font-weight:400}
+.pf-unit-badge{
+  display:inline-flex;align-items:center;align-self:stretch;padding:0 9px;
+  background:#F4F8FF;border-inline-start:1px solid #E7ECF2;
+  font-size:11px;font-weight:700;color:#475467;white-space:nowrap;
+}
 .sp-cost-hint{display:block;font-size:11px;line-height:1.7;color:#0369A1;margin-top:4px;min-height:0}
 .sp-table .sp-cost-hint:empty{display:none}
 

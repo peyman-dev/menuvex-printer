@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -50,6 +51,169 @@ type RecipeLineView struct {
 	IngredientName string `json:"ingredient_name"`
 	Quantity       string `json:"quantity"`
 	Unit           string `json:"unit"`
+}
+
+// ProductPortion می‌گوید با موجودی فعلی انبار چند واحد از یک محصول قابل تهیه
+// است (بر پایهٔ دستور تهیه/رسپی). Portions = -1 یعنی محصول رسپی ندارد و
+// محدودیت مواد اولیه ندارد؛ Portions = 0 یعنی همین حالا «ناموجود» است.
+type ProductPortion struct {
+	Portions int    `json:"portions"`
+	Missing  string `json:"missing,omitempty"`
+}
+
+// Out یعنی با موجودی فعلی حتی یک واحد از محصول قابل تهیه نیست.
+func (p ProductPortion) Out() bool { return p.Portions == 0 }
+
+// stockSnapshot عکس لحظه‌ای از موجودی مواد اولیه و رسپی محصولات است تا
+// بتوان بدون قفل گرفتن مکرر (و در همان تراکنش ثبت سفارش) موجودی قابل تهیه
+// هر محصول را حساب کرد.
+type stockSnapshot struct {
+	stock   map[string]float64
+	labels  map[string]string
+	recipes map[string][]RecipeLineView
+}
+
+func stockSnapshotFromEntities(ingredients, recipes []Entity) stockSnapshot {
+	snap := stockSnapshot{
+		stock:   map[string]float64{},
+		labels:  map[string]string{},
+		recipes: map[string][]RecipeLineView{},
+	}
+	for _, ing := range ingredients {
+		stock, err := strconv.ParseFloat(strings.TrimSpace(ing.Field("current_stock")), 64)
+		if err != nil {
+			stock = 0
+		}
+		snap.stock[ing.ID] = stock
+		snap.labels[ing.ID] = ing.Label()
+	}
+	for _, rec := range recipes {
+		pid := strings.TrimSpace(rec.Field("product_id"))
+		if pid == "" {
+			continue
+		}
+		lines := rec.RecipeLines()
+		if len(lines) == 0 {
+			continue
+		}
+		snap.recipes[pid] = append(snap.recipes[pid], lines...)
+	}
+	return snap
+}
+
+func stockSnapshotFromState(st map[string]storedEntity) stockSnapshot {
+	ingredients := make([]Entity, 0, 16)
+	recipes := make([]Entity, 0, 16)
+	for _, e := range st {
+		if e.Deleted || (e.Type != "ingredient" && e.Type != "recipe") {
+			continue
+		}
+		raw := make(json.RawMessage, len(e.Payload))
+		copy(raw, e.Payload)
+		ent := Entity{ID: e.ID, Type: e.Type, Version: e.Version, Payload: raw}
+		if ent.Type == "ingredient" {
+			ingredients = append(ingredients, ent)
+		} else {
+			recipes = append(recipes, ent)
+		}
+	}
+	return stockSnapshotFromEntities(ingredients, recipes)
+}
+
+// portionsFor تعداد واحدهای قابل تهیه از یک محصول را برمی‌گرداند؛ گلوگاه
+// (کم‌ترین) ماده اولیه تعیین‌کننده است و نامش برای پیام «کمبود» نگه داشته می‌شود.
+func (snap stockSnapshot) portionsFor(productID string) ProductPortion {
+	lines := snap.recipes[strings.TrimSpace(productID)]
+	if len(lines) == 0 {
+		return ProductPortion{Portions: -1}
+	}
+	best := -1
+	missing := ""
+	for _, ln := range lines {
+		per, err := strconv.ParseFloat(strings.TrimSpace(ln.Quantity), 64)
+		if err != nil || per <= 0 {
+			continue
+		}
+		units := int(math.Floor(snap.stock[strings.TrimSpace(ln.IngredientID)]/per + 1e-9))
+		if units < 0 {
+			units = 0
+		}
+		if best < 0 || units < best {
+			best = units
+			if units <= 0 {
+				missing = strings.TrimSpace(ln.IngredientName)
+				if missing == "" {
+					missing = snap.labels[strings.TrimSpace(ln.IngredientID)]
+				}
+			}
+		}
+	}
+	if best < 0 {
+		return ProductPortion{Portions: -1}
+	}
+	return ProductPortion{Portions: best, Missing: missing}
+}
+
+// shortfall اگر موجودی مواد اولیه برای اقلام سفارش کافی نباشد، پیام فارسی
+// کمبود را برمی‌گرداند؛ در غیر این صورت رشتهٔ خالی.
+func (snap stockSnapshot) shortfall(items []POSOrderLineInput) string {
+	type need struct {
+		qty   float64
+		label string
+	}
+	needed := map[string]*need{}
+	order := make([]string, 0, 8)
+	for _, it := range items {
+		if it.Quantity <= 0 {
+			continue
+		}
+		for _, ln := range snap.recipes[strings.TrimSpace(it.ProductID)] {
+			per, err := strconv.ParseFloat(strings.TrimSpace(ln.Quantity), 64)
+			if err != nil || per <= 0 {
+				continue
+			}
+			id := strings.TrimSpace(ln.IngredientID)
+			cur, ok := needed[id]
+			if !ok {
+				label := strings.TrimSpace(ln.IngredientName)
+				if label == "" {
+					label = snap.labels[id]
+				}
+				cur = &need{label: label}
+				needed[id] = cur
+				order = append(order, id)
+			}
+			cur.qty += per * float64(it.Quantity)
+		}
+	}
+	for _, id := range order {
+		n := needed[id]
+		if n.qty > snap.stock[id]+1e-9 {
+			return fmt.Sprintf("موجودی «%s» برای ثبت این سفارش کافی نیست؛ نیاز: %s، موجود: %s",
+				n.label, faQtyNumber(n.qty), faQtyNumber(snap.stock[id]))
+		}
+	}
+	return ""
+}
+
+func faQtyNumber(v float64) string {
+	return FormatPersianNumber(strconv.FormatFloat(v, 'f', -1, 64))
+}
+
+// ProductPortions موجودی قابل تهیهٔ هر محصول (بر پایهٔ رسپی) را برای نمایش
+// «ناموجود» در صندوق برمی‌گرداند.
+func (s *Store) ProductPortions(ctx context.Context) map[string]ProductPortion {
+	out := map[string]ProductPortion{}
+	if err := ctx.Err(); err != nil {
+		return out
+	}
+	s.mu.Lock()
+	snap := stockSnapshotFromState(s.state.Entities)
+	s.mu.Unlock()
+	for pid := range snap.recipes {
+		out[pid] = snap.portionsFor(pid)
+	}
+	return out
 }
 
 type FinancialAnalytics struct {
@@ -289,6 +453,11 @@ func (s *Store) CreatePOSOrder(ctx context.Context, req POSOrderInput) (string, 
 		if len(lines) == 0 {
 			return errors.New("هیچ ردیف معتبری در سفارش وجود ندارد")
 		}
+		// کنترل «ناموجودی»: اگر موجودی مواد اولیهٔ رسپی برای این اقلام کافی
+		// نباشد، سفارش ثبت نمی‌شود (همان قاعده‌ای که صندوق هم نشان می‌دهد).
+		if msg := stockSnapshotFromState(st.Entities).shortfall(req.Items); msg != "" {
+			return errors.New(msg)
+		}
 
 		discount := parseBigIntSafe(req.DiscountIRR)
 		if discount.Sign() < 0 {
@@ -512,6 +681,10 @@ func (s *Store) UpdateOrderItemsFull(ctx context.Context, orderID string, upd Or
 		}
 		if len(newLines) == 0 {
 			return errors.New("حداقل یک محصول در سفارش لازم است.")
+		}
+		// ویرایش سفارش هم مثل ثبت اولیه، نباید موجودی منفی بسازد.
+		if msg := stockSnapshotFromState(st.Entities).shortfall(lines); msg != "" {
+			return errors.New(msg)
 		}
 		ent := Entity{ID: oEnt.ID, Type: oEnt.Type, Version: oEnt.Version, Payload: oEnt.Payload}
 		discount := parseBigIntSafe(ent.Field("discount_irr"))
