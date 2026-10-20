@@ -2304,7 +2304,7 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 }
 .pf-qty-wrap:focus-within{border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.12)}
 .pf-recipe-qty{
-  width:96px;height:100%;min-width:0;border:0;background:transparent;outline:none;
+  width:110px;height:100%;min-width:0;border:0;background:transparent;outline:none;
   padding:0 10px;font:inherit;font-size:13px;font-weight:600;color:#101828;text-align:center;
 }
 .pf-recipe-qty::placeholder{color:#98A2B3;font-weight:400}
