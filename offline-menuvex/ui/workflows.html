@@ -2801,6 +2801,7 @@
   <section class="prod-table-card">
     <form method="get" action="/" hx-get="/" hx-target="#main-view" hx-push-url="true" class="prod-search">
       <input type="hidden" name="page" value="ingredients">
+      <input type="hidden" name="iview" value="{{.InvView}}">
       <label class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
         <input type="search" name="q" value="{{.Query}}" placeholder="جست‌وجو در نام، کد، تامین‌کننده یا موقعیت">
@@ -2827,65 +2828,56 @@
         <option value="name" {{if eq .InvSort "name"}}selected{{end}}>نام قلم</option>
       </select>
       <button type="submit" class="btn btn-outline btn-sm">جست‌وجو</button>
-      <a href="/?page=ingredients" hx-get="/?page=ingredients" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">بازنشانی فیلترها</a>
+      <a href="{{.InvViewURL .InvView}}" hx-get="{{.InvViewURL .InvView}}" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">بازنشانی فیلترها</a>
     </form>
 
     <div class="inv-layout">
       <div class="inv-main">
         <div class="panel-header">
           <div><h3>لیست موجودی</h3><p>{{faInt (len .InvRows)}} قلم نمایش داده شده</p></div>
-          <span class="meta-chip">جدول</span>
+          <div class="inv-view-switch" role="tablist" aria-label="نوع نمایش موجودی">
+            <a class="inv-view-btn {{if ne .InvView "group"}}active{{end}}" role="tab" aria-selected="{{if ne .InvView "group"}}true{{else}}false{{end}}" href="{{.InvViewURL "table"}}" hx-get="{{.InvViewURL "table"}}" hx-target="#main-view" hx-push-url="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M9.5 9.5v10"/></svg>
+              جدول
+            </a>
+            <a class="inv-view-btn {{if eq .InvView "group"}}active{{end}}" role="tab" aria-selected="{{if eq .InvView "group"}}true{{else}}false{{end}}" href="{{.InvViewURL "group"}}" hx-get="{{.InvViewURL "group"}}" hx-target="#main-view" hx-push-url="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="4" width="7" height="7" rx="1.6"/><rect x="13.5" y="4" width="7" height="7" rx="1.6"/><rect x="3.5" y="13" width="7" height="7" rx="1.6"/><rect x="13.5" y="13" width="7" height="7" rx="1.6"/></svg>
+              دسته‌بندی‌ها
+            </a>
+          </div>
         </div>
         {{if .InvRows}}
+        {{if eq .InvView "group"}}
+        <div class="inv-groups">
+          {{range .InvGroups}}
+          <section class="inv-group-card">
+            <button type="button" class="inv-group-head" onclick="invGroupToggle(this)" aria-expanded="true">
+              <span class="inv-group-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7.5h16M4 12h16M4 16.5h10"/></svg></span>
+              <strong>{{.Label}}</strong>
+              <span class="inv-group-count">{{.CountFa}} قلم</span>
+              <svg class="inv-group-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="table-wrap">
+              <table class="data-table prod-table">
+                <thead><tr><th>قلم</th><th>موقعیت</th><th>موجودی</th><th>وضعیت</th><th>به‌روزرسانی</th><th>عملیات</th></tr></thead>
+                <tbody>
+                  {{range .Rows}}{{template "inv-row" .}}{{end}}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          {{end}}
+        </div>
+        {{else}}
         <div class="table-wrap">
           <table class="data-table prod-table">
             <thead><tr><th>قلم</th><th>موقعیت</th><th>موجودی</th><th>وضعیت</th><th>به‌روزرسانی</th><th>عملیات</th></tr></thead>
             <tbody>
-              {{range .InvRows}}
-              <tr class="inv-row{{if .Negative}} inv-row-negative{{end}}">
-                <td>
-                  <div class="inv-item">
-                    {{if .Entity.Field "image"}}<img src="{{.Entity.Field "image"}}" alt="{{.Entity.Label}}" class="inv-thumb">{{else}}<span class="inv-thumb inv-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>{{end}}
-                    <div class="inv-item-text">
-                      <strong>{{.Entity.Label}}</strong>
-                      <small>{{.Category}}{{if .SKU}} • {{.SKU}}{{end}}</small>
-                    </div>
-                  </div>
-                </td>
-                <td><span class="inv-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>{{.Location}}</span></td>
-                <td>
-                  <div class="inv-qty">
-                    <strong class="stock-number{{if .Negative}} is-negative{{end}}"><bdi dir="ltr">{{.QtyDisplay}}</bdi>{{if .UnitShort}}<span class="inv-qty-unit">{{.UnitShort}}</span>{{end}}{{if .Negative}}<span class="inv-neg-chip">منفی</span>{{end}}</strong>
-                    <small class="row-sub">{{if .MinOrderFa}}حد سفارش: {{.MinOrderFa}}{{if .UnitShort}} {{.UnitShort}}{{end}}{{else}}بدون حد سفارش{{end}}</small>
-                    {{if .HasShortfall}}<button type="button" class="inv-short-chip" data-id="{{.Entity.ID}}" data-name="{{.Entity.Label}}" data-have="{{.QtyDisplay}}" data-unit="{{.UnitShort}}" data-min="{{.MinOrderFa}}" data-short="{{.ShortfallFa}}" data-value="{{.ShortfallValueToman}}" data-qty="{{.ShortfallQty}}" onclick="invShortageOpen(this)" title="دیدن جزئیات کمبود و ثبت خرید">کمبود {{.ShortfallFa}}{{if .UnitShort}} {{.UnitShort}}{{end}}</button>{{end}}
-                  </div>
-                </td>
-                <td><span class="inv-status {{.StatusKey}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">{{if eq .StatusKey "in"}}<circle cx="12" cy="12" r="8.5"/><path d="M8.6 12.3l2.2 2.2 4.4-4.9"/>{{else if eq .StatusKey "low"}}<path d="M12 4L21 20H3z"/><path d="M12 10v4.2m0 2.4v.01"/>{{else}}<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5l5 5m0-5l-5 5"/>{{end}}</svg>{{.StatusText}}</span></td>
-                <td><div class="inv-updated"><strong>{{.UpdatedFa}}</strong><small>{{.UpdatedRel}}</small></div></td>
-                <td>
-                  <div class="inv-ops">
-                    <button type="button" class="btn-inv-add" onclick="invMovementFor('{{.Entity.ID}}', 'incoming')">+ افزودن</button>
-                    <button type="button" class="btn-inv-sub" onclick="invMovementFor('{{.Entity.ID}}', 'outgoing')">کاهش</button>
-                    <details class="row-more">
-                      <summary class="icon-btn" title="عملیات بیشتر" aria-label="عملیات بیشتر"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
-                      <div class="row-more-menu">
-                        <span class="row-more-note">ارزش موجودی: {{.ValueToman}}</span>
-                        <a href="/?page=ingredient-form&id={{.Entity.ID}}" hx-get="/?page=ingredient-form&id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true">ویرایش قلم</a>
-                        <a href="/?page=inv-purchases" hx-get="/?page=inv-purchases" hx-target="#main-view" hx-push-url="true">فاکتور خرید</a>
-                        <a href="/?page=ingredients&istatus=negative" hx-get="/?page=ingredients&istatus=negative" hx-target="#main-view" hx-push-url="true">اقلام دارای کمبود</a>
-                        <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این قلم از انبار حذف شود؟')">
-                          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="kind" value="ingredient"><input type="hidden" name="id" value="{{.Entity.ID}}"><input type="hidden" name="return_page" value="ingredients">
-                          <button type="submit" class="row-more-danger">حذف قلم</button>
-                        </form>
-                      </div>
-                    </details>
-                  </div>
-                </td>
-              </tr>
-              {{end}}
+              {{range .InvRows}}{{template "inv-row" .}}{{end}}
             </tbody>
           </table>
         </div>
+        {{end}}
         <div class="prod-footer">نمایش {{faInt (len .InvRows)}} از {{faInt .InvTotal}} قلم</div>
         {{else}}
         <div class="empty-state">
@@ -2894,6 +2886,21 @@
           <a href="/?page=ingredient-form" hx-get="/?page=ingredient-form" hx-target="#main-view" hx-push-url="true" class="btn btn-primary btn-sm">+ افزودن قلم جدید</a>
         </div>
         {{end}}
+
+        <script>
+          // نمای «به تفکیک دسته‌بندی»: هر کارت دسته با تیتر و شمارنده، و
+          // جمع/باز شدن همان دسته با کلیک روی تیتر.
+          (function () {
+            if (window.__invGroupInstalled) return;
+            window.__invGroupInstalled = true;
+            window.invGroupToggle = function (btn) {
+              var card = btn.closest('.inv-group-card');
+              if (!card) return;
+              var collapsed = card.classList.toggle('is-collapsed');
+              btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            };
+          })();
+        </script>
 
         <div class="dlg-overlay" id="dlg-inv-shortage">
           <div class="dlg" role="dialog" aria-modal="true" dir="rtl">
@@ -7337,4 +7344,47 @@
   })();
   </script>
 {{end}}
+{{end}}
+
+{{define "inv-row"}}
+              <tr class="inv-row{{if .Negative}} inv-row-negative{{end}}">
+                <td>
+                  <div class="inv-item">
+                    {{if .Entity.Field "image"}}<img src="{{.Entity.Field "image"}}" alt="{{.Entity.Label}}" class="inv-thumb">{{else}}<span class="inv-thumb inv-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>{{end}}
+                    <div class="inv-item-text">
+                      <strong>{{.Entity.Label}}</strong>
+                      <small>{{.Category}}{{if .SKU}} • {{.SKU}}{{end}}</small>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="inv-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>{{.Location}}</span></td>
+                <td>
+                  <div class="inv-qty">
+                    <strong class="stock-number{{if .Negative}} is-negative{{end}}"><bdi dir="ltr">{{.QtyDisplay}}</bdi>{{if .UnitShort}}<span class="inv-qty-unit">{{.UnitShort}}</span>{{end}}{{if .Negative}}<span class="inv-neg-chip">منفی</span>{{end}}</strong>
+                    <small class="row-sub">{{if .MinOrderFa}}حد سفارش: {{.MinOrderFa}}{{if .UnitShort}} {{.UnitShort}}{{end}}{{else}}بدون حد سفارش{{end}}</small>
+                    {{if .HasShortfall}}<button type="button" class="inv-short-chip" data-id="{{.Entity.ID}}" data-name="{{.Entity.Label}}" data-have="{{.QtyDisplay}}" data-unit="{{.UnitShort}}" data-min="{{.MinOrderFa}}" data-short="{{.ShortfallFa}}" data-value="{{.ShortfallValueToman}}" data-qty="{{.ShortfallQty}}" onclick="invShortageOpen(this)" title="دیدن جزئیات کمبود و ثبت خرید">کمبود {{.ShortfallFa}}{{if .UnitShort}} {{.UnitShort}}{{end}}</button>{{end}}
+                  </div>
+                </td>
+                <td><span class="inv-status {{.StatusKey}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">{{if eq .StatusKey "in"}}<circle cx="12" cy="12" r="8.5"/><path d="M8.6 12.3l2.2 2.2 4.4-4.9"/>{{else if eq .StatusKey "low"}}<path d="M12 4L21 20H3z"/><path d="M12 10v4.2m0 2.4v.01"/>{{else}}<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5l5 5m0-5l-5 5"/>{{end}}</svg>{{.StatusText}}</span></td>
+                <td><div class="inv-updated"><strong>{{.UpdatedFa}}</strong><small>{{.UpdatedRel}}</small></div></td>
+                <td>
+                  <div class="inv-ops">
+                    <button type="button" class="btn-inv-add" onclick="invMovementFor('{{.Entity.ID}}', 'incoming')">+ افزودن</button>
+                    <button type="button" class="btn-inv-sub" onclick="invMovementFor('{{.Entity.ID}}', 'outgoing')">کاهش</button>
+                    <details class="row-more">
+                      <summary class="icon-btn" title="عملیات بیشتر" aria-label="عملیات بیشتر"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
+                      <div class="row-more-menu">
+                        <span class="row-more-note">ارزش موجودی: {{.ValueToman}}</span>
+                        <a href="/?page=ingredient-form&id={{.Entity.ID}}" hx-get="/?page=ingredient-form&id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true">ویرایش قلم</a>
+                        <a href="/?page=inv-purchases" hx-get="/?page=inv-purchases" hx-target="#main-view" hx-push-url="true">فاکتور خرید</a>
+                        <a href="/?page=ingredients&istatus=negative" hx-get="/?page=ingredients&istatus=negative" hx-target="#main-view" hx-push-url="true">اقلام دارای کمبود</a>
+                        <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این قلم از انبار حذف شود؟')">
+                          <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="kind" value="ingredient"><input type="hidden" name="id" value="{{.Entity.ID}}"><input type="hidden" name="return_page" value="ingredients">
+                          <button type="submit" class="row-more-danger">حذف قلم</button>
+                        </form>
+                      </div>
+                    </details>
+                  </div>
+                </td>
+              </tr>
 {{end}}

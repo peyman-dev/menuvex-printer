@@ -3109,3 +3109,38 @@ button.pos-tile-low { font-size: 10.5px; }
 .shortage-actions .btn-dlg-primary:hover { background: #1D57AC; box-shadow: 0 4px 10px rgba(36, 104, 204, .28); }
 .shortage-actions .btn-dlg-cancel { border: 1px solid #E3EDF7; background: #fff; color: #475467; }
 .shortage-actions .btn-dlg-cancel:hover { background: #F6FAFD; border-color: #CFE0F2; color: #1D4F8C; }
+
+/* ════════════════════════════════════════════════════════════════════
+   «موجودی به تفکیک دسته‌بندی» — سوییچ جدول/دسته‌ها و کارت هر دسته با
+   تیتر جمع‌شدنی، مثل صفحهٔ انبار وب.
+   ════════════════════════════════════════════════════════════════════ */
+.inv-view-switch { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border-radius: 11px; background: #F2F7FD; border: 1px solid #E3EDF7; }
+.inv-view-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; color: #475467; text-decoration: none; white-space: nowrap;
+  border: 1px solid transparent; transition: background .15s, color .15s, box-shadow .15s;
+}
+.inv-view-btn svg { width: 14px; height: 14px; flex: none; }
+.inv-view-btn:hover { background: #E8F1FC; color: #1D4F8C; }
+.inv-view-btn.active { background: #2468CC; border-color: #2468CC; color: #fff; box-shadow: 0 4px 10px rgba(36, 104, 204, .22); }
+
+.inv-groups { display: grid; gap: 14px; padding: 14px 16px; }
+.inv-group-card { border: 1px solid #E7ECF2; border-radius: 16px; background: #fff; overflow: hidden; }
+.inv-group-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
+  border: 0; border-bottom: 1px solid #E7ECF2; background: #F7FBFF; font: inherit; cursor: pointer; text-align: start;
+}
+.inv-group-head:hover { background: #F1F8FF; }
+.inv-group-ic { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: none; border-radius: 9px; background: #EAF2FF; color: #2468CC; }
+.inv-group-ic svg { width: 16px; height: 16px; }
+.inv-group-head strong { font-size: 13px; font-weight: 800; color: #101828; }
+.inv-group-count { font-size: 11.5px; font-weight: 600; color: #667085; }
+.inv-group-chev { width: 16px; height: 16px; margin-inline-start: auto; color: #98A2B3; flex: none; transition: transform .15s; }
+.inv-group-card.is-collapsed .inv-group-chev { transform: rotate(-90deg); }
+.inv-group-card.is-collapsed .table-wrap { display: none; }
+.inv-group-card .prod-table th { background: #FCFDFF; }
+
+@media (max-width: 720px) {
+  .inv-view-switch { width: 100%; justify-content: space-between; }
+  .inv-group-head { flex-wrap: wrap; }
+}

@@ -253,6 +253,9 @@ type View struct {
 	InvOut                              int
 	InvLow                              int
 	InvNegative                         int
+	// InvView نمای جدول انبار است: table (پیش‌فرض) یا group (به تفکیک دسته‌بندی).
+	InvView   string
+	InvGroups []InvGroupRow
 	InvEndingSoon                       int
 	InvValueToman                       string
 	InvCategories                       []string
@@ -2053,11 +2056,48 @@ type InvRow struct {
 	SKU        string
 	UpdatedFa  string
 	UpdatedRel string
+	// CSRF برای فرم حذف داخل ردیف؛ در نمودار گروهی و جدول ساده هر دو لازم است.
+	CSRF string
 	// کمبود نسبت به حد سفارش: برای دکمهٔ «چه چیزی کم است؟» در جدول انبار.
 	HasShortfall         bool
 	ShortfallFa          string
 	ShortfallQty         string
 	ShortfallValueToman  string
+}
+
+// InvGroupRow یک گروه «موجودی به تفکیک دسته‌بندی» است (نمای دسته‌بندی‌ها
+// در صفحهٔ انبار وب): نام دسته، تعداد اقلام و ردیف‌های همان دسته.
+type InvGroupRow struct {
+	Label   string
+	Count   int
+	CountFa string
+	Rows    []InvRow
+}
+
+// InvViewURL آدرس نمای انبار (جدول یا دسته‌بندی‌ها) را با حفظ فیلترهای
+// فعلی می‌سازد تا سوییچ نما فیلترها و جستجو را از دست ندهد.
+func (v View) InvViewURL(mode string) string {
+	q := url.Values{}
+	q.Set("page", "ingredients")
+	if strings.TrimSpace(v.Query) != "" {
+		q.Set("q", strings.TrimSpace(v.Query))
+	}
+	if v.InvCategory != "" {
+		q.Set("icategory", v.InvCategory)
+	}
+	if v.InvLocation != "" {
+		q.Set("ilocation", v.InvLocation)
+	}
+	if v.InvStatus != "" {
+		q.Set("istatus", v.InvStatus)
+	}
+	if v.InvSort != "" {
+		q.Set("isort", v.InvSort)
+	}
+	if mode != "" {
+		q.Set("iview", mode)
+	}
+	return "/?" + q.Encode()
 }
 
 // InvCategoryRow ردیف جدول «دسته‌بندی مواد اولیه» (categories-page وب):
@@ -2970,6 +3010,11 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			v.InvLocation = strings.TrimSpace(r.URL.Query().Get("ilocation"))
 			v.InvStatus = strings.TrimSpace(r.URL.Query().Get("istatus"))
 			v.InvSort = strings.TrimSpace(r.URL.Query().Get("isort"))
+			// نمای «به تفکیک دسته‌بندی» مثل وب (سوییچ جدول/دسته‌بندی‌ها).
+			v.InvView = strings.TrimSpace(r.URL.Query().Get("iview"))
+			if v.InvView != "group" {
+				v.InvView = "table"
+			}
 			// مصرف ۳۰ روز گذشته برای پیش‌بینی «در آستانه اتمام» مانند وب
 			consumption := map[string]float64{}
 			cutoff := time.Now().AddDate(0, 0, -30)
@@ -2986,7 +3031,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			catSet, locSet := map[string]bool{}, map[string]bool{}
 			totalValue := big.NewInt(0)
 			for _, ing := range ingredients {
-				row := InvRow{Entity: ing, Location: ing.Field("storage_location"), Category: ing.Field("category")}
+				row := InvRow{Entity: ing, Location: ing.Field("storage_location"), Category: ing.Field("category"), CSRF: a.csrf}
 				if row.Location == "" {
 					row.Location = "انبار اصلی"
 				}
@@ -3131,6 +3176,40 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				})
 			case "name":
 				sort.SliceStable(v.InvRows, func(i, j int) bool { return v.InvRows[i].Entity.Label() < v.InvRows[j].Entity.Label() })
+			}
+			// گروه‌بندی ردیف‌های فیلترشده بر اساس دستهٔ انبار؛ ترتیب گروه‌ها
+			// الفبایی است و «بدون دسته‌بندی» همیشه آخر می‌آید.
+			if v.InvView == "group" {
+				order := make([]string, 0, 8)
+				byLabel := map[string][]InvRow{}
+				for _, row := range v.InvRows {
+					label := row.Category
+					if strings.TrimSpace(label) == "" {
+						label = "بدون دسته‌بندی"
+					}
+					if _, seen := byLabel[label]; !seen {
+						order = append(order, label)
+					}
+					byLabel[label] = append(byLabel[label], row)
+				}
+				sort.Slice(order, func(i, j int) bool {
+					if order[i] == "بدون دسته‌بندی" {
+						return false
+					}
+					if order[j] == "بدون دسته‌بندی" {
+						return true
+					}
+					return order[i] < order[j]
+				})
+				for _, label := range order {
+					rows := byLabel[label]
+					v.InvGroups = append(v.InvGroups, InvGroupRow{
+						Label:   label,
+						Count:   len(rows),
+						CountFa: store.FormatPersianNumber(strconv.Itoa(len(rows))),
+						Rows:    rows,
+					})
+				}
 			}
 			// در کارت «هشدارهای فوری» اول اقلام منفی (کمبود واقعی) می‌آیند.
 			alertRank := func(k string) int {
