@@ -1809,6 +1809,7 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 /* ── باشگاه مشتریان: اجزای تکمیلی ── */
 .page-sub{font-size:13px;color:#667085;margin:0 0 14px}
 .club-head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.club-head-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .club-toolbar-acts{display:flex;gap:8px;align-items:center}
 .club-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
 .club-stat-money{font-size:16px !important}
@@ -1827,7 +1828,6 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .btn-ghost{background:transparent;border:1px solid transparent;color:#344054}
 .btn-ghost:hover{background:#F6FAFD}
 .btn-ghost.danger,.row-acts .danger{color:#B42318}
-.club-group-form{display:grid;gap:14px}
 .club-fieldset{border:0;padding:0;margin:0}
 .club-fieldset legend{font-size:12.5px;font-weight:600;color:#344054;margin-bottom:8px;padding:0}
 .club-pill-row{display:flex;gap:8px;flex-wrap:wrap}
@@ -2720,4 +2720,122 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
   .dbk-modal-actions .btn { width: 100%; }
   .dbk-daterange { width: 100%; }
   .dbk-filters .ui-select, .dbk-filters select { width: 100%; }
+}
+
+/* ═══ باشگاه مشتریان — دیالوگ «گروه جدید / ویرایش گروه» ═══
+   به‌جای صفحهٔ تمام‌عرض قبلی، ساخت و ویرایش گروه در یک دیالوگ جمع‌وجور با
+   گرید دوستونه و همان زبان بصری بقیهٔ داشبورد انجام می‌شود. */
+.cgr-page-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  flex-wrap: wrap; background: #ffffff; border: 1px solid #E3EDF7; border-radius: 16px;
+  padding: 16px 18px;
+}
+.cgr-page-sub { margin: 0; font-size: 12px; line-height: 1.9; color: #667085; }
+.cgr-page-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cgr-page-acts .btn { min-height: 36px; padding: 6px 13px; border-radius: 10px; font-size: 12.5px; gap: 7px; }
+.cgr-page-acts .btn svg { width: 15px; height: 15px; flex: none; }
+
+.cgr-overlay { z-index: 130; }
+.cgr-card {
+  position: relative;
+  width: min(760px, 96vw); max-width: 760px; max-height: min(90vh, 780px);
+  padding: 0; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 18px;
+}
+.cgr-head {
+  display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 14px;
+  border-bottom: 1px solid #EEF2F7; background: #FBFDFF;
+}
+.cgr-head-icon {
+  flex: none; display: grid; place-items: center; width: 38px; height: 38px;
+  border-radius: 12px; background: #EAF2FD; color: #2468CC;
+}
+.cgr-head-icon svg { width: 19px; height: 19px; }
+.cgr-head-text { flex: 1; min-width: 0; padding-inline-end: 26px; }
+.cgr-head-text h3 { margin: 0; font-size: 15.5px; font-weight: 800; color: #101828; }
+.cgr-head-text .dlg-sub { margin: 4px 0 0; font-size: 11.5px; line-height: 1.9; color: #667085; }
+
+.cgr-form { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow-y: auto; }
+.cgr-sec { padding: 14px 18px; border-bottom: 1px solid #F2F6FA; }
+.cgr-sec:last-of-type { border-bottom: 0; }
+.cgr-sec-title {
+  margin: 0 0 10px; font-size: 12px; font-weight: 800; color: #1D4F8C;
+  display: flex; align-items: center; gap: 7px;
+}
+.cgr-sec-title::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: #2468CC; }
+.cgr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.cgr-full { grid-column: 1 / -1; }
+.cgr-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cgr-field > span { font-size: 11.5px; font-weight: 700; color: #344054; }
+.cgr-field > span small { font-weight: 500; color: #98A2B3; }
+.cgr-field > span .req { color: #F04438; font-style: normal; }
+.cgr-field input[type="text"], .cgr-field input[type="tel"], .cgr-field input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]), .cgr-field select {
+  width: 100%; height: 40px; border: 1px solid #D9E2EC; border-radius: 10px; background: #ffffff;
+  color: #1F2328; font-family: inherit; font-size: 12.5px; padding: 0 11px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
+  transition: border-color .12s, box-shadow .12s;
+}
+.cgr-field select {
+  appearance: none; -webkit-appearance: none; padding-inline-end: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: left 10px center; background-size: 14px;
+}
+.cgr-field input:focus, .cgr-field select:focus {
+  outline: none; border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, 0.12);
+}
+.cgr-field input::placeholder { color: #B3BDCB; }
+
+/* انتخاب‌گرهای سگمنتی (نوع قرارداد / نوع تخفیف) */
+.cgr-seg { display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E7ECF2; border-radius: 12px; padding: 3px; }
+.cgr-seg-item { flex: 1; min-width: 0; }
+.cgr-seg-item input { position: absolute; opacity: 0; pointer-events: none; }
+.cgr-seg-item span {
+  display: flex; align-items: center; justify-content: center; height: 32px; border-radius: 9px;
+  font-size: 12px; font-weight: 700; color: #667085; cursor: pointer; transition: background .12s, color .12s;
+}
+.cgr-seg-item span:hover { color: #1F2328; }
+.cgr-seg-item input:checked + span {
+  background: #2468CC; color: #ffffff; box-shadow: 0 8px 16px -12px rgba(36, 104, 204, 1);
+}
+.cgr-hint { margin: 0; font-size: 11px; line-height: 1.95; color: #98A2B3; }
+
+/* کارت نسیه */
+.cgr-credit {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #F5F9FF; border: 1px solid #DCE8F6; border-radius: 12px; padding: 10px 12px;
+}
+.cgr-credit p { margin: 0; }
+.cgr-credit-t { font-size: 12.5px; font-weight: 800; color: #1D4F8C; }
+.cgr-credit-s { font-size: 11px; color: #667085; margin-top: 2px !important; }
+
+/* فیلد تاریخ شمسی داخل دیالوگ */
+.cgr-date { position: relative; }
+.cgr-date-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 40px; padding: 0 11px;
+  border: 1px solid #D9E2EC; border-radius: 10px; background: #ffffff; color: #98A2B3;
+  font-family: inherit; font-size: 12.5px; cursor: pointer; text-align: right;
+  transition: border-color .12s, color .12s;
+}
+.cgr-date-btn:hover { border-color: #AFC6DC; }
+.cgr-date-btn.has-value { color: #1F2328; font-weight: 700; }
+.cgr-date-btn svg { width: 15px; height: 15px; flex: none; color: #98A2B3; }
+.cgr-date-btn .cgr-date-chev { width: 12px; height: 12px; margin-inline-start: auto; }
+.cgr-date .jdp-pop { inset-inline-start: 0; inset-inline-end: auto; }
+
+.cgr-error { padding: 0 18px 8px; }
+.cgr-foot {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+  padding: 12px 18px; border-top: 1px solid #EEF2F7; background: #FBFDFF; position: sticky; bottom: 0;
+}
+.cgr-foot .btn { min-height: 38px; padding: 7px 18px; border-radius: 10px; font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  .cgr-card { width: 100%; max-height: 94vh; border-radius: 16px; }
+  .cgr-grid { grid-template-columns: 1fr; }
+  .cgr-head { padding: 14px; }
+  .cgr-sec { padding: 12px 14px; }
+  .cgr-foot { padding: 10px 14px; }
+  .cgr-foot .btn { flex: 1; }
+  .cgr-page-acts { width: 100%; }
+  .cgr-page-acts .btn { flex: 1; justify-content: center; }
 }

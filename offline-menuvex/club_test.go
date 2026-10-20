@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -170,11 +171,100 @@ func TestClubPagesRender(t *testing.T) {
 			t.Fatalf("club groups page missing %q", s)
 		}
 	}
-	form := ordersGet(t, a, "/?page=club-group-form")
-	for _, s := range []string{"نام گروه", "کترینگ", "شرکتی", "سقف هر سفارش (اختیاری · تومان)", "روز صورتحساب در ماه", "خرید اعتباری (نسیه) گروه", "شروع اعتبار"} {
-		if !strings.Contains(form, s) {
-			t.Fatalf("club group form missing %q", s)
+	// ساخت/ویرایش گروه به‌جای صفحهٔ جدا، در دیالوگ همان صفحهٔ باشگاه انجام می‌شود.
+	for _, s := range []string{"dlg-club-group", "data-cgr-new", "نام گروه", "کترینگ", "شرکتی", "سقف هر سفارش (اختیاری · تومان)", "روز صورتحساب در ماه", "خرید اعتباری (نسیه) گروه", "شروع اعتبار"} {
+		if !strings.Contains(groups, s) {
+			t.Fatalf("club groups dialog missing %q", s)
 		}
+	}
+	// لینک‌های قدیمی ?page=club-group-form هم همان فهرست + دیالوگ را می‌دهند
+	// و دیگر صفحهٔ مستقل فرم گروه وجود ندارد.
+	legacy := ordersGet(t, a, "/?page=club-group-form")
+	if !strings.Contains(legacy, "dlg-club-group") || !strings.Contains(legacy, "data-open=\"new\"") {
+		t.Fatal("legacy club-group-form link must open the dialog on the groups page")
+	}
+	if strings.Contains(legacy, `class="club-group-form"`) {
+		t.Fatal("the standalone club group form page must be gone")
+	}
+}
+
+// TestClubGroupDialogFlow دیالوگ گروه در همان صفحهٔ باشگاه: دادهٔ ویرایش،
+// اعتبارسنجی بدون بستن دیالوگ، و بازگشت به همان صفحه بعد از ذخیره.
+func TestClubGroupDialogFlow(t *testing.T) {
+	a := testApp(t)
+	ctx := context.Background()
+	ordersPost(t, a, "/local/club-group", url.Values{
+		"name": {"شرکت نمونه"}, "discount_type": {"fixed"}, "discount_value": {"25000"},
+		"contract_type": {"cafe"}, "credit_enabled": {"on"},
+	})
+	groups, _ := a.store.Entities(ctx, "customer_group")
+	if len(groups) != 1 {
+		t.Fatalf("group not created: %d", len(groups))
+	}
+	g := groups[0]
+
+	// دادهٔ دیالوگ (JSON) باید همهٔ گروه‌ها را برای ویرایش بدون رفت‌وبرگشت بدهد.
+	page := ordersGet(t, a, "/?page=club-groups")
+	if !strings.Contains(page, "window.CLUB_GROUPS = [") {
+		t.Fatal("group dialog data is not embedded in the page")
+	}
+	for _, s := range []string{`"name":"شرکت نمونه"`, `"discount_type":"fixed"`, `"discount_value":"25000"`, `"credit_enabled":true`} {
+		if !strings.Contains(page, s) {
+			t.Fatalf("group dialog data missing %q", s)
+		}
+	}
+	// بازکردن دیالوگ از روی ردیف (ویرایش) و لینک ?dlg=new
+	if !strings.Contains(page, `data-cgr-edit="`+g.ID+`"`) {
+		t.Fatal("row edit action must open the dialog")
+	}
+	if !strings.Contains(ordersGet(t, a, "/?page=club-groups&dlg=new"), `data-open="new"`) {
+		t.Fatal("?dlg=new must auto-open the dialog")
+	}
+	if !strings.Contains(ordersGet(t, a, "/?page=club-groups&dlg=edit&id="+g.ID), `data-open="edit"`) {
+		t.Fatal("?dlg=edit must auto-open the dialog for editing")
+	}
+
+	// خطای اعتبارسنجی: دیالوگ نباید عوض شود، فقط پیام برگردد.
+	r := httptest.NewRequest("POST", "http://localhost/local/club-group", strings.NewReader(url.Values{
+		"csrf": {a.csrf}, "name": {"x"},
+	}.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	a.Handler().ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatalf("validation response code %d", w.Code)
+	}
+	if got := w.Header().Get("HX-Reswap"); got != "none" {
+		t.Fatalf("validation must not swap the page, HX-Reswap=%q", got)
+	}
+	if trig := w.Header().Get("HX-Trigger"); !strings.Contains(trig, "club-group-error") || !strings.Contains(trig, "حداقل ۲") {
+		t.Fatalf("validation must push the message to the dialog, HX-Trigger=%q", trig)
+	}
+
+	// ذخیره از فهرست گروه‌ها: همان صفحه برمی‌گردد (نه صفحهٔ جزئیات).
+	listBody := ordersPost(t, a, "/local/club-group", url.Values{
+		"name": {"شرکت دوم"}, "return_page": {"club-groups"}, "discount_type": {"percentage"}, "discount_value": {"10"},
+	})
+	if !strings.Contains(listBody, "club-stats-grid") {
+		t.Fatal("save from the list must re-render the groups list")
+	}
+	if !strings.Contains(listBody, "گروه مشتریان ساخته شد.") {
+		t.Fatal("success toast is missing after saving")
+	}
+	// ذخیره از صفحهٔ جزئیات: به همان جزئیات برمی‌گردد.
+	detailBody := ordersPost(t, a, "/local/club-group", url.Values{
+		"group_id": {g.ID}, "name": {"شرکت نمونه ویرایش‌شده"}, "return_page": {"club-group"},
+	})
+	if !strings.Contains(detailBody, "club-group-head") {
+		t.Fatal("save from the detail page must return to the group detail")
+	}
+	if !strings.Contains(detailBody, "گروه مشتریان ویرایش شد.") {
+		t.Fatal("edit toast is missing")
+	}
+	fresh, _ := a.store.Entity(ctx, "customer_group", g.ID)
+	if fresh.Label() != "شرکت نمونه ویرایش‌شده" {
+		t.Fatalf("group name not updated: %q", fresh.Label())
 	}
 }
 

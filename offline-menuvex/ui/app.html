@@ -659,6 +659,13 @@
     picker.__view = null;
     setValue(picker, '', { quiet: false });
   };
+  // مقداردهی برنامه‌ای (مثلاً پرکردن فرم ویرایش از داده فعلی). مقدار ورودی
+  // باید ISO باشد؛ نمایش خودکار به شمسی تبدیل می‌شود.
+  window.setJalaliDatePicker = function (picker, iso) {
+    if (!picker) return;
+    picker.__view = null;
+    setValue(picker, iso || '', { quiet: true });
+  };
   document.addEventListener('click', function () { closePops(null); });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closePops(null);
@@ -1357,7 +1364,6 @@ document.addEventListener('htmx:afterSwap', function (e) {
       {{else if eq .Page "tables"}}وضعیت میزهای سالن و رزرواسیون
       {{else if eq .Page "customers"}}باشگاه مشتریان
       {{else if eq .Page "club-groups"}}گروه‌های باشگاه مشتریان
-      {{else if eq .Page "club-group-form"}}{{if eq .Action "update"}}ویرایش گروه مشتریان{{else}}گروه جدید باشگاه{{end}}
       {{else if eq .Page "club-group"}}جزئیات گروه مشتریان
       {{else if eq .Page "finance"}}امور مالی، هزینه‌ها و حسابداری دوبل
       {{else if eq .Page "staff"}}مدیریت کارکنان

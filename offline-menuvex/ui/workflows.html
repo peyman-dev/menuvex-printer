@@ -3160,7 +3160,10 @@
       <a href="/?page=customers" hx-get="/?page=customers" hx-target="#main-view" hx-push-url="true" class="club-tab {{if eq .ClubTab "customers"}}active{{end}}">مشتریان</a>
       <a href="/?page=customers&amp;tab=membership" hx-get="/?page=customers&amp;tab=membership" hx-target="#main-view" hx-push-url="true" class="club-tab {{if eq .ClubTab "membership"}}active{{end}}">اشتراک آنلاین</a>
     </nav>
-    <a href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">گروه‌های باشگاه مشتریان</a>
+    <div class="club-head-acts">
+      <a href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">گروه‌های باشگاه مشتریان</a>
+      <button type="button" class="btn btn-primary btn-sm" data-cgr-new>+ گروه جدید</button>
+    </div>
   </div>
   <p class="page-sub" style="margin:10px 0 14px">{{if eq .ClubTab "membership"}}مدیریت اشتراک‌های آنلاین{{else}}مشتریان و سابقهٔ خرید آن‌ها{{end}}</p>
 
@@ -3463,7 +3466,18 @@
   </script>
 
 {{else if eq .Page "club-groups"}}
-  <p class="page-sub">مدیریت گروه‌ها، قراردادها و تخفیف‌ها</p>
+  <section class="cgr-page-head">
+    <div>
+      <p class="cgr-page-sub">قرارداد کترینگ/شرکتی، تخفیف اعضا و مجوز خرید نسیه — ساخت و ویرایش در همان دیالوگ، بدون ترک صفحه.</p>
+    </div>
+    <div class="cgr-page-acts">
+      <button type="button" class="btn btn-primary" data-cgr-new>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        گروه جدید
+      </button>
+      <a class="btn btn-outline" href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true">به‌روزرسانی</a>
+    </div>
+  </section>
   <div class="club-stats-grid">
     <div class="club-stat"><p>گروه‌های ثبت‌شده</p><strong>{{faInt .ClubGroupsTotal}}</strong></div>
     <div class="club-stat"><p>قراردادهای معتبر</p><strong>{{faInt .ClubGroupsValid}}</strong></div>
@@ -3477,7 +3491,7 @@
         <input type="text" name="cq" value="{{.ClubSearch}}" placeholder="جستجو نام گروه یا رابط">
         <label class="club-valid-check"><input type="checkbox" name="valid" value="1" {{if .ClubOnlyValid}}checked{{end}} onchange="this.form.requestSubmit()"> فقط قراردادهای معتبر</label>
       </form>
-      <a href="/?page=club-group-form" hx-get="/?page=club-group-form" hx-target="#main-view" hx-push-url="true" class="btn btn-primary">+ گروه جدید</a>
+      <button type="button" class="btn btn-primary" data-cgr-new>+ گروه جدید</button>
     </div>
     {{if .ClubGroups}}
     <div class="table-wrap"><table class="data-table">
@@ -3506,7 +3520,7 @@
                 <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="group_id" value="{{.Entity.ID}}">
                 <button type="submit" class="btn btn-ghost btn-sm">{{if eq .StatusKey "inactive"}}فعال{{else}}توقف{{end}}</button>
               </form>
-              <a href="/?page=club-group-form&amp;id={{.Entity.ID}}" hx-get="/?page=club-group-form&amp;id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-ghost btn-sm">ویرایش</a>
+              <button type="button" class="btn btn-ghost btn-sm" data-cgr-edit="{{.Entity.ID}}">ویرایش</button>
               <form method="post" action="/local/club-group-delete" hx-post="/local/club-group-delete" hx-target="#main-view" onsubmit="return confirm('گروه «{{.Entity.Label}}» حذف شود؟ اعضا از تخفیف جدا می‌شوند.')">
                 <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="group_id" value="{{.Entity.ID}}">
                 <button type="submit" class="btn btn-ghost btn-sm danger">حذف</button>
@@ -3524,82 +3538,6 @@
     {{end}}
   </section>
 
-{{else if eq .Page "club-group-form"}}
-  <form method="post" action="/local/club-group" hx-post="/local/club-group" hx-target="#main-view" class="club-group-form">
-    <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <input type="hidden" name="group_id" value="{{.EntityID}}">
-    <section class="panel-card">
-      <div class="panel-header"><div><h2>اطلاعات گروه</h2></div></div>
-      <div class="form-grid">
-        <label>نام گروه<input name="name" value="{{index .Fields "name"}}" placeholder="مثلاً شرکت آکمه" required></label>
-        <label>توضیح کوتاه (اختیاری)<input name="description" value="{{index .Fields "description"}}" placeholder="مثلاً قرارداد غذای روزانهٔ پرسنل"></label>
-        <div class="form-row-2">
-          <label>نام رابط<input name="contact_name" value="{{index .Fields "contact_name"}}" placeholder="علی رضایی"></label>
-          <label>موبایل رابط<input name="contact_phone" value="{{index .Fields "contact_phone"}}" placeholder="09120000000" dir="ltr"></label>
-        </div>
-        <label>شماره قرارداد (اختیاری)<input name="contract_number" value="{{index .Fields "contract_number"}}" placeholder="۱۴۰۵/کترینگ-۱۲"></label>
-        <fieldset class="club-fieldset"><legend>نوع قرارداد</legend>
-          <div class="club-pill-row">
-            <label class="club-pill"><input type="radio" name="contract_type" value="catering" {{if or (eq (index .Fields "contract_type") "catering") (eq (index .Fields "contract_type") "")}}checked{{end}}><span>کترینگ</span></label>
-            <label class="club-pill"><input type="radio" name="contract_type" value="corporate" {{if eq (index .Fields "contract_type") "corporate"}}checked{{end}}><span>شرکتی</span></label>
-            <label class="club-pill"><input type="radio" name="contract_type" value="cafe" {{if eq (index .Fields "contract_type") "cafe"}}checked{{end}}><span>کافه</span></label>
-            <label class="club-pill"><input type="radio" name="contract_type" value="other" {{if eq (index .Fields "contract_type") "other"}}checked{{end}}><span>سایر</span></label>
-          </div>
-        </fieldset>
-        <div class="form-row-2">
-          <label>تعداد نفرات / پرسنل<input name="headcount" value="{{index .Fields "headcount"}}" inputmode="numeric" placeholder="۵۰"></label>
-          <label>وعده در روز<input name="meals_per_day" value="{{index .Fields "meals_per_day"}}" inputmode="numeric" placeholder="۱"></label>
-        </div>
-        <div class="form-row-2">
-          <label>روز صورتحساب در ماه<input name="billing_day" value="{{index .Fields "billing_day"}}" inputmode="numeric" placeholder="۵"></label>
-          <label>چرخهٔ صورتحساب
-            <select name="billing_cycle">
-              <option value="monthly" {{if eq (index .Fields "billing_cycle") "monthly"}}selected{{end}}>ماهیانه (سر ماه)</option>
-              <option value="weekly" {{if eq (index .Fields "billing_cycle") "weekly"}}selected{{end}}>هفتگی</option>
-              <option value="daily" {{if eq (index .Fields "billing_cycle") "daily"}}selected{{end}}>روزانه</option>
-              <option value="per_order" {{if eq (index .Fields "billing_cycle") "per_order"}}selected{{end}}>هر سفارش</option>
-            </select>
-          </label>
-        </div>
-        <label>نشانی محل سرویس (اختیاری)<input name="service_address" value="{{index .Fields "service_address"}}" placeholder="نشانی محل تحویل یا سرویس غذا برای کترینگ"></label>
-      </div>
-    </section>
-    <section class="panel-card">
-      <div class="panel-header"><div><h2>تخفیف و خرید اعتباری</h2></div></div>
-      <div class="form-grid">
-        <fieldset class="club-fieldset"><legend>نوع تخفیف</legend>
-          <div class="club-pill-row">
-            <label class="club-pill"><input type="radio" name="discount_type" value="percentage" {{if ne (index .Fields "discount_type") "fixed"}}checked{{end}}><span>درصدی</span></label>
-            <label class="club-pill"><input type="radio" name="discount_type" value="fixed" {{if eq (index .Fields "discount_type") "fixed"}}checked{{end}}><span>مبلغ ثابت</span></label>
-          </div>
-        </fieldset>
-        <div class="form-row-2">
-          <label>مقدار تخفیف (درصد یا تومان)<input name="discount_value" value="{{index .Fields "discount_value"}}" inputmode="numeric" placeholder="۱۵"></label>
-          <label>سقف هر سفارش (اختیاری · تومان)<input name="max_discount_amount" value="{{index .Fields "max_discount_amount"}}" inputmode="numeric" placeholder="۵۰٬۰۰۰"></label>
-        </div>
-        <p class="dlg-hint">تخفیف درصدی از جمع اقلام محاسبه می‌شود و می‌توانید برای هر سفارش سقف بگذارید. مبلغ ثابت تخفیف برای هر سفارش اعمال می‌شود.</p>
-        <div class="club-form-band credit">
-          <div><p class="t">خرید اعتباری (نسیه) گروه</p><p class="s">اعضای گروه بتوانند اعتباری خرید کنند</p></div>
-          <label class="club-switch"><input type="checkbox" name="credit_enabled" {{if eq (index .Fields "credit_enabled") "true"}}checked{{end}}><span class="track"></span></label>
-        </div>
-      </div>
-    </section>
-    <section class="panel-card">
-      <div class="panel-header"><div><h2>اعتبار و یادداشت</h2></div></div>
-      <div class="form-grid">
-        <div class="form-row-2">
-          <label>شروع اعتبار<span class="jalali-picker"><select data-jp-d aria-label="روز"></select><select data-jp-m aria-label="ماه"></select><select data-jp-y aria-label="سال"></select><input type="hidden" name="valid_from"  data-jp-out value="{{index .Fields "valid_from"}}"></span></label>
-          <label>پایان اعتبار<span class="jalali-picker"><select data-jp-d aria-label="روز"></select><select data-jp-m aria-label="ماه"></select><select data-jp-y aria-label="سال"></select><input type="hidden" name="valid_until"  data-jp-out value="{{index .Fields "valid_until"}}"></span></label>
-        </div>
-        <label>یادداشت داخلی (اختیاری)<input name="notes" value="{{index .Fields "notes"}}" placeholder="یادداشتی برای تیم کافه؛ این بخش برای مشتری نمایش داده نمی‌شود."></label>
-      </div>
-    </section>
-    <div class="dlg-actions">
-      <a href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">انصراف</a>
-      <button type="submit" class="btn btn-primary">{{if eq .Action "update"}}ذخیرهٔ تغییرات{{else}}ساخت گروه{{end}}</button>
-    </div>
-  </form>
-
 {{else if eq .Page "club-group"}}
   {{with .ClubGroupDetail}}
   <section class="club-card club-group-head">
@@ -3610,7 +3548,7 @@
     </div>
     <div class="club-group-head-acts">
       <span class="pos-stchip {{if eq .Row.StatusKey "valid"}}st-ready{{else}}st-free{{end}}">{{.Row.StatusLabel}}</span>
-      <a href="/?page=club-group-form&amp;id={{.Group.ID}}" hx-get="/?page=club-group-form&amp;id={{.Group.ID}}" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">ویرایش گروه</a>
+      <button type="button" class="btn btn-outline btn-sm" data-cgr-edit="{{.Group.ID}}">ویرایش گروه</button>
       <a href="/?page=club-groups" hx-get="/?page=club-groups" hx-target="#main-view" hx-push-url="true" class="btn btn-ghost btn-sm">بازگشت به گروه‌ها</a>
     </div>
   </section>
@@ -3973,7 +3911,7 @@
             {{range .DebtorGroups}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
           </select>
           {{else}}
-          <p class="dbk-hint">هنوز گروه سازمانی ثبت نشده است؛ از <a href="/?page=club-group-form" hx-get="/?page=club-group-form" hx-target="#main-view" hx-push-url="true">گروه جدید باشگاه</a> یک گروه بسازید یا از تب «مشتری شخصی» استفاده کنید.</p>
+          <p class="dbk-hint">هنوز گروه سازمانی ثبت نشده است؛ از <a href="/?page=club-groups&amp;dlg=new" hx-get="/?page=club-groups&amp;dlg=new" hx-target="#main-view" hx-push-url="true">گروه جدید باشگاه</a> یک گروه بسازید یا از تب «مشتری شخصی» استفاده کنید.</p>
           {{end}}
         </label>
 
@@ -6580,5 +6518,371 @@
     <p class="empty-text">موردی یافت نشد.</p>
     {{end}}
   </section>
+{{end}}
+{{if or (eq .Page "club-groups") (eq .Page "club-group") (eq .Page "customers")}}
+  <!-- ═══ دیالوگ «گروه جدید / ویرایش گروه» باشگاه مشتریان ═══
+       ساخت و ویرایش گروه به‌جای صفحهٔ جدا، در همین صفحه و در یک دیالوگ انجام
+       می‌شود. فرم همچنان به /local/club-group می‌رود؛ در صورت خطا دیالوگ باز
+       می‌ماند و پیام داخل همان دیالوگ نشان داده می‌شود. -->
+  <div class="dlg-overlay cgr-overlay" id="dlg-club-group" hidden role="dialog" aria-modal="true"
+       aria-labelledby="cgr-title" data-club-group-dialog data-open="{{.ClubGroupDialog}}" data-edit-id="{{.ClubGroupEditID}}">
+    <div class="dlg-card cgr-card">
+      <div class="cgr-head">
+        <span class="cgr-head-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M9 7h2m4 0h.01M9 11h2m4 0h.01M9 15h2m4 0h.01"/></svg>
+        </span>
+        <div class="cgr-head-text">
+          <h3 id="cgr-title" data-cgr-title>گروه جدید باشگاه</h3>
+          <p class="dlg-sub" data-cgr-sub>قرارداد سازمانی، تخفیف اعضا و مجوز خرید نسیه را همین‌جا تعریف کنید.</p>
+        </div>
+        <button type="button" class="dlg-x" data-cgr-close aria-label="بستن">×</button>
+      </div>
+
+      <form method="post" action="/local/club-group" hx-post="/local/club-group" hx-target="#main-view"
+            class="cgr-form" id="cgr-form" novalidate>
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="group_id" value="">
+        <!-- بازگشت به همان صفحه‌ای که دیالوگ از آن باز شده (فهرست/جزئیات/مشتریان) -->
+        <input type="hidden" name="return_page" value="{{.Page}}">
+        <input type="hidden" name="return_query" value="">
+
+        <section class="cgr-sec">
+          <h4 class="cgr-sec-title">اطلاعات قرارداد</h4>
+          <div class="cgr-grid">
+            <label class="cgr-field cgr-full">
+              <span>نام گروه <i class="req">*</i></span>
+              <input type="text" name="name" placeholder="مثلاً شرکت آکمه" autocomplete="off" required>
+            </label>
+            <label class="cgr-field cgr-full">
+              <span>توضیح کوتاه <small>(اختیاری)</small></span>
+              <input type="text" name="description" placeholder="مثلاً قرارداد غذای روزانهٔ پرسنل" autocomplete="off">
+            </label>
+            <label class="cgr-field">
+              <span>نام رابط</span>
+              <input type="text" name="contact_name" placeholder="علی رضایی" autocomplete="off">
+            </label>
+            <label class="cgr-field">
+              <span>موبایل رابط</span>
+              <input type="tel" name="contact_phone" dir="ltr" inputmode="tel" placeholder="۰۹۱۲۰۰۰۰۰۰۰" autocomplete="off">
+            </label>
+            <label class="cgr-field">
+              <span>شماره قرارداد <small>(اختیاری)</small></span>
+              <input type="text" name="contract_number" placeholder="۱۴۰۵/کترینگ-۱۲" autocomplete="off">
+            </label>
+            <div class="cgr-field">
+              <span>نوع قرارداد</span>
+              <div class="cgr-seg" role="radiogroup" aria-label="نوع قرارداد">
+                <label class="cgr-seg-item"><input type="radio" name="contract_type" value="catering" checked><span>کترینگ</span></label>
+                <label class="cgr-seg-item"><input type="radio" name="contract_type" value="corporate"><span>شرکتی</span></label>
+                <label class="cgr-seg-item"><input type="radio" name="contract_type" value="cafe"><span>کافه</span></label>
+                <label class="cgr-seg-item"><input type="radio" name="contract_type" value="other"><span>سایر</span></label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="cgr-sec">
+          <h4 class="cgr-sec-title">سرویس و صورت‌حساب</h4>
+          <div class="cgr-grid">
+            <label class="cgr-field">
+              <span>تعداد نفرات / پرسنل</span>
+              <input type="text" name="headcount" inputmode="numeric" placeholder="۵۰" autocomplete="off">
+            </label>
+            <label class="cgr-field">
+              <span>وعده در روز</span>
+              <input type="text" name="meals_per_day" inputmode="numeric" placeholder="۱" autocomplete="off">
+            </label>
+            <label class="cgr-field">
+              <span>چرخهٔ صورت‌حساب</span>
+              <select name="billing_cycle">
+                <option value="monthly">ماهیانه (سر ماه)</option>
+                <option value="weekly">هفتگی</option>
+                <option value="daily">روزانه</option>
+                <option value="per_order">هر سفارش</option>
+              </select>
+            </label>
+            <label class="cgr-field">
+              <span>روز صورت‌حساب در ماه</span>
+              <input type="text" name="billing_day" inputmode="numeric" placeholder="۵" autocomplete="off">
+            </label>
+            <label class="cgr-field cgr-full">
+              <span>نشانی محل سرویس <small>(اختیاری)</small></span>
+              <input type="text" name="service_address" placeholder="نشانی محل تحویل یا سرویس غذا برای کترینگ" autocomplete="off">
+            </label>
+          </div>
+        </section>
+
+        <section class="cgr-sec">
+          <h4 class="cgr-sec-title">تخفیف و خرید اعتباری</h4>
+          <div class="cgr-grid">
+            <div class="cgr-field cgr-full">
+              <span>نوع تخفیف</span>
+              <div class="cgr-seg" role="radiogroup" aria-label="نوع تخفیف">
+                <label class="cgr-seg-item"><input type="radio" name="discount_type" value="percentage" checked><span>درصدی</span></label>
+                <label class="cgr-seg-item"><input type="radio" name="discount_type" value="fixed"><span>مبلغ ثابت</span></label>
+              </div>
+            </div>
+            <label class="cgr-field">
+              <span>مقدار تخفیف <small data-cgr-discount-hint>(درصد)</small></span>
+              <input type="text" name="discount_value" inputmode="numeric" placeholder="۱۵" autocomplete="off">
+            </label>
+            <label class="cgr-field">
+              <span>سقف هر سفارش <small>(اختیاری · تومان)</small></span>
+              <input type="text" name="max_discount_amount" inputmode="numeric" placeholder="۵۰,۰۰۰" autocomplete="off">
+            </label>
+            <p class="cgr-hint cgr-full">تخفیف درصدی از جمع اقلام محاسبه می‌شود و می‌توانید برای هر سفارش سقف بگذارید. مبلغ ثابت تخفیف یک‌بار برای هر سفارش اعمال می‌شود.</p>
+            <div class="cgr-credit cgr-full">
+              <div>
+                <p class="cgr-credit-t">خرید اعتباری (نسیه) گروه</p>
+                <p class="cgr-credit-s">اعضای این گروه بتوانند در صندوق به‌صورت نسیه خرید کنند</p>
+              </div>
+              <label class="club-switch"><input type="checkbox" name="credit_enabled"><span class="track"></span></label>
+            </div>
+          </div>
+        </section>
+
+        <section class="cgr-sec">
+          <h4 class="cgr-sec-title">اعتبار قرارداد</h4>
+          <div class="cgr-grid">
+            <div class="cgr-field">
+              <span>شروع اعتبار</span>
+              <div class="cgr-date" data-jdp>
+                <button type="button" class="cgr-date-btn" data-jdp-trigger aria-label="شروع اعتبار">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+                  <span data-jdp-label>بدون تاریخ</span>
+                  <svg class="cgr-date-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <input type="hidden" name="valid_from" value="" data-jdp-value>
+                <div class="jdp-pop" data-jdp-pop hidden></div>
+              </div>
+            </div>
+            <div class="cgr-field">
+              <span>پایان اعتبار</span>
+              <div class="cgr-date" data-jdp>
+                <button type="button" class="cgr-date-btn" data-jdp-trigger aria-label="پایان اعتبار">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+                  <span data-jdp-label>بدون تاریخ</span>
+                  <svg class="cgr-date-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <input type="hidden" name="valid_until" value="" data-jdp-value>
+                <div class="jdp-pop" data-jdp-pop hidden></div>
+              </div>
+            </div>
+            <label class="cgr-field cgr-full">
+              <span>یادداشت داخلی <small>(اختیاری)</small></span>
+              <input type="text" name="notes" placeholder="یادداشتی برای تیم کافه؛ برای مشتری نمایش داده نمی‌شود." autocomplete="off">
+            </label>
+          </div>
+        </section>
+
+        <p class="dlg-error cgr-error" data-cgr-error hidden></p>
+        <div class="cgr-foot">
+          <button type="submit" class="btn btn-primary" data-cgr-submit>ساخت گروه</button>
+          <button type="button" class="btn btn-outline" data-cgr-close>انصراف</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  window.CLUB_GROUPS = {{.ClubGroupsJSON}};
+  </script>
+  <script>
+  (function () {
+    // دیالوگ گروه: ساخت و ویرایش بدون ترک صفحه. شنونده‌ها یک‌بار روی document
+    // نصب می‌شوند و هر بار عناصر صفحهٔ فعلی را زنده می‌خوانند (سازگار با htmx).
+    if (window.__cgrInstalled) {
+      if (window.__cgrBoot) window.__cgrBoot();
+      return;
+    }
+    if (!document.querySelector('[data-club-group-dialog]')) return;
+    window.__cgrInstalled = true;
+
+    var FA = '۰۱۲۳۴۵۶۷۸۹';
+    function faDigits(s) { return String(s == null ? '' : s).replace(/[0-9]/g, function (d) { return FA[Number(d)]; }); }
+    function enDigits(s) { return String(s == null ? '' : s).replace(/[۰-۹]/g, function (d) { return '0123456789'[FA.indexOf(d)]; }); }
+    function digitsOnly(s) { return enDigits(s).replace(/[^\d]/g, ''); }
+    function $(sel) { return document.querySelector(sel); }
+    function dialog() { return document.getElementById('dlg-club-group'); }
+    function form() { return document.getElementById('cgr-form'); }
+    function byID(id) {
+      var list = Array.isArray(window.CLUB_GROUPS) ? window.CLUB_GROUPS : [];
+      for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+      return null;
+    }
+    function field(name) {
+      var f = form();
+      return f && f.elements ? f.elements[name] : null;
+    }
+    function setValue(name, value) {
+      var el = field(name);
+      if (!el) return;
+      if (el.length && !el.tagName) return;
+      el.value = value == null ? '' : String(value);
+    }
+    function setRadio(name, value) {
+      var f = form();
+      if (!f) return;
+      var list = f.querySelectorAll('input[name="' + name + '"]');
+      for (var i = 0; i < list.length; i++) list[i].checked = list[i].value === value;
+    }
+    function setDate(name, iso) {
+      var f = form();
+      if (!f) return;
+      var input = f.querySelector('input[name="' + name + '"]');
+      var picker = input ? input.closest('[data-jdp]') : null;
+      if (!picker) return;
+      if (window.setJalaliDatePicker) {
+        window.setJalaliDatePicker(picker, iso || '');
+      } else if (window.resetJalaliDatePicker) {
+        window.resetJalaliDatePicker(picker);
+      }
+    }
+    function setCredit(on) {
+      var el = field('credit_enabled');
+      if (el) el.checked = !!on;
+    }
+    function discountHint() {
+      var fixed = document.querySelector('#cgr-form input[name="discount_type"][value="fixed"]');
+      var hint = document.querySelector('[data-cgr-discount-hint]');
+      if (hint) hint.textContent = fixed && fixed.checked ? '(تومان)' : '(درصد)';
+    }
+    function showError(msg) {
+      var err = document.querySelector('[data-cgr-error]');
+      if (err) { err.hidden = !msg; err.textContent = msg || ''; }
+    }
+    function openDialog(id) {
+      var f = form();
+      if (!f) return;
+      // تقویم‌ها باید قبل از مقداردهی راه‌اندازی شوند تا placeholder و
+      // برچسب‌های «بدون تاریخ» درست ثبت شوند.
+      if (window.initJalaliDatePickers) window.initJalaliDatePickers(document);
+      f.reset();
+      showError('');
+      var g = id ? byID(id) : null;
+      // صفحهٔ بازگشت از URL فعلی خوانده می‌شود (صفحهٔ جزئیات vs فهرست).
+      var params = new URLSearchParams(window.location.search);
+      var back = params.get('page') || 'club-groups';
+      if (back === 'club-group-form') back = 'club-groups';
+      setValue('return_page', back);
+      setValue('return_query', window.location.search.replace(/^\?/, '').split('&').filter(function (piece) {
+        return piece && !/^(page|id|dlg|_)=/.test(piece);
+      }).join('&'));
+      setValue('group_id', g ? g.id : '');
+      setValue('name', g ? g.name : '');
+      setValue('description', g ? g.description : '');
+      setValue('contact_name', g ? g.contact_name : '');
+      setValue('contact_phone', g ? g.contact_phone : '');
+      setValue('contract_number', g ? g.contract_number : '');
+      setRadio('contract_type', g ? g.contract_type : 'catering');
+      setValue('headcount', g ? g.headcount : '');
+      setValue('meals_per_day', g ? g.meals_per_day : '');
+      setValue('billing_cycle', g ? g.billing_cycle : 'monthly');
+      setValue('billing_day', g ? g.billing_day : '');
+      setValue('service_address', g ? g.service_address : '');
+      setRadio('discount_type', g ? g.discount_type : 'percentage');
+      setValue('discount_value', g ? g.discount_value : '');
+      setValue('max_discount_amount', g ? g.max_discount_amount : '');
+      setValue('notes', g ? g.notes : '');
+      setCredit(g ? g.credit_enabled : false);
+      setDate('valid_from', g ? g.valid_from : '');
+      setDate('valid_until', g ? g.valid_until : '');
+      discountHint();
+      var title = document.querySelector('[data-cgr-title]');
+      var sub = document.querySelector('[data-cgr-sub]');
+      var submit = document.querySelector('[data-cgr-submit]');
+      if (title) title.textContent = g ? 'ویرایش گروه باشگاه' : 'گروه جدید باشگاه';
+      if (sub) sub.textContent = g
+        ? 'اطلاعات قرارداد، تخفیف و اعتبار «' + (g.name || '') + '» را ویرایش کنید.'
+        : 'قرارداد سازمانی، تخفیف اعضا و مجوز خرید نسیه را همین‌جا تعریف کنید.';
+      if (submit) submit.textContent = g ? 'ذخیرهٔ تغییرات' : 'ساخت گروه';
+      var box = dialog();
+      if (box) {
+        box.hidden = false;
+        box.classList.add('open');
+      }
+      var first = f.querySelector('[name="name"]');
+      if (first) setTimeout(function () { first.focus(); }, 60);
+    }
+    function closeDialog() {
+      var box = dialog();
+      if (!box) return;
+      box.classList.remove('open');
+      box.hidden = true;
+    }
+    window.clubGroupOpen = openDialog;
+
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest) return;
+      var isNew = e.target.closest('[data-cgr-new]');
+      if (isNew) { e.preventDefault(); openDialog(null); return; }
+      var isEdit = e.target.closest('[data-cgr-edit]');
+      if (isEdit) { e.preventDefault(); openDialog(isEdit.getAttribute('data-cgr-edit')); return; }
+      if (e.target.closest('[data-cgr-close]')) { closeDialog(); return; }
+      var box = dialog();
+      if (box && e.target === box) closeDialog();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var box = dialog();
+      if (box && !box.hidden) closeDialog();
+    });
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.name === 'discount_type') discountHint();
+    });
+
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (!f || f.id !== 'cgr-form') return;
+      var name = String(field('name') ? field('name').value : '').trim();
+      if (name.length < 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        showError('نام گروه باید حداقل ۲ نویسه باشد.');
+        return false;
+      }
+      var day = digitsOnly(field('billing_day') ? field('billing_day').value : '');
+      if (day !== '' && (Number(day) < 1 || Number(day) > 31)) {
+        e.preventDefault();
+        e.stopPropagation();
+        showError('روز صورت‌حساب باید بین ۱ تا ۳۱ باشد.');
+        return false;
+      }
+      ['headcount', 'meals_per_day', 'billing_day', 'discount_value', 'max_discount_amount'].forEach(function (k) {
+        var el = field(k);
+        if (el) el.value = digitsOnly(el.value);
+      });
+      var phone = field('contact_phone');
+      if (phone) phone.value = digitsOnly(phone.value);
+      showError('');
+      return true;
+    }, true);
+
+    // بازکردن خودکار دیالوگ وقتی با ?dlg=new / ؟dlg=edit&id=... یا لینک قدیمی وارد شده‌ایم.
+    function boot() {
+      if (window.initJalaliDatePickers) window.initJalaliDatePickers(document);
+      var box = dialog();
+      if (!box) return;
+      var mode = box.getAttribute('data-open') || '';
+      if (!mode) return;
+      var id = box.getAttribute('data-edit-id') || '';
+      box.setAttribute('data-open', '');
+      setTimeout(function () { openDialog(mode === 'edit' && id ? id : null); }, 30);
+    }
+    window.__cgrBoot = boot;
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+    document.addEventListener('htmx:afterSwap', function () { setTimeout(boot, 20); });
+
+    // خطای سرور بدون بستن دیالوگ: پیام از HX-Trigger می‌آید.
+    document.body.addEventListener('club-group-error', function (e) {
+      var msg = (e.detail && e.detail.message) || 'ثبت گروه انجام نشد.';
+      var box = dialog();
+      if (box && box.hidden) openDialog(null);
+      showError(msg);
+      if (window.showToast) window.showToast(msg, 'error');
+    });
+  })();
+  </script>
 {{end}}
 {{end}}

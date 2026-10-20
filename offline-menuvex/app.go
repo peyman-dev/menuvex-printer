@@ -161,6 +161,10 @@ type View struct {
 	ClubGroupsTotal     int
 	ClubGroupsValid     int
 	ClubGroupsMembers   int
+	// دیالوگ «گروه جدید / ویرایش گروه» روی همان صفحهٔ باشگاه مشتریان باز می‌شود.
+	ClubGroupsJSON  template.JS
+	ClubGroupDialog string // "" | new | edit
+	ClubGroupEditID string
 	Pricing             []PricingRow
 	SmartQuotes         []store.Entity
 	// حساب و گزارش (accounting وب): تب فعال و ارقام نمای کلی/سود و زیان
@@ -1750,8 +1754,16 @@ func clubGroupRowOf(g store.Entity, membersCount int, now time.Time) ClubGroupRo
 		row.CapText = "—"
 	}
 	active := g.Field("is_active") != "false"
+	// تاریخ‌ها یا ISO ذخیره شده‌اند (تقویم جدید) یا شمسی (فرم قدیمی)؛ برای
+	// مقایسه همیشه به ISO تبدیل می‌شوند.
 	validFrom := strings.TrimSpace(g.Field("valid_from"))
 	validUntil := strings.TrimSpace(g.Field("valid_until"))
+	if iso := isoDateOrEmpty(validFrom); iso != "" {
+		validFrom = iso
+	}
+	if iso := isoDateOrEmpty(validUntil); iso != "" {
+		validUntil = iso
+	}
 	today := now.Format("2006-01-02")
 	currentlyValid := active && (validFrom == "" || validFrom <= today) && (validUntil == "" || validUntil >= today)
 	switch {
@@ -1773,6 +1785,105 @@ func clubGroupRowOf(g store.Entity, membersCount int, now time.Time) ClubGroupRo
 		row.ValidityText = "بدون پایان"
 	}
 	return row
+}
+
+// ClubGroupDialogJSON شکل دادهٔ دیالوگ «گروه جدید / ویرایش گروه» است. همهٔ
+// گروه‌ها یک‌جا به صفحه می‌روند تا بازکردن دیالوگ بدون رفت‌وبرگشت سرور و
+// مستقل از فیلتر فعلی جدول انجام شود.
+type ClubGroupDialogJSON struct {
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Description       string `json:"description"`
+	ContactName       string `json:"contact_name"`
+	ContactPhone      string `json:"contact_phone"`
+	ContractNumber    string `json:"contract_number"`
+	ContractType      string `json:"contract_type"`
+	Headcount         string `json:"headcount"`
+	MealsPerDay       string `json:"meals_per_day"`
+	BillingCycle      string `json:"billing_cycle"`
+	BillingDay        string `json:"billing_day"`
+	ServiceAddress    string `json:"service_address"`
+	DiscountType      string `json:"discount_type"`
+	DiscountValue     string `json:"discount_value"`
+	MaxDiscountAmount string `json:"max_discount_amount"`
+	ValidFrom         string `json:"valid_from"`
+	ValidUntil        string `json:"valid_until"`
+	Notes             string `json:"notes"`
+	CreditEnabled     bool   `json:"credit_enabled"`
+	Active            bool   `json:"active"`
+	DiscountText      string `json:"discount_text"`
+	ValidityText      string `json:"validity_text"`
+	StatusLabel       string `json:"status_label"`
+}
+
+// clubGroupsJSON همهٔ گروه‌های مشتریان را برای دیالوگ صفحه باشگاه آماده می‌کند.
+func (a *Application) clubGroupsJSON(ctx context.Context) template.JS {
+	groups, err := a.store.Entities(ctx, "customer_group")
+	if err != nil {
+		return template.JS("[]")
+	}
+	out := make([]ClubGroupDialogJSON, 0, len(groups))
+	for _, g := range groups {
+		row := clubGroupRowOf(g, 0, time.Now())
+		num := func(key string) string { return strings.TrimSpace(normalizeDigits(g.Field(key))) }
+		contractType := strings.TrimSpace(g.Field("contract_type"))
+		if contractType == "" {
+			contractType = "catering"
+		}
+		discountType := strings.TrimSpace(g.Field("discount_type"))
+		if discountType != "fixed" {
+			discountType = "percentage"
+		}
+		billingCycle := strings.TrimSpace(g.Field("billing_cycle"))
+		if billingCycle == "" {
+			billingCycle = "monthly"
+		}
+		out = append(out, ClubGroupDialogJSON{
+			ID:                g.ID,
+			Name:              g.Label(),
+			Description:       strings.TrimSpace(g.Field("description")),
+			ContactName:       strings.TrimSpace(g.Field("contact_name")),
+			ContactPhone:      strings.TrimSpace(normalizeDigits(g.Field("contact_phone"))),
+			ContractNumber:    strings.TrimSpace(g.Field("contract_number")),
+			ContractType:      contractType,
+			Headcount:         num("headcount"),
+			MealsPerDay:       num("meals_per_day"),
+			BillingCycle:      billingCycle,
+			BillingDay:        num("billing_day"),
+			ServiceAddress:    strings.TrimSpace(g.Field("service_address")),
+			DiscountType:      discountType,
+			DiscountValue:     num("discount_value"),
+			MaxDiscountAmount: num("max_discount_amount"),
+			ValidFrom:         isoDateOrEmpty(g.Field("valid_from")),
+			ValidUntil:        isoDateOrEmpty(g.Field("valid_until")),
+			Notes:             strings.TrimSpace(g.Field("notes")),
+			CreditEnabled:     g.Field("credit_enabled") == "true",
+			Active:            g.Field("is_active") != "false",
+			DiscountText:      row.DiscountText,
+			ValidityText:      row.ValidityText,
+			StatusLabel:       row.StatusLabel,
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	raw, mErr := json.Marshal(out)
+	if mErr != nil {
+		return template.JS("[]")
+	}
+	return template.JS(raw)
+}
+
+// clubGroupFormError خطای فرم گروه را بدون بستن دیالوگ گزارش می‌کند: با
+// HX-Request پاسخ swap نمی‌شود و فقط پیام برای همان دیالوگ فرستاده می‌شود تا
+// چیزی که کاربر تایپ کرده از دست نرود.
+func (a *Application) clubGroupFormError(w http.ResponseWriter, r *http.Request, msg string) {
+	if r.Header.Get("HX-Request") == "true" {
+		payload, _ := json.Marshal(map[string]string{"message": msg})
+		w.Header().Set("HX-Reswap", "none")
+		w.Header().Set("HX-Trigger", `{"club-group-error":`+string(payload)+`}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	a.navigatePage(w, r, "club-groups", msg)
 }
 
 // orderAdvanceTarget مرحله بعدی فعال از وضعیت فعلی؛ اگر مرحله‌ای نمانده باشد
@@ -2230,6 +2341,32 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 	if err != nil {
 		http.Error(w, "cannot read local cursor", 500)
 		return
+	}
+
+	// ساخت/ویرایش گروه باشگاه دیگر صفحهٔ جداگانه ندارد: همان فهرست گروه‌ها
+	// رندر می‌شود و دیالوگ گروه روی آن باز می‌شود. لینک‌های قدیمی
+	// (?page=club-group-form) هم به همین مسیر می‌رسند.
+	if page == "club-group-form" {
+		page = "club-groups"
+		v.Page = page
+		v.ClubGroupDialog = "new"
+		if gid := strings.TrimSpace(r.URL.Query().Get("id")); gid != "" {
+			v.ClubGroupDialog = "edit"
+			v.ClubGroupEditID = gid
+		}
+	}
+	// دیالوگ گروه روی هر سه صفحهٔ باشگاه در دسترس است (فهرست گروه‌ها، جزئیات
+	// گروه و مشتریان) تا ویرایش همیشه در همان صفحه و بدون ترک کردن باز شود.
+	if page == "club-groups" || page == "club-group" || page == "customers" {
+		switch strings.TrimSpace(r.URL.Query().Get("dlg")) {
+		case "new":
+			v.ClubGroupDialog = "new"
+		case "edit":
+			v.ClubGroupDialog = "edit"
+			if gid := strings.TrimSpace(r.URL.Query().Get("id")); gid != "" {
+				v.ClubGroupEditID = gid
+			}
+		}
 	}
 
 	switch page {
@@ -3240,6 +3377,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.Customers, err = a.store.Entities(ctx, "customer")
 		v.Debtors, _ = a.store.Entities(ctx, "debtor")
 		v.ClubGroupOpts, _ = a.store.Entities(ctx, "customer_group")
+		v.ClubGroupsJSON = a.clubGroupsJSON(ctx)
 		clubOrders, _ := a.store.Entities(ctx, "order")
 		v.ClubTab = strings.TrimSpace(r.URL.Query().Get("tab"))
 		if v.ClubTab != "membership" {
@@ -3365,26 +3503,10 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			v.ClubGroups = append(v.ClubGroups, row)
 		}
 		v.Entities = groups
-	case "club-group-form":
-		v.Kind = "customer_group"
-		v.EntityID = strings.TrimSpace(r.URL.Query().Get("id"))
-		v.Action = "create"
-		v.Fields = map[string]string{}
-		if v.EntityID != "" {
-			if e, eErr := a.store.Entity(ctx, "customer_group", v.EntityID); eErr == nil {
-				v.Action = "update"
-				var values map[string]json.RawMessage
-				_ = json.Unmarshal(e.Payload, &values)
-				for key, raw := range values {
-					var value string
-					if json.Unmarshal(raw, &value) != nil {
-						value = string(raw)
-					}
-					v.Fields[key] = value
-				}
-			}
-		}
+		v.ClubGroupOpts = groups
+		v.ClubGroupsJSON = a.clubGroupsJSON(ctx)
 	case "club-group":
+		v.ClubGroupsJSON = a.clubGroupsJSON(ctx)
 		gid := strings.TrimSpace(r.URL.Query().Get("id"))
 		if g, gErr := a.store.Entity(ctx, "customer_group", gid); gErr == nil {
 			customers, _ := a.store.Entities(ctx, "customer")
@@ -5469,12 +5591,12 @@ func (a *Application) handleClubGroup(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.Form.Get("group_id"))
 	name := strings.TrimSpace(r.Form.Get("name"))
 	if len([]rune(name)) < 2 {
-		a.navigatePage(w, r, "club-group-form", "نام گروه باید حداقل ۲ نویسه باشد.")
+		a.clubGroupFormError(w, r, "نام گروه باید حداقل ۲ نویسه باشد.")
 		return
 	}
 	if day := strings.TrimSpace(r.Form.Get("billing_day")); day != "" {
 		if n, nErr := strconv.Atoi(normalizeDigits(day)); nErr != nil || n < 1 || n > 31 {
-			a.navigatePage(w, r, "club-group-form", "روز صورتحساب باید بین ۱ تا ۳۱ باشد.")
+			a.clubGroupFormError(w, r, "روز صورتحساب باید بین ۱ تا ۳۱ باشد.")
 			return
 		}
 	}
@@ -5488,21 +5610,46 @@ func (a *Application) handleClubGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	savedID, err := a.store.SaveLocalRecord(ctx, "customer_group", id, fields)
 	if err != nil {
-		a.navigatePage(w, r, "club-group-form", err.Error())
+		a.clubGroupFormError(w, r, err.Error())
 		return
 	}
 	msg := "گروه مشتریان ساخته شد."
 	if id != "" {
 		msg = "گروه مشتریان ویرایش شد."
 	}
+	// بعد از ذخیره در همان صفحه‌ای می‌مانیم که دیالوگ از آن باز شده است
+	// (فهرست گروه‌ها یا جزئیات گروه یا فهرست مشتریان)؛ دیگر پرش اجباری به
+	// صفحهٔ جزئیات نداریم.
+	target := "club-groups"
+	switch strings.TrimSpace(r.Form.Get("return_page")) {
+	case "customers":
+		target = "customers"
+	case "club-group":
+		target = "club-group"
+	}
+	query := url.Values{}
+	if target == "club-group" {
+		query.Set("id", savedID)
+	}
+	if extra, pErr := url.ParseQuery(strings.TrimSpace(r.Form.Get("return_query"))); pErr == nil {
+		for k, vals := range extra {
+			if k == "page" || k == "id" || k == "dlg" || len(vals) == 0 {
+				continue
+			}
+			query.Set(k, vals[0])
+		}
+	}
 	if r.Header.Get("HX-Request") == "true" {
-		q := r.URL.Query()
-		q.Set("id", savedID)
-		r.URL.RawQuery = q.Encode()
-		a.navigatePage(w, r, "club-group", msg)
+		// navigatePage خودش page را ست می‌کند؛ فقط فیلترها/شناسه را نگه می‌داریم.
+		r.URL.RawQuery = query.Encode()
+		a.navigatePage(w, r, target, msg)
 		return
 	}
-	http.Redirect(w, r, "/?page=club-group&id="+savedID, http.StatusSeeOther)
+	dest := "/?page=" + target
+	if encoded := query.Encode(); encoded != "" {
+		dest += "&" + encoded
+	}
+	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
 // handleClubGroupToggle فعال/توقف قرارداد گروه.
