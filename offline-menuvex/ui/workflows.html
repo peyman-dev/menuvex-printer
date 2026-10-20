@@ -2051,24 +2051,41 @@
       {{if or .Query .ProductsCategory .ProductsStatus}}<a href="/?page=products" hx-get="/?page=products" hx-target="#main-view" hx-push-url="true" class="btn btn-subtle btn-sm">حذف فیلترها</a>{{end}}
     </form>
 
+    <div class="prod-bulk-bar" id="prod-bulk-bar" hidden>
+      <span class="prod-bulk-count"><strong id="prod-bulk-count">۰</strong> محصول انتخاب شده</span>
+      <div class="prod-bulk-acts">
+        <button type="button" class="btn btn-primary btn-sm" onclick="prodBulkOpen()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="btn-icon"><path d="M16.5 4.5l3 3L8 19H5v-3z"/><path d="M14 7l3 3"/></svg>
+          ویرایش گروهی
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="prodBulkClear()">لغو انتخاب</button>
+      </div>
+    </div>
+
     {{if .ProductRows}}
     <div class="table-wrap">
       <table class="data-table prod-table">
         <thead>
-          <tr><th>رتبه</th><th>نام محصول</th><th>دسته‌بندی</th><th>قیمت</th><th>موجودی</th><th>وضعیت</th><th>عملیات</th></tr>
+          <tr><th class="pick-cell"><input type="checkbox" id="prod-pick-all" aria-label="انتخاب همهٔ محصولات"></th><th>رتبه</th><th>نام محصول</th><th>دسته‌بندی</th><th>قیمت</th><th>موجودی</th><th>وضعیت</th><th>عملیات</th></tr>
         </thead>
         <tbody>
           {{range .ProductRows}}
           <tr>
+            <td class="pick-cell"><input type="checkbox" class="prod-pick" value="{{.Entity.ID}}" aria-label="انتخاب {{.Entity.Label}}" data-title="{{.Entity.Label}}" data-price="{{.Entity.Field "price"}}" data-stock="{{.Entity.Field "stock"}}" data-available="{{if eq (.Entity.Field "is_available") "false"}}false{{else}}true{{end}}" data-featured="{{if .Featured}}true{{else}}false{{end}}" data-image="{{.ImageURL}}" data-price-fa="{{.Entity.PriceToman}}"></td>
             <td class="rank-cell">{{faInt .Rank}}</td>
             <td>
               <div class="prod-name">
                 {{if .ImageURL}}<img src="{{.ImageURL}}" alt="{{.Entity.Label}}" class="prod-thumb">{{else}}<span class="prod-thumb prod-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>{{end}}
-                <div><strong>{{.Entity.Label}}</strong><small>{{faInt .OrdersCount}} سفارش</small></div>
+                <div><strong>{{.Entity.Label}}</strong>{{if .Featured}}<span class="chip-featured">پیشنهاد روز</span>{{end}}<small>{{faInt .OrdersCount}} سفارش</small></div>
               </div>
             </td>
             <td>{{.CategoryLabel}}</td>
-            <td><strong class="price-tag">{{.Entity.PriceToman}}</strong></td>
+            <td>
+              <div class="price-cell">
+                <strong class="price-tag">{{.Entity.PriceToman}}</strong>
+                {{if .HasDiscount}}<span class="price-old">{{.BasePriceToman}}</span><span class="promo-chip">٪{{faInt .DiscountPercent}}</span>{{end}}
+              </div>
+            </td>
             <td>{{.StockDisplay}}</td>
             <td><span class="badge {{if eq .StatusKey "in"}}status-ok{{else if eq .StatusKey "low"}}status-warn{{else}}status-danger{{end}}">{{.StatusText}}</span></td>
             <td>
@@ -2109,6 +2126,199 @@
     </div>
     {{end}}
   </section>
+
+  <!-- ویرایش گروهی محصولات: کشوی کنارِ صفحه (مثل ویرایش گروهی وب) که فقط
+       فیلدهای تغییرکرده را به /local/products-bulk می‌فرستد. -->
+  <div class="bulk-drawer-overlay" id="prod-bulk-overlay" onclick="prodBulkClose(event)">
+    <aside class="bulk-drawer" role="dialog" aria-modal="true" aria-labelledby="prod-bulk-title" onclick="event.stopPropagation()">
+      <header class="bulk-drawer-head">
+        <div>
+          <h3 id="prod-bulk-title">ویرایش گروهی محصولات</h3>
+          <p><span id="prod-bulk-head-count">۰</span> محصول انتخاب شده — فقط فیلدهای تغییرکرده ذخیره می‌شوند.</p>
+        </div>
+        <button type="button" class="bulk-drawer-close" onclick="prodBulkClose()" aria-label="بستن">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+      <form id="prod-bulk-form" method="post" action="/local/products-bulk" hx-post="/local/products-bulk" hx-target="#main-view" hx-swap="innerHTML" onsubmit="return prodBulkSubmit()">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="payload" id="prod-bulk-payload" value="">
+        <div class="bulk-drawer-body" id="prod-bulk-list"></div>
+        <footer class="bulk-drawer-foot">
+          <p class="bulk-drawer-hint" id="prod-bulk-hint">برای ذخیره، حداقل یک فیلد را تغییر دهید.</p>
+          <div class="bulk-drawer-acts">
+            <button type="button" class="btn btn-outline" onclick="prodBulkClose()">انصراف</button>
+            <button type="submit" class="btn btn-primary" id="prod-bulk-save" disabled>ذخیره تغییرات</button>
+          </div>
+        </footer>
+      </form>
+    </aside>
+  </div>
+
+  <script>
+    (function () {
+      if (window.__prodBulkInstalled) return;
+      window.__prodBulkInstalled = true;
+      var FA = '۰۱۲۳۴۵۶۷۸۹';
+      function fa(v) { return String(v).replace(/[0-9]/g, function (d) { return FA[Number(d)]; }); }
+      function rawNum(v) {
+        return String(v == null ? '' : v)
+          .replace(/[۰-۹]/g, function (d) { return String(FA.indexOf(d)); })
+          .replace(/[٠-٩]/g, function (d) { return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)); })
+          .replace(/[,٬\s]/g, '');
+      }
+      function esc(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+      function picks() { return Array.prototype.slice.call(document.querySelectorAll('.prod-pick')); }
+      function selected() { return picks().filter(function (c) { return c.checked; }); }
+      function overlay() { return document.getElementById('prod-bulk-overlay'); }
+      function valueOf(el) {
+        if (el.type === 'checkbox') return el.checked ? 'true' : 'false';
+        var v = String(el.value == null ? '' : el.value).trim();
+        var f = el.getAttribute('data-field');
+        return (f === 'price' || f === 'stock') ? rawNum(v) : v;
+      }
+      function origOf(el) {
+        var raw = el.getAttribute('data-orig') || '';
+        var f = el.getAttribute('data-field');
+        if (el.type === 'checkbox') return raw === 'true' ? 'true' : 'false';
+        return (f === 'price' || f === 'stock') ? rawNum(raw) : raw;
+      }
+      window.prodBulkSync = function () {
+        var count = selected().length;
+        var bar = document.getElementById('prod-bulk-bar');
+        if (bar) bar.hidden = count === 0;
+        var label = document.getElementById('prod-bulk-count');
+        if (label) label.textContent = fa(count);
+        var all = document.getElementById('prod-pick-all');
+        if (all) all.checked = count > 0 && count === picks().length;
+      };
+      window.prodBulkClear = function () {
+        picks().forEach(function (c) { c.checked = false; });
+        window.prodBulkSync();
+      };
+      window.prodBulkDirty = function () {
+        var dirty = 0;
+        document.querySelectorAll('#prod-bulk-list .bulk-item').forEach(function (item) {
+          var changed = false;
+          item.querySelectorAll('[data-field]').forEach(function (el) {
+            if (valueOf(el) !== origOf(el)) changed = true;
+          });
+          item.classList.toggle('is-dirty', changed);
+          if (changed) dirty++;
+        });
+        var save = document.getElementById('prod-bulk-save');
+        if (save) save.disabled = dirty === 0;
+        var hint = document.getElementById('prod-bulk-hint');
+        if (hint) {
+          hint.textContent = dirty === 0
+            ? 'برای ذخیره، حداقل یک فیلد را تغییر دهید.'
+            : fa(dirty) + ' محصول تغییر کرده است.';
+        }
+      };
+      window.prodBulkOpen = function () {
+        var items = selected();
+        var list = document.getElementById('prod-bulk-list');
+        if (!items.length || !list) return;
+        list.innerHTML = items.map(function (c) {
+          var price = c.getAttribute('data-price') || '';
+          var stock = c.getAttribute('data-stock') || '';
+          var available = (c.getAttribute('data-available') || 'true') === 'true';
+          var featured = (c.getAttribute('data-featured') || 'false') === 'true';
+          var image = c.getAttribute('data-image') || '';
+          var thumb = image
+            ? '<img src="' + esc(image) + '" alt="" class="bulk-thumb">'
+            : '<span class="bulk-thumb bulk-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>';
+          return '<article class="bulk-item" data-id="' + esc(c.value) + '">' +
+            '<div class="bulk-item-head">' + thumb +
+              '<div><strong>' + esc(c.getAttribute('data-title') || '') + '</strong>' +
+              '<small>قیمت فعلی: ' + esc(c.getAttribute('data-price-fa') || '—') + '</small></div>' +
+            '</div>' +
+            '<div class="bulk-fields">' +
+              '<label>قیمت (ریال)<input inputmode="numeric" autocomplete="off" data-field="price" data-orig="' + esc(price) + '" value="' + esc(price) + '"></label>' +
+              '<label>موجودی<input inputmode="decimal" autocomplete="off" data-field="stock" data-orig="' + esc(stock) + '" value="' + esc(stock) + '"></label>' +
+            '</div>' +
+            '<div class="bulk-item-foot">' +
+              '<label class="bulk-switch"><input type="checkbox" data-field="available" data-orig="' + (available ? 'true' : 'false') + '"' + (available ? ' checked' : '') + '><span class="track"></span><span class="bulk-switch-text">موجود برای فروش</span></label>' +
+              '<label class="bulk-switch"><input type="checkbox" data-field="featured" data-orig="' + (featured ? 'true' : 'false') + '"' + (featured ? ' checked' : '') + '><span class="track"></span><span class="bulk-switch-text">پیشنهاد روز</span></label>' +
+            '</div>' +
+          '</article>';
+        }).join('');
+        document.getElementById('prod-bulk-head-count').textContent = fa(items.length);
+        overlay().classList.add('open');
+        document.body.classList.add('bulk-drawer-opened');
+        window.prodBulkDirty();
+      };
+      window.prodBulkClose = function (ev) {
+        if (ev && ev.target !== ev.currentTarget) return;
+        var ov = overlay();
+        if (ov) ov.classList.remove('open');
+        document.body.classList.remove('bulk-drawer-opened');
+      };
+      window.prodBulkSubmit = function () {
+        var out = [];
+        var invalid = false;
+        document.querySelectorAll('#prod-bulk-list .bulk-item').forEach(function (item) {
+          var patch = { id: item.getAttribute('data-id') };
+          var any = false;
+          item.querySelectorAll('[data-field]').forEach(function (el) {
+            var field = el.getAttribute('data-field');
+            var current = valueOf(el);
+            if (current === origOf(el)) return;
+            any = true;
+            if (field === 'price' || field === 'stock') {
+              if (current === '' || !/^[0-9]+(\.[0-9]+)?$/.test(current) || (field === 'price' && Number(current) <= 0)) {
+                invalid = true;
+                el.classList.add('is-invalid');
+              } else {
+                el.classList.remove('is-invalid');
+                patch[field] = current;
+              }
+            } else {
+              patch[field] = current === 'true';
+            }
+          });
+          if (any) out.push(patch);
+        });
+        if (invalid) {
+          var hint = document.getElementById('prod-bulk-hint');
+          if (hint) hint.textContent = 'قیمت و موجودی باید عدد معتبر باشند (قیمت بزرگ‌تر از صفر).';
+          return false;
+        }
+        if (!out.length) {
+          var h = document.getElementById('prod-bulk-hint');
+          if (h) h.textContent = 'برای ذخیره، حداقل یک فیلد را تغییر دهید.';
+          return false;
+        }
+        document.getElementById('prod-bulk-payload').value = JSON.stringify(out);
+        return true;
+      };
+      document.addEventListener('change', function (e) {
+        var el = e.target;
+        if (!el || !el.matches) return;
+        if (el.matches('.prod-pick')) { window.prodBulkSync(); return; }
+        if (el.id === 'prod-pick-all') {
+          picks().forEach(function (c) { c.checked = el.checked; });
+          window.prodBulkSync();
+          return;
+        }
+        if (el.closest && el.closest('#prod-bulk-list')) { window.prodBulkDirty(); }
+      });
+      document.addEventListener('htmx:afterSwap', function () {
+        document.body.classList.remove('bulk-drawer-opened');
+        window.prodBulkSync();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && overlay() && overlay().classList.contains('open')) {
+          window.prodBulkClose();
+        }
+      });
+      window.prodBulkSync();
+    })();
+  </script>
 
 {{else if eq .Page "product-form"}}
   <div class="prod-form-head">
@@ -2400,10 +2610,18 @@
             <td><code>{{.Entity.Field "slug"}}</code></td>
             <td>{{faInt .Products}} محصول</td>
             <td class="row-sub">{{.Entity.Field "description"}}</td>
-            <td>{{if eq (.Entity.Field "is_active") "false"}}<span class="badge danger">غیرفعال</span>{{else}}<span class="badge ok">فعال</span>{{end}}</td>
+            <td>
+              <div class="cat-status">
+                {{if eq (.Entity.Field "is_active") "false"}}<span class="badge danger">غیرفعال</span>{{else}}<span class="badge ok">فعال</span>{{end}}
+                {{if .HasDiscount}}<span class="badge status-warn">٪{{faInt .DiscountPercent}} تخفیف</span>{{end}}
+                {{if and (gt .Products 0) (eq .AvailableProducts 0)}}<span class="badge status-danger">همه ناموجود</span>{{end}}
+              </div>
+            </td>
             <td>
               <div class="row-actions">
                 <button type="button" class="btn btn-outline btn-sm" onclick="catEdit(this)" data-id="{{.Entity.ID}}" data-title="{{.Entity.Label}}" data-slug="{{.Entity.Field "slug"}}" data-desc="{{.Entity.Field "description"}}" data-active="{{.Entity.Field "is_active"}}">ویرایش</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="catAvailToggle(this)" data-id="{{.Entity.ID}}" data-title="{{.Entity.Label}}" data-products="{{faInt .Products}}" data-available="{{if .AllUnavailable}}false{{else}}true{{end}}">{{if .AllUnavailable}}موجود کردن دسته{{else}}ناموجود کردن دسته{{end}}</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="catDiscountOpen(this)" data-id="{{.Entity.ID}}" data-title="{{.Entity.Label}}" data-products="{{faInt .Products}}" data-percent="{{.DiscountPercent}}">تخفیف دسته</button>
                 <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form">
                   <input type="hidden" name="csrf" value="{{$.CSRF}}">
                   <input type="hidden" name="kind" value="category">
@@ -2453,7 +2671,79 @@
       </form>
     </div>
   </div>
+
+  <!-- ناموجود/موجود کردن همهٔ محصولات یک دسته (درخواست: یک دسته و آیتم‌هایش ناموجود شوند) -->
+  <div class="dlg-overlay" id="dlg-cat-avail">
+    <div class="dlg" role="dialog" aria-modal="true" dir="rtl">
+      <button type="button" class="dlg-close" onclick="closeDlg(this)" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div class="dlg-head">
+        <h3 class="dlg-title" id="cat-avail-title">ناموجود کردن دسته</h3>
+        <p class="dlg-desc" id="cat-avail-desc">همهٔ محصول‌های این دسته از منوی صندوق خارج می‌شوند.</p>
+      </div>
+      <form method="post" action="/local/category-availability" hx-post="/local/category-availability" hx-target="#main-view" class="dlg-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="return_page" value="categories">
+        <input type="hidden" name="category_id" id="cat-avail-id" value="">
+        <input type="hidden" name="available" id="cat-avail-value" value="false">
+        <div class="cat-avail-note" id="cat-avail-note"></div>
+        <div class="dlg-actions">
+          <button type="button" class="btn-dlg-cancel" onclick="closeDlg(this)">انصراف</button>
+          <button type="submit" class="btn-dlg-primary" id="cat-avail-submit">ناموجود کن</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- تخفیف درصدی روی همهٔ محصولات یک دسته؛ ۰ = برگشت به قیمت اصلی -->
+  <div class="dlg-overlay" id="dlg-cat-discount">
+    <div class="dlg" role="dialog" aria-modal="true" dir="rtl">
+      <button type="button" class="dlg-close" onclick="closeDlg(this)" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div class="dlg-head">
+        <h3 class="dlg-title">تخفیف دسته‌بندی</h3>
+        <p class="dlg-desc" id="cat-discount-desc">درصد تخفیف روی قیمت فروش همهٔ محصول‌های این دسته اعمال می‌شود.</p>
+      </div>
+      <form method="post" action="/local/category-discount" hx-post="/local/category-discount" hx-target="#main-view" class="dlg-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="return_page" value="categories">
+        <input type="hidden" name="category_id" id="cat-discount-id" value="">
+        <label class="dlg-label" for="cat-discount-percent">درصد تخفیف (۰ تا ۹۰)</label>
+        <input id="cat-discount-percent" name="percent" type="text" inputmode="numeric" dir="ltr" value="0" placeholder="مثلاً ۲۰">
+        <p class="hint-text">با ثبت ۰، تخفیف برداشته می‌شود و قیمت اصلی همهٔ محصول‌های دسته برمی‌گردد.</p>
+        <div class="dlg-actions">
+          <button type="button" class="btn-dlg-cancel" onclick="closeDlg(this)">انصراف</button>
+          <button type="submit" class="btn-dlg-primary">اعمال تخفیف</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
+    function catAvailToggle(btn) {
+      // data-available=true یعنی الان قابل فروش است، پس اقدام «ناموجود کن» است.
+      var currentlyAvailable = btn.getAttribute('data-available') === 'true';
+      var title = btn.getAttribute('data-title') || '';
+      var count = btn.getAttribute('data-products') || '۰';
+      document.getElementById('cat-avail-id').value = btn.getAttribute('data-id') || '';
+      document.getElementById('cat-avail-value').value = currentlyAvailable ? 'false' : 'true';
+      document.getElementById('cat-avail-title').textContent = currentlyAvailable ? 'ناموجود کردن دسته' : 'موجود کردن دسته';
+      document.getElementById('cat-avail-desc').textContent = currentlyAvailable
+        ? 'همهٔ محصول‌های دستهٔ «' + title + '» از منوی صندوق خارج می‌شوند و تا موجود شدن دوباره قابل فروش نیستند.'
+        : 'همهٔ محصول‌های دستهٔ «' + title + '» دوباره در منوی صندوق قابل فروش می‌شوند.';
+      document.getElementById('cat-avail-note').innerHTML = '<strong>' + count + '</strong> محصول در این دسته ثبت شده است.';
+      document.getElementById('cat-avail-submit').textContent = currentlyAvailable ? 'ناموجود کن' : 'موجود کن';
+      document.getElementById('cat-avail-submit').className = currentlyAvailable ? 'btn-dlg-primary is-danger' : 'btn-dlg-primary';
+      openDlg('dlg-cat-avail');
+    }
+    function catDiscountOpen(btn) {
+      var title = btn.getAttribute('data-title') || '';
+      var count = btn.getAttribute('data-products') || '۰';
+      var percent = btn.getAttribute('data-percent') || '0';
+      document.getElementById('cat-discount-id').value = btn.getAttribute('data-id') || '';
+      document.getElementById('cat-discount-percent').value = percent === '' ? '0' : percent;
+      document.getElementById('cat-discount-desc').textContent =
+        'درصد تخفیف روی قیمت فروش ' + count + ' محصول دستهٔ «' + title + '» اعمال می‌شود.';
+      openDlg('dlg-cat-discount');
+    }
     function catNew() {
       document.getElementById('cat-dlg-title').textContent = 'ایجاد دسته‌بندی';
       document.getElementById('cat-id').value = '';
@@ -2540,23 +2830,45 @@
         {{if .InvRows}}
         <div class="table-wrap">
           <table class="data-table prod-table">
-            <thead><tr><th>قلم</th><th>موقعیت</th><th>موجودی</th><th>وضعیت</th><th>ارزش موجودی</th><th>عملیات</th></tr></thead>
+            <thead><tr><th>قلم</th><th>موقعیت</th><th>موجودی</th><th>وضعیت</th><th>به‌روزرسانی</th><th>عملیات</th></tr></thead>
             <tbody>
               {{range .InvRows}}
-              <tr{{if .Negative}} class="inv-row-negative"{{end}}>
-                <td><div class="prod-name">{{if .Entity.Field "image"}}<img src="{{.Entity.Field "image"}}" alt="{{.Entity.Label}}" class="prod-thumb">{{else}}<span class="prod-thumb prod-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>{{end}}<div><strong>{{.Entity.Label}}</strong><small>{{if .Entity.Field "sku"}}کد {{.Entity.Field "sku"}} • {{end}}{{.Category}}</small></div></div></td>
-                <td>{{.Location}}</td>
-                <td><strong class="stock-number{{if .Negative}} is-negative{{end}}"><bdi dir="ltr">{{.StockDisplay}}</bdi></strong>{{if .Negative}}<span class="inv-neg-chip">منفی</span>{{end}}<small class="row-sub">حداقل: {{faNum (.Entity.Field "minimum_stock")}}</small></td>
-                <td><span class="badge {{if eq .StatusKey "in"}}status-ok{{else if eq .StatusKey "low"}}status-warn{{else}}status-danger{{end}}">{{.StatusText}}</span></td>
-                <td>{{.ValueToman}}</td>
+              <tr class="inv-row{{if .Negative}} inv-row-negative{{end}}">
                 <td>
-                  <div class="row-actions">
-                    <a href="/?page=ingredient-form&id={{.Entity.ID}}" hx-get="/?page=ingredient-form&id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true" class="icon-btn" title="ویرایش قلم" aria-label="ویرایش قلم"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16.5 4.5l3 3L8 19H5v-3z"/><path d="M14 7l3 3"/></svg></a>
-                    <button type="button" class="icon-btn" title="ثبت تغییر موجودی" aria-label="ثبت تغییر موجودی" onclick="invMovementFor('{{.Entity.ID}}', 'incoming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 8h11l-3-3m2 11H6l3 3"/></svg></a>
-                    <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این قلم از انبار حذف شود؟')">
-                      <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="kind" value="ingredient"><input type="hidden" name="id" value="{{.Entity.ID}}"><input type="hidden" name="return_page" value="ingredients">
-                      <button type="submit" class="icon-btn danger" title="حذف قلم" aria-label="حذف قلم"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4.5 6h15M9.5 6V4.5h5V6M6.5 6l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/></svg></button>
-                    </form>
+                  <div class="inv-item">
+                    {{if .Entity.Field "image"}}<img src="{{.Entity.Field "image"}}" alt="{{.Entity.Label}}" class="inv-thumb">{{else}}<span class="inv-thumb inv-thumb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>{{end}}
+                    <div class="inv-item-text">
+                      <strong>{{.Entity.Label}}</strong>
+                      <small>{{.Category}}{{if .SKU}} • {{.SKU}}{{end}}</small>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="inv-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>{{.Location}}</span></td>
+                <td>
+                  <div class="inv-qty">
+                    <strong class="stock-number{{if .Negative}} is-negative{{end}}"><bdi dir="ltr">{{.QtyDisplay}}</bdi>{{if .UnitShort}}<span class="inv-qty-unit">{{.UnitShort}}</span>{{end}}{{if .Negative}}<span class="inv-neg-chip">منفی</span>{{end}}</strong>
+                    <small class="row-sub">{{if .MinOrderFa}}حد سفارش: {{.MinOrderFa}}{{if .UnitShort}} {{.UnitShort}}{{end}}{{else}}بدون حد سفارش{{end}}</small>
+                  </div>
+                </td>
+                <td><span class="inv-status {{.StatusKey}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">{{if eq .StatusKey "in"}}<circle cx="12" cy="12" r="8.5"/><path d="M8.6 12.3l2.2 2.2 4.4-4.9"/>{{else if eq .StatusKey "low"}}<path d="M12 4L21 20H3z"/><path d="M12 10v4.2m0 2.4v.01"/>{{else}}<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5l5 5m0-5l-5 5"/>{{end}}</svg>{{.StatusText}}</span></td>
+                <td><div class="inv-updated"><strong>{{.UpdatedFa}}</strong><small>{{.UpdatedRel}}</small></div></td>
+                <td>
+                  <div class="inv-ops">
+                    <button type="button" class="btn-inv-add" onclick="invMovementFor('{{.Entity.ID}}', 'incoming')">+ افزودن</button>
+                    <button type="button" class="btn-inv-sub" onclick="invMovementFor('{{.Entity.ID}}', 'outgoing')">کاهش</button>
+                    <details class="row-more">
+                      <summary class="icon-btn" title="عملیات بیشتر" aria-label="عملیات بیشتر"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
+                      <div class="row-more-menu">
+                        <span class="row-more-note">ارزش موجودی: {{.ValueToman}}</span>
+                        <a href="/?page=ingredient-form&id={{.Entity.ID}}" hx-get="/?page=ingredient-form&id={{.Entity.ID}}" hx-target="#main-view" hx-push-url="true">ویرایش قلم</a>
+                        <a href="/?page=inv-purchases" hx-get="/?page=inv-purchases" hx-target="#main-view" hx-push-url="true">فاکتور خرید</a>
+                        <a href="/?page=ingredients&istatus=negative" hx-get="/?page=ingredients&istatus=negative" hx-target="#main-view" hx-push-url="true">اقلام دارای کمبود</a>
+                        <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این قلم از انبار حذف شود؟')">
+                          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="kind" value="ingredient"><input type="hidden" name="id" value="{{.Entity.ID}}"><input type="hidden" name="return_page" value="ingredients">
+                          <button type="submit" class="row-more-danger">حذف قلم</button>
+                        </form>
+                      </div>
+                    </details>
                   </div>
                 </td>
               </tr>

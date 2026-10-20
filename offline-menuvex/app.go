@@ -1281,7 +1281,15 @@ type WasteAgg struct {
 type CategoryRow struct {
 	Entity   store.Entity
 	Products int
+	// AvailableProducts تعداد محصول‌های قابل فروش دسته است تا دکمهٔ
+	// «ناموجود کردن» یا «موجود کردن» دسته درست انتخاب شود.
+	AvailableProducts int
+	DiscountPercent   int
+	AllUnavailable    bool
 }
+
+// HasDiscount یعنی تخفیف دسته‌ای فعال است و قیمت خط‌خورده باید نمایش داده شود.
+func (r CategoryRow) HasDiscount() bool { return r.DiscountPercent > 0 }
 
 // BestSellerRow ردیف پرفروش‌ترین محصولات در گزارش دوره.
 type BestSellerRow struct {
@@ -2008,14 +2016,21 @@ type DashPopularRow struct {
 
 // ProductRow ردیف لیست محصولات هم‌تراز با جدول محصولات داشبورد وب.
 type ProductRow struct {
-	Rank          int
-	Entity        store.Entity
-	CategoryLabel string
-	OrdersCount   int
-	StatusKey     string // in | low | out
-	StockDisplay  string
-	ImageURL      string
+	Rank            int
+	Entity          store.Entity
+	CategoryLabel   string
+	OrdersCount     int
+	StatusKey       string // in | low | out
+	StockDisplay    string
+	ImageURL        string
+	DiscountPercent int    // تخفیف فعال دسته‌بندی روی این محصول
+	BasePriceToman  string // قیمت پیش از تخفیف (تومان)
+	Featured        bool   // «پیشنهاد روز»
 }
+
+// HasDiscount یعنی قیمت این محصول با تخفیف دسته‌بندی کم شده و باید قیمت
+// قبلی هم کنارش دیده شود.
+func (r ProductRow) HasDiscount() bool { return r.DiscountPercent > 0 && r.BasePriceToman != "" }
 
 // InvRow ردیف لیست موجودی هم‌تراز با جدول انبار داشبورد وب.
 type InvRow struct {
@@ -2026,6 +2041,14 @@ type InvRow struct {
 	ValueToman   string
 	Location     string
 	Category     string
+	// مثل نسخهٔ وب، عدد موجودی و واحد جدا نمایش داده می‌شوند تا عدد بزرگ
+	// و واحد کنارش بنشیند؛ حد سفارش هم زیر عدد می‌آید.
+	QtyDisplay string
+	UnitShort  string
+	MinOrderFa string
+	SKU        string
+	UpdatedFa  string
+	UpdatedRel string
 }
 
 // InvCategoryRow ردیف جدول «دسته‌بندی مواد اولیه» (categories-page وب):
@@ -2049,6 +2072,53 @@ func (r InvRow) StatusText() string {
 		return "پایان‌یافته"
 	default:
 		return "موجود"
+	}
+}
+
+// shortUnitLabel واحد را کوتاه می‌کند («گرم (g)» ← «گرم») تا کنار عدد
+// موجودی مثل نسخهٔ وب بنشیند.
+func shortUnitLabel(label string) string {
+	if i := strings.Index(label, " ("); i > 0 {
+		return label[:i]
+	}
+	return label
+}
+
+// jalaliDayMonth تاریخ ISO را به شکل «۲۴ مهر ۱۴۰۵ — ۱۳:۳۹» برمی‌گرداند؛
+// ستون «به‌روزرسانی» جدول انبار از همین استفاده می‌کند.
+func jalaliDayMonth(iso string) string {
+	t, ok := JalaliTimeOf(iso)
+	if !ok {
+		return "—"
+	}
+	loc := t.In(tehranZone())
+	jy, jm, jd := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	name := ""
+	if jm >= 1 && jm <= 12 {
+		name = jalaliMonthNames[jm]
+	}
+	return store.ToPersianDigits(fmt.Sprintf("%d %s %d — %02d:%02d", jd, name, jy, loc.Hour(), loc.Minute()))
+}
+
+// relativeFa فاصلهٔ زمانی تا حالا را به فارسی می‌گوید («۳ روز پیش»).
+func relativeFa(iso string) string {
+	t, ok := JalaliTimeOf(iso)
+	if !ok {
+		return "—"
+	}
+	diff := time.Since(t)
+	if diff < 0 {
+		diff = 0
+	}
+	switch {
+	case diff < time.Minute:
+		return "همین حالا"
+	case diff < time.Hour:
+		return store.ToPersianDigits(fmt.Sprintf("%d دقیقه پیش", int(diff.Minutes())))
+	case diff < 24*time.Hour:
+		return store.ToPersianDigits(fmt.Sprintf("%d ساعت پیش", int(diff.Hours())))
+	default:
+		return store.ToPersianDigits(fmt.Sprintf("%d روز پیش", int(diff.Hours()/24)))
 	}
 }
 
@@ -2261,6 +2331,9 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("GET /logout", a.handleLogout)
 	mux.HandleFunc("GET /uploads/", a.handleUploadServe)
 	mux.HandleFunc("POST /local/products-import", a.handleProductsImport)
+	mux.HandleFunc("POST /local/products-bulk", a.handleProductsBulk)
+	mux.HandleFunc("POST /local/category-availability", a.handleCategoryAvailability)
+	mux.HandleFunc("POST /local/category-discount", a.handleCategoryDiscount)
 
 	a.registerLocalAPIRoutes(mux)
 
@@ -2740,6 +2813,15 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 			for _, prod := range products {
 				row := ProductRow{Entity: prod, OrdersCount: ordersCount[prod.ID], ImageURL: prod.Field("image")}
+				// تخفیف دسته‌بندی: قیمت فعلی تخفیف‌خورده است و قیمت پایه در
+				// base_price مانده؛ هر دو در جدول نشان داده می‌شوند.
+				if pct, pctErr := strconv.Atoi(strings.TrimSpace(prod.Field("discount_percent"))); pctErr == nil && pct > 0 {
+					if baseRaw := strings.TrimSpace(prod.Field("base_price")); baseRaw != "" {
+						row.DiscountPercent = pct
+						row.BasePriceToman = store.FormatIRRToToman(baseRaw)
+					}
+				}
+				row.Featured = prod.Field("is_featured") == "true"
 				row.CategoryLabel = catLabel[prod.Field("category_id")]
 				if row.CategoryLabel == "" {
 					row.CategoryLabel = "—"
@@ -2851,7 +2933,15 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				counts[p.Field("category_id")]++
 			}
 			for _, c := range v.Entities {
-				v.CatRows = append(v.CatRows, CategoryRow{Entity: c, Products: counts[c.ID]})
+				available, _ := store.ProductsAvailableCount(products, c.ID)
+				row := CategoryRow{
+					Entity:            c,
+					Products:          counts[c.ID],
+					AvailableProducts: available,
+					DiscountPercent:   store.CategoryDiscountPercent(products, c.ID),
+				}
+				row.AllUnavailable = row.Products > 0 && available == 0
+				v.CatRows = append(v.CatRows, row)
 			}
 		}
 	case "ingredients":
@@ -2900,6 +2990,22 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 					stockText = "−" + strings.TrimPrefix(stockText, "-")
 				}
 				row.StockDisplay = stockText + " " + ing.UnitLabel()
+				row.QtyDisplay = stockText
+				row.UnitShort = shortUnitLabel(ing.UnitLabel())
+				row.SKU = ing.Field("sku")
+				minOrder := strings.TrimSpace(ing.Field("reorder_point"))
+				if minOrder == "" {
+					minOrder = strings.TrimSpace(ing.Field("minimum_stock"))
+				}
+				if minOrder != "" {
+					row.MinOrderFa = store.FormatPersianNumber(minOrder)
+				}
+				updatedISO := ing.Field("updated_at")
+				if strings.TrimSpace(updatedISO) == "" {
+					updatedISO = ing.Field("created_at")
+				}
+				row.UpdatedFa = jalaliDayMonth(updatedISO)
+				row.UpdatedRel = relativeFa(updatedISO)
 				switch {
 				case stock < 0:
 					row.StatusKey = "negative"
@@ -6735,6 +6841,129 @@ func (a *Application) handleProductsImport(w http.ResponseWriter, r *http.Reques
 		created++
 	}
 	a.navigatePage(w, r, "products", "افزودن گروهی انجام شد: "+store.FormatPersianNumber(strconv.Itoa(created))+" محصول ثبت و "+store.FormatPersianNumber(strconv.Itoa(failed))+" ردیف رد شد.")
+}
+
+// handleProductsBulk ویرایش گروهی محصولات را از JSON ارسالی صفحهٔ محصولات
+// اعمال می‌کند. فقط فیلدهایی که کاربر واقعاً تغییر داده در payload می‌آید،
+// بنابراین محصولی که دست نخورده باشد بازنویسی نمی‌شود.
+func (a *Application) handleProductsBulk(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		a.navigatePage(w, r, "products", "فرم نامعتبر است.")
+		return
+	}
+	raw := strings.TrimSpace(r.Form.Get("payload"))
+	if raw == "" {
+		a.navigatePage(w, r, "products", "هیچ تغییری برای ذخیره انتخاب نشده است.")
+		return
+	}
+	var items []struct {
+		ID        string  `json:"id"`
+		Price     *string `json:"price"`
+		Stock     *string `json:"stock"`
+		Available *bool   `json:"available"`
+		Featured  *bool   `json:"featured"`
+	}
+	if err := json.Unmarshal([]byte(raw), &items); err != nil {
+		a.navigatePage(w, r, "products", "دادهٔ ویرایش گروهی نامعتبر است.")
+		return
+	}
+	patches := make([]store.ProductBulkPatch, 0, len(items))
+	for _, it := range items {
+		patch := store.ProductBulkPatch{ID: it.ID, Available: it.Available, Featured: it.Featured}
+		if it.Price != nil {
+			value := strings.TrimSpace(*it.Price)
+			patch.Price = &value
+		}
+		if it.Stock != nil {
+			value := strings.TrimSpace(*it.Stock)
+			patch.Stock = &value
+		}
+		patches = append(patches, patch)
+	}
+	saved, err := a.store.BulkUpdateProducts(r.Context(), patches)
+	if err != nil {
+		a.navigatePage(w, r, "products", "ویرایش گروهی ناموفق بود: "+err.Error())
+		return
+	}
+	msg := "ویرایش گروهی انجام شد: " + store.FormatPersianNumber(strconv.Itoa(saved)) + " محصول به‌روزرسانی شد."
+	if saved == 0 {
+		msg = "تغییری برای ذخیره پیدا نشد؛ حداقل یک فیلد را عوض کنید."
+	}
+	a.navigatePage(w, r, "products", msg)
+}
+
+// handleCategoryAvailability همهٔ محصولات یک دسته را یک‌جا موجود یا ناموجود
+// می‌کند (درخواست کاربر: «یک دسته‌بندی و آیتم‌هایش را ناموجود کن»).
+func (a *Application) handleCategoryAvailability(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		a.navigatePage(w, r, "categories", "فرم نامعتبر است.")
+		return
+	}
+	categoryID := strings.TrimSpace(r.Form.Get("category_id"))
+	available := strings.TrimSpace(r.Form.Get("available")) != "false"
+	label := "این دسته"
+	if cat, catErr := a.store.Entity(r.Context(), "category", categoryID); catErr == nil {
+		label = cat.Label()
+	}
+	count, err := a.store.SetCategoryAvailability(r.Context(), categoryID, available)
+	if err != nil {
+		a.navigatePage(w, r, "categories", "تغییر وضعیت دسته ناموفق بود: "+err.Error())
+		return
+	}
+	countFa := store.FormatPersianNumber(strconv.Itoa(count))
+	var msg string
+	switch {
+	case !available && count > 0:
+		msg = "دستهٔ «" + label + "» ناموجود شد؛ " + countFa + " محصول از منوی صندوق خارج شد."
+	case !available:
+		msg = "محصول‌های دستهٔ «" + label + "» از قبل ناموجود بودند."
+	case count > 0:
+		msg = "دستهٔ «" + label + "» موجود شد؛ " + countFa + " محصول دوباره قابل فروش است."
+	default:
+		msg = "محصول‌های دستهٔ «" + label + "» از قبل موجود بودند."
+	}
+	a.navigatePage(w, r, "categories", msg)
+}
+
+// handleCategoryDiscount تخفیف درصدی را روی همهٔ محصولات یک دسته اعمال
+// می‌کند؛ درصد صفر تخفیف را برمی‌دارد و قیمت اصلی را برمی‌گرداند.
+func (a *Application) handleCategoryDiscount(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		a.navigatePage(w, r, "categories", "فرم نامعتبر است.")
+		return
+	}
+	categoryID := strings.TrimSpace(r.Form.Get("category_id"))
+	percent := 0
+	rawPercent := normalizeNumInput(r.Form.Get("percent"))
+	rawPercent = strings.NewReplacer(",", "", "٬", "", " ", "").Replace(rawPercent)
+	if strings.TrimSpace(rawPercent) != "" {
+		value, convErr := strconv.Atoi(rawPercent)
+		if convErr != nil || value < 0 || value > 90 {
+			a.navigatePage(w, r, "categories", "درصد تخفیف باید عددی بین ۰ تا ۹۰ باشد.")
+			return
+		}
+		percent = value
+	}
+	label := "این دسته"
+	if cat, catErr := a.store.Entity(r.Context(), "category", categoryID); catErr == nil {
+		label = cat.Label()
+	}
+	count, err := a.store.ApplyCategoryDiscount(r.Context(), categoryID, percent)
+	if err != nil {
+		a.navigatePage(w, r, "categories", "اعمال تخفیف ناموفق بود: "+err.Error())
+		return
+	}
+	countFa := store.FormatPersianNumber(strconv.Itoa(count))
+	var msg string
+	switch {
+	case count == 0:
+		msg = "هیچ محصول قیمت‌داری در دستهٔ «" + label + "» پیدا نشد."
+	case percent == 0:
+		msg = "تخفیف دستهٔ «" + label + "» برداشته شد؛ قیمت " + countFa + " محصول به حالت اصلی برگشت."
+	default:
+		msg = "تخفیف " + store.FormatPersianNumber(strconv.Itoa(percent)) + "٪ روی " + countFa + " محصول دستهٔ «" + label + "» اعمال شد."
+	}
+	a.navigatePage(w, r, "categories", msg)
 }
 
 // saveUploadedImage تصویر آپلودشده کاربر را با نام تصادفی امن در پوشه داده محلی ذخیره می‌کند.

@@ -287,6 +287,24 @@ func (s *Store) SaveLocalRecord(ctx context.Context, kind, id string, fields map
 	if err := validateLocalFields(kind, fields); err != nil {
 		return "", err
 	}
+	// اگر قیمت محصول دستی عوض شود، تخفیف دسته‌بندی باطل می‌شود؛ وگرنه قیمت
+	// پایهٔ قبلی می‌ماند و جدول محصولات قیمت قدیمی را خط‌خورده نشان می‌دهد.
+	// وقتی قیمت تغییر نکرده (مثلاً فقط توضیحات ویرایش شده) تخفیف حفظ می‌شود.
+	// اعمال تخفیف دسته خودش base_price را همراه price می‌فرستد و از این قاعده
+	// مستثناست.
+	if kind == "product" && strings.TrimSpace(id) != "" {
+		if rawPrice, hasPrice := fields["price"]; hasPrice {
+			if _, hasBase := fields["base_price"]; !hasBase {
+				newPrice := strings.TrimSpace(fmt.Sprint(rawPrice))
+				if current, curErr := s.Entity(ctx, "product", id); curErr == nil {
+					if currentPrice := strings.TrimSpace(current.Field("price")); currentPrice != newPrice {
+						fields["base_price"] = ""
+						fields["discount_percent"] = ""
+					}
+				}
+			}
+		}
+	}
 	var err error
 	isNew := false
 	if strings.TrimSpace(id) == "" {
