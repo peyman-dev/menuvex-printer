@@ -2523,8 +2523,6 @@ func New(dataDir string) (*Application, error) {
 		var engineCtx context.Context
 		engineCtx, a.engineCancel = context.WithCancel(context.Background())
 		a.engine.Start(engineCtx)
-	} else if isDefaultUserDir {
-		_ = a.SeedIfEmpty(context.Background())
 	}
 	return a, nil
 }
@@ -2537,15 +2535,6 @@ func (a *Application) Close() error {
 		a.engineCancel()
 	}
 	return a.store.Close()
-}
-
-// SeedIfEmpty populates authentic Iranian café initial data when launching the standalone desktop executable.
-func (a *Application) SeedIfEmpty(ctx context.Context) error {
-	st := a.store.Stats(ctx)
-	if st.CategoriesCount == 0 && st.ProductsCount == 0 && st.OrdersCount == 0 {
-		return a.store.SeedIranianCafeData(ctx)
-	}
-	return nil
 }
 
 func (a *Application) Handler() http.Handler {
@@ -2565,7 +2554,6 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /catalog", a.queueCatalog)
 
 	// Full standalone desktop actions (no external server required)
-	mux.HandleFunc("POST /local/seed-demo", a.handleSeedDemo)
 	mux.HandleFunc("POST /local/save", a.handleLocalSave)
 	mux.HandleFunc("POST /local/tables-bulk", a.handleTablesBulk)
 	mux.HandleFunc("POST /local/delete", a.handleLocalDelete)
@@ -5898,14 +5886,6 @@ func kindToPage(kind string) string {
 	default:
 		return "home"
 	}
-}
-
-func (a *Application) handleSeedDemo(w http.ResponseWriter, r *http.Request) {
-	if err := a.store.SeedIranianCafeData(r.Context()); err != nil {
-		a.navigatePage(w, r, "home", "خطا در بارگذاری داده‌های نمونه: "+err.Error())
-		return
-	}
-	a.navigatePage(w, r, "home", "داده‌های نمونه منوی کافه (منو، انبار، رسپی، میزها، مشتریان، پرسنل و سفارش‌ها) با موفقیت بارگذاری شد.")
 }
 
 // handleTablesBulk: ساخت گروهی میزها — همان ورودی‌های bulk-create-dialog وب

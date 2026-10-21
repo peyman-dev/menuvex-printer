@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
@@ -19,7 +18,6 @@ func main() {
 		log.Fatal(err)
 	}
 	defer app.Close()
-	_ = app.SeedIfEmpty(context.Background())
 	handler := app.Handler()
 	err = wails.Run(&options.App{
 		Title:     "منووکس — سامانه جامع مدیریت کافه و رستوران",

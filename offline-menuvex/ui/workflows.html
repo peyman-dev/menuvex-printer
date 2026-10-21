@@ -157,9 +157,6 @@
               <input type="text" id="pos-search-input" oninput="filterPOSSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();}" placeholder="جستجوی محصول..." aria-label="جستجوی محصول">
               <kbd class="pos-kbd">/</kbd>
             </div>
-            {{if eq (len .Products) 0}}
-            <button type="submit" formaction="/local/seed-demo" hx-post="/local/seed-demo" hx-target="#main-view" class="btn btn-outline btn-sm">بارگذاری منوی نمونه</button>
-            {{end}}
           </div>
           <div class="pos-cats">
             <button type="button" class="pos-cat active" onclick="filterPOSCategory('', this)">همه <small>{{faInt (len .Products)}}</small></button>

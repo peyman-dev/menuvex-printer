@@ -62,8 +62,6 @@ func main() {
 	}
 	defer app.Close()
 
-	_ = app.SeedIfEmpty(context.Background())
-
 	// Reuse a backend that is already running (double click on the desktop
 	// shortcut) instead of starting a second database writer on another port.
 	if running, ok := runningInstance(*addr); ok {

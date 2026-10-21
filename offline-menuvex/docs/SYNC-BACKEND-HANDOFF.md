@@ -369,9 +369,10 @@ the Go suite.
    because the server derives consumption from the order itself —
    queuing both would double-deduct centrally. (Web-side recipe
    deduction must use the same rule.)
-8. Binding a server device onto a database that was seeded with demo
-   standalone data will keep the demo rows (they are local-origin).
-   Bind devices on a fresh data directory.
+8. Production installers start with an empty local store; the demo fixture is
+   excluded by the `production` build tag. Existing operator data files are
+   preserved by binding/refresh, so use a fresh data directory only when a
+   genuinely new empty terminal is intended.
 
 ## 5. Deployment / migration checklist
 

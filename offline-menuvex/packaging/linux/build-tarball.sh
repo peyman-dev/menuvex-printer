@@ -23,6 +23,7 @@ echo "==> Building portable archive for linux/$GOARCH_TARGET"
 (
     cd "$ROOT"
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH_TARGET" go build \
+        -tags production \
         -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$VERSION" \
         -o "$WORK/$NAME/menuvex-offline" ./cmd/coffish-desktop
 )

@@ -40,6 +40,7 @@ echo "==> Building MenuVex Offline $VERSION for linux/$GOARCH_TARGET"
 (
     cd "$ROOT"
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH_TARGET" go build \
+        -tags production \
         -trimpath -buildvcs=false \
         -ldflags "-s -w -X main.version=$VERSION" \
         -o "$STAGE/usr/bin/menuvex-offline" \

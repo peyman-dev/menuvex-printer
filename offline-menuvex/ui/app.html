@@ -1563,13 +1563,13 @@ document.addEventListener('htmx:afterSwap', function (e) {
   {{if eq .Stats.ProductsCount 0}}
   <section class="empty-hero-card">
     <div>
-      <h2>راه‌اندازی اولیه سامانه منووکس</h2>
-      <p>برای بارگذاری منوی کامل کافه (اسپرسو، لاته، قهوه دمی، کیک روز)، مواد اولیه انبار، رسپی‌ها، میزهای سالن، مشتریان و سفارش‌های نمونه، دکمه روبه‌رو را بزنید.</p>
+      <h2>پایگاه داده محلی آماده است</h2>
+      <p>هنوز اطلاعاتی ثبت نشده است. دسته‌بندی‌ها، محصولات، مواد اولیه و تنظیمات کافه را با اطلاعات واقعی خودتان وارد کنید؛ هیچ دادهٔ نمونه‌ای به‌صورت خودکار ساخته نمی‌شود.</p>
     </div>
-    <form method="post" action="/local/seed-demo" hx-post="/local/seed-demo" hx-target="#main-view">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <button type="submit" class="btn btn-primary btn-lg">بارگذاری داده‌های نمونه کافه ایرانی</button>
-    </form>
+    <div class="dash-head-actions">
+      <a href="/?page=categories" hx-get="/?page=categories" hx-target="#main-view" hx-push-url="true" class="btn btn-outline">افزودن دسته‌بندی</a>
+      <a href="/?page=products" hx-get="/?page=products" hx-target="#main-view" hx-push-url="true" class="btn btn-primary">افزودن محصول</a>
+    </div>
   </section>
   {{end}}
 

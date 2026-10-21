@@ -24,6 +24,6 @@ foreach ($t in $targets) {
     $env:GOARCH = $t.GOARCH
     $out = "dist/coffish-desktop-$($t.GOOS)-$($t.GOARCH)$($t.EXT)"
     Write-Host "==> Building $out ..."
-    go build -a -trimpath -ldflags="-s -w" -o $out ./cmd/coffish-desktop
+    go build -tags production -a -trimpath -ldflags="-s -w" -o $out ./cmd/coffish-desktop
 }
 Write-Host "==> All cross-OS binaries built in desktop/dist/"

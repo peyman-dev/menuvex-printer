@@ -25,7 +25,7 @@ name: MenuVex Offline Installers
 
 on:
   push:
-    branches: ['arena/9d25b45b-menuvex-printer']
+    branches: ['arena/d792fd1d-menuvex-printer']
     tags: ['offline-v*']
   pull_request:
     paths:
