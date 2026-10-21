@@ -149,11 +149,12 @@ func TestPushFailureBacksOffWithoutDroppingOps(t *testing.T) {
 	if err := s.NotePushFailure(ctx, "push request failed"); err != nil {
 		t.Fatal(err)
 	}
-	// در پنجرهٔ بک‌آف فعلاً واجد ارسال نیستند ولی از دست نرفته‌اند.
-	eligible, _ := s.Outbox(ctx, true)
+	// عملیات گم نشده و برای بازپخش فوری با همان شناسه در دسترس است؛
+	// فاصله‌گذاری تلاش‌های خودکار وظیفهٔ موتور سینک است، نه استور.
+	pending, _ := s.Outbox(ctx, true)
 	all, _ := s.Outbox(ctx, false)
-	if len(eligible) != 0 {
-		t.Fatalf("ops must wait out their backoff window: %+v", eligible)
+	if len(pending) != len(before) {
+		t.Fatalf("pending ops must stay replayable after push failure: %d -> %d", len(before), len(pending))
 	}
 	if len(all) != len(before) {
 		t.Fatalf("ops lost after push failure: %d -> %d", len(before), len(all))
@@ -161,6 +162,9 @@ func TestPushFailureBacksOffWithoutDroppingOps(t *testing.T) {
 	for _, op := range all {
 		if op.State == "queued" && op.Attempts < 1 {
 			t.Fatalf("attempt not recorded: %+v", op)
+		}
+		if op.State == "queued" && op.NextRetryAt == "" {
+			t.Fatalf("next retry metadata not recorded: %+v", op)
 		}
 	}
 }

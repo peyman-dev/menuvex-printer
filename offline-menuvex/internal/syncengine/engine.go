@@ -238,6 +238,17 @@ func (e *Engine) loop(ctx context.Context) {
 			debounceC = debounceTimer.C
 		case <-debounceC:
 			debounceC = nil
+			// بک‌آف سطح چرخه همین‌جاست: تا وقتی موعد تلاش بعدی نرسیده،
+			// تغییر محلی تازه چرخهٔ خودکار دیگری نمی‌سازد (تایمر تلاش
+			// مجدد سر وقتش می‌زند و صف در این فاصله امن روی دستگاه
+			// می‌ماند). سینک دستی و چرخهٔ ۱۰ دقیقه‌ای از این قاعده
+			// مستثنا هستند و همیشه اجرا می‌شوند.
+			e.mu.Lock()
+			backingOff := e.failures > 0 && !e.nextTry.IsZero() && time.Now().Before(e.nextTry)
+			e.mu.Unlock()
+			if backingOff {
+				continue
+			}
 			e.setNextRetry(e.afterDrain(e.runDrain(ctx)), &retryTimer, &retryC)
 		case <-probe.C:
 			e.probeReachability(ctx)
@@ -291,6 +302,11 @@ func (e *Engine) probeReachability(ctx context.Context) {
 	ok := err == nil
 	e.mu.Lock()
 	e.reachOK = ok
+	if ok && !wasOK {
+		// سرور برگشته است؛ پنجرهٔ بک‌آف دیگر معنا ندارد تا چرخهٔ
+		// فوریِ ناشی از این لبه پشت گیت debounce نماند.
+		e.nextTry = time.Time{}
+	}
 	e.mu.Unlock()
 	if ok && !wasOK {
 		e.log.Info("server reachable again; triggering sync")

@@ -111,7 +111,11 @@ dependencies (order → its payments/transitions) are preserved; the
 server additionally answers `retry` (not failure) when a dependency
 has not arrived yet, so one blocked entity never blocks unrelated
 entities. Failures record `attempts`, `next_retry_at`, `last_error`
-locally; operations are never silently dropped.
+locally; operations are never silently dropped. Retry *pacing* is
+enforced by the engine's cycle-level backoff (automatic triggers wait
+out the backoff window), while an explicit `Refresh` always replays
+pending operations immediately with their original IDs — a lost
+response must never turn into a stuck or duplicated operation.
 
 ### 2.4 Data-safety fixes in the local store
 

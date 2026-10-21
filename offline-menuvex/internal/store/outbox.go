@@ -237,8 +237,10 @@ func resultErrorText(r Result) string {
 }
 
 // NotePushFailure وقتی کل درخواست push شکست خورد (مثلاً پاسخ HTTP گم شد)
-// صدا زده می‌شود: عملیات‌های واجد شرایط فعلی یک تلاش مصرف می‌کنند و به
-// پنجرهٔ بک‌آف می‌روند — هرگز حذف نمی‌شوند و با همان شناسه تکرار می‌شوند.
+// صدا زده می‌شود: برای عملیات‌های در صف یک تلاش و زمان پیشنهادی تلاش
+// بعدی ثبت می‌شود — هرگز حذف نمی‌شوند و با همان شناسه تکرار می‌شوند.
+// این زمان فقط متادیتاست؛ فاصله‌گذاری واقعی تلاش‌های خودکار را بک‌آف
+// سطح چرخهٔ موتور سینک انجام می‌دهد تا Refresh صریح همیشه فوری باشد.
 func (s *Store) NotePushFailure(ctx context.Context, errText string) error {
 	return s.withTxServer(ctx, func(st *persistedDB) error {
 		now := time.Now().UTC()
@@ -313,18 +315,17 @@ func (s *Store) Outbox(ctx context.Context, pending bool) ([]Operation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ops := []Operation{}
-	now := time.Now().UTC()
 	for _, op := range s.state.Outbox {
 		if pending {
+			// قرارداد مهم: «در انتظار» فقط یعنی وضعیت عملیات پایانه‌ای نشده
+			// است. استور عمداً هیچ عملیاتی را به‌خاطر پنجرهٔ زمانی از
+			// Refresh پنهان نمی‌کند — عملیاتی که پاسخش گم شده باید فوراً و
+			// با همان شناسه بازپخش شود (سرور با دفتر idempotency جلوی
+			// اعمال دوباره را می‌گیرد). فاصله‌گذاری تلاش‌های خودکار وظیفهٔ
+			// موتور سینک است (بک‌آف سطح چرخه)، نه این لایه؛ NextRetryAt
+			// اینجا فقط متادیتای ثبت‌شده برای مشاهده‌پذیری است.
 			if op.State != "queued" && op.State != "retry" && op.State != "not_processed" {
 				continue
-			}
-			// بک‌آف: عملیاتی که موعد تلاش بعدی‌اش نرسیده در این چرخه ارسال
-			// نمی‌شود تا سرورِ در حال ریکاوری زیر فشار نرود.
-			if op.NextRetryAt != "" {
-				if t, perr := time.Parse(time.RFC3339, op.NextRetryAt); perr == nil && t.After(now) {
-					continue
-				}
 			}
 		}
 		raw := make(json.RawMessage, len(op.Payload))
@@ -409,9 +410,10 @@ func (s *Store) SaveResults(ctx context.Context, sent []Operation, results []Res
 			cur.Result = raw
 			switch r.Status {
 			case "retry", "not_processed":
-				// شکست موقت: عملیات با همان شناسه و بعد از بک‌آف دوباره
-				// فرستاده می‌شود؛ سرور با دفتر idempotency خودش جلوی
-				// اعمال دوباره را می‌گیرد.
+				// شکست موقت: عملیات با همان شناسه در چرخهٔ بعد دوباره
+				// فرستاده می‌شود؛ تلاش و زمان پیشنهادی تلاش بعدی برای
+				// مشاهده‌پذیری ثبت می‌شود و سرور با دفتر idempotency
+				// خودش جلوی اعمال دوباره را می‌گیرد.
 				cur.Attempts++
 				cur.NextRetryAt = time.Now().UTC().Add(retryBackoff(cur.Attempts)).Format(time.RFC3339)
 				cur.LastError = resultErrorText(r)
