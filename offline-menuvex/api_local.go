@@ -22,6 +22,11 @@ func writeJSONEnvelope(w http.ResponseWriter, status int, success bool, message 
 }
 
 func (a *Application) registerLocalAPIRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/v1/license", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(a.LicenseSummary(r.Context()))
+	})
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONEnvelope(w, http.StatusOK, true, "سرویس دسکتاپ منووکس فعال و آماده است", map[string]any{
 			"name":    "MenuVex Desktop Local Engine",

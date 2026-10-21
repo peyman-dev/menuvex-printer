@@ -3,164 +3,20 @@ package desktop
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sinaqaffari/coffish/desktop/internal/store"
 )
-
-// ── لایسنس آفلاین ─────────────────────────────────────────────────────────────
-// فایل license.enc کنار پایگاه داده ساخته می‌شود: payload خوانا + امضای HMAC
-// با کلید محرمانه دستگاه (.license-secret). دستکاری فایل یا گذشتن تاریخ انقضا
-// برنامه را قفل می‌کند.
-
-type licensePayload struct {
-	KeyHash   string `json:"key_hash"`
-	Holder    string `json:"holder"`
-	Plan      string `json:"plan"`
-	IssuedAt  string `json:"issued_at"`
-	ExpiresAt string `json:"expires_at"`
-}
-
-type licenseFile struct {
-	Payload licensePayload `json:"payload"`
-	Sig     string         `json:"sig"`
-}
-
-type LicenseState struct {
-	Valid     bool
-	Expired   bool
-	Holder    string
-	Plan      string
-	DaysLeft  int
-	ExpiresAt string
-}
-
-func (a *Application) licensePath() string {
-	return filepath.Join(filepath.Dir(a.uploadDir), "license.enc")
-}
-
-func (a *Application) licenseSecret() ([]byte, error) {
-	secretPath := filepath.Join(filepath.Dir(a.uploadDir), ".license-secret")
-	if raw, err := os.ReadFile(secretPath); err == nil && len(raw) >= 32 {
-		return raw, nil
-	}
-	secret := make([]byte, 32)
-	if _, err := rand.Read(secret); err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(filepath.Dir(secretPath), 0o755); err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(secretPath, secret, 0o600); err != nil {
-		return nil, err
-	}
-	return secret, nil
-}
-
-func (a *Application) signLicense(payload licensePayload) (string, error) {
-	secret, err := a.licenseSecret()
-	if err != nil {
-		return "", err
-	}
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-	mac := hmac.New(sha256.New, secret)
-	mac.Write(raw)
-	return hex.EncodeToString(mac.Sum(nil)), nil
-}
-
-// LicenseState وضعیت فعلی لایسنس را از فایل امضاشده می‌خواند و اعتبارسنجی می‌کند.
-func (a *Application) LicenseState() LicenseState {
-	raw, err := os.ReadFile(a.licensePath())
-	if err != nil {
-		return LicenseState{}
-	}
-	var lf licenseFile
-	if json.Unmarshal(raw, &lf) != nil {
-		return LicenseState{}
-	}
-	expect, err := a.signLicense(lf.Payload)
-	if err != nil || subtle.ConstantTimeCompare([]byte(expect), []byte(lf.Sig)) != 1 {
-		return LicenseState{} // فایل دستکاری شده = بدون لایسنس
-	}
-	exp, err := time.Parse(time.RFC3339, lf.Payload.ExpiresAt)
-	if err != nil {
-		return LicenseState{}
-	}
-	st := LicenseState{Valid: true, Holder: lf.Payload.Holder, Plan: lf.Payload.Plan, ExpiresAt: lf.Payload.ExpiresAt}
-	days := int(time.Until(exp).Hours() / 24)
-	if days < 0 {
-		days = 0
-	}
-	st.DaysLeft = days
-	if time.Now().After(exp) {
-		st.Expired = true
-	}
-	return st
-}
-
-// ActivateLicense لایسنس را فعال و فایل امضاشده license.enc را ایجاد می‌کند.
-// حالت فعلی (Dummy): هر کلید با حداقل ۴ نویسه پذیرفته می‌شود؛ پسوند ‎-N‎ یعنی اشتراک N روزه.
-func (a *Application) ActivateLicense(key, holder string) (LicenseState, error) {
-	key = strings.TrimSpace(key)
-	holder = strings.TrimSpace(holder)
-	if len([]rune(key)) < 4 {
-		return LicenseState{}, errors.New("کد لایسنس معتبر نیست؛ کد خریداری‌شده را کامل وارد کنید")
-	}
-	if holder == "" {
-		holder = "کافه من"
-	}
-	days := 365
-	if idx := strings.LastIndex(key, "-"); idx > 0 {
-		if n, err := strconv.Atoi(strings.TrimSpace(key[idx+1:])); err == nil && n >= 7 && n <= 3650 {
-			days = n
-		}
-	}
-	now := time.Now()
-	keyHash := sha256.Sum256([]byte(key))
-	payload := licensePayload{
-		KeyHash:   hex.EncodeToString(keyHash[:]),
-		Holder:    holder,
-		Plan:      "اشتراک آفلاین منووکس",
-		IssuedAt:  now.Format(time.RFC3339),
-		ExpiresAt: now.AddDate(0, 0, days).Format(time.RFC3339),
-	}
-	sig, err := a.signLicense(payload)
-	if err != nil {
-		return LicenseState{}, err
-	}
-	raw, err := json.MarshalIndent(licenseFile{Payload: payload, Sig: sig}, "", "  ")
-	if err != nil {
-		return LicenseState{}, err
-	}
-	if err := os.MkdirAll(filepath.Dir(a.licensePath()), 0o755); err != nil {
-		return LicenseState{}, err
-	}
-	tmp := a.licensePath() + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
-		return LicenseState{}, err
-	}
-	if err := os.Rename(tmp, a.licensePath()); err != nil {
-		return LicenseState{}, err
-	}
-	return a.LicenseState(), nil
-}
 
 // ── نشست ورود (مدیر / پرسنل) ─────────────────────────────────────────────────
 
@@ -274,7 +130,9 @@ func (a *Application) renderAuth(w http.ResponseWriter, name string, data authPa
 
 func authExemptPath(path string) bool {
 	switch {
-	case path == "/license", path == "/login", path == "/logout", path == "/license/activate", path == "/register":
+	case path == "/license", path == "/license/status", path == "/license/refresh", path == "/login", path == "/logout", path == "/license/activate", path == "/register":
+		return true
+	case path == "/api/v1/license":
 		return true
 	case strings.HasPrefix(path, "/static/"):
 		return true
@@ -282,12 +140,28 @@ func authExemptPath(path string) bool {
 	return false
 }
 
-// enforceAuth ترتیب گیت: اول لایسنس معتبر، بعد ورود کاربر. true یعنی پاسخ کامل شد.
+func licenseRecoveryPath(path, method string) bool {
+	if method == http.MethodGet {
+		switch path {
+		case "/backup.json", "/local/products-export", "/local/inventory-export", "/local/debtors-export":
+			return true
+		}
+	}
+	return method == http.MethodPost && path == "/local/export-backup"
+}
+
+// enforceAuth ترتیب گیت: ابتدا وضعیت verified لایسنس و سپس ورود کاربر.
+// صفحهٔ وضعیت و خروجی/پشتیبان‌گیری در حالت lock باقی می‌مانند؛ هیچ داده‌ای
+// برای expired/revoked پاک نمی‌شود.
 func (a *Application) enforceAuth(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	lic := a.LicenseState()
+	if path == "/license/status" {
+		a.renderAuth(w, "license-status", authPageData{License: lic, Notice: r.URL.Query().Get("refreshed")})
+		return true
+	}
 	if path == "/license" {
-		if lic.Valid && !lic.Expired {
+		if lic.CanMutate() {
 			if _, ok := a.sessionOf(r); ok {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return true
@@ -295,23 +169,24 @@ func (a *Application) enforceAuth(w http.ResponseWriter, r *http.Request) bool {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return true
 		}
-		data := authPageData{License: lic, Expired: lic.Expired}
-		if r.URL.Query().Get("expired") == "1" {
-			data.Expired = true
-		}
-		a.renderAuth(w, "license", data)
+		a.renderAuth(w, "license", authPageData{License: lic, Expired: lic.Status == "expired" || lic.Status == "revoked"})
 		return true
 	}
-	if !lic.Valid {
+	if path == "/license/refresh" {
+		return false
+	}
+	// Authentication and one-time registration remain reachable while the
+	// license is locked so an operator can still access backup/export recovery.
+	if !lic.CanMutate() && path != "/login" && path != "/register" {
+		if licenseRecoveryPath(path, r.Method) {
+			if _, ok := a.sessionOf(r); ok {
+				return false
+			}
+		}
 		http.Redirect(w, r, "/license", http.StatusSeeOther)
 		return true
 	}
-	if lic.Expired {
-		http.Redirect(w, r, "/license?expired=1", http.StatusSeeOther)
-		return true
-	}
 	if path == "/register" {
-		// ثبت‌نام فقط یک بار: بعد از ساخت حساب مالک، این صفحه همیشه به ورود می‌رود.
 		if a.ownerRegistered(r.Context()) {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return true
@@ -320,14 +195,13 @@ func (a *Application) enforceAuth(w http.ResponseWriter, r *http.Request) bool {
 			a.renderAuth(w, "register", authPageData{License: lic})
 			return true
 		}
-		return false // POST به handleRegister می‌رسد.
+		return false
 	}
 	if path == "/login" {
 		if _, ok := a.sessionOf(r); ok {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return true
 		}
-		// هنوز حسابی ساخته نشده؟ اول ثبت‌نام (مثل نسخهٔ وب).
 		owner, registered := a.ownerAccount(r.Context())
 		if !registered {
 			http.Redirect(w, r, "/register", http.StatusSeeOther)
@@ -344,13 +218,37 @@ func (a *Application) enforceAuth(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (a *Application) handleLicenseActivate(w http.ResponseWriter, r *http.Request) {
-	st, err := a.ActivateLicense(r.Form.Get("license_key"), r.Form.Get("holder"))
-	if err != nil {
-		a.renderAuth(w, "license", authPageData{Error: err.Error(), License: a.LicenseState()})
+	if a.license == nil {
+		a.renderAuth(w, "license", authPageData{Error: "سرویس فعال‌سازی لایسنس در دسترس نیست", License: a.LicenseState()})
 		return
 	}
-	_ = st
+	code := strings.TrimSpace(r.Form.Get("activation_code"))
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	_, err := a.license.Activate(ctx, code)
+	if err != nil {
+		a.renderAuth(w, "license", authPageData{Error: refreshErrorText(err), License: a.LicenseState()})
+		return
+	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func (a *Application) handleLicenseRefresh(w http.ResponseWriter, r *http.Request) {
+	if a.license == nil {
+		a.renderAuth(w, "license", authPageData{Error: "سرویس تمدید لایسنس در دسترس نیست", License: a.LicenseState()})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	if err := a.license.Refresh(ctx); err != nil {
+		a.renderAuth(w, "license", authPageData{Error: refreshErrorText(err), License: a.LicenseState()})
+		return
+	}
+	http.Redirect(w, r, "/license/status?refreshed=1", http.StatusSeeOther)
+}
+
+func (a *Application) handleLicenseStatus(w http.ResponseWriter, r *http.Request) {
+	a.renderAuth(w, "license-status", authPageData{License: a.LicenseState(), Notice: r.URL.Query().Get("refreshed")})
 }
 
 func (a *Application) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -383,14 +281,16 @@ func (a *Application) handleLogin(w http.ResponseWriter, r *http.Request) {
 				fail("حساب این پرسنل غیرفعال است؛ با مدیر کافه تماس بگیرید.")
 				return
 			}
-			if hash := e.Field("password_hash"); hash != "" {
-				sum := sha256.Sum256([]byte(password))
-				if subtle.ConstantTimeCompare([]byte(hex.EncodeToString(sum[:])), []byte(hash)) != 1 {
-					fail("گذرواژه نادرست است.")
-					return
-				}
+			hash := strings.TrimSpace(e.Field("password_hash"))
+			if hash == "" {
+				fail("برای این پرسنل هنوز گذرواژه ثبت نشده است؛ با مدیر کافه تماس بگیرید.")
+				return
 			}
-			// حالت Dummy: اگر برای پرسنل گذرواژه‌ای ثبت نشده، هر گذرواژه ۴+ نویسه‌ای پذیرفته می‌شود.
+			sum := sha256.Sum256([]byte(password))
+			if subtle.ConstantTimeCompare([]byte(hex.EncodeToString(sum[:])), []byte(hash)) != 1 {
+				fail("گذرواژه نادرست است.")
+				return
+			}
 			a.newSession(w, "staff", e.Label())
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return

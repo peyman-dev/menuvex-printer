@@ -60,6 +60,9 @@
 
   --primary: #2468CC;
   --ring: #3B82E6;
+  /* عرض استاندارد محتوا: روی مانیتورهای بزرگ متن/جدول‌ها کشیده نمی‌شوند
+     و روی نمایشگر کوچک هم تمام عرض را می‌گیرد. */
+  --content-max: 1600px;
 
   /* نگاشت توکن‌های داخلی روی همان پالت وب (نام تازه‌ای ساخته نشده) */
   --bg-app: var(--color-brand-cream);
@@ -307,6 +310,12 @@ code, pre { direction: ltr; text-align: left; font-family: ui-monospace, SFMono-
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* عرض استاندارد محتوا (هم‌تراز با کانتینر داشبورد وب). صندوق تمام‌عرض می‌ماند. */
+.main-view:not(.pos-main) {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
 
 .topbar {
   display: flex;
@@ -330,6 +339,7 @@ code, pre { direction: ltr; text-align: left; font-family: ui-monospace, SFMono-
   font-weight: 500;
 }
 .meta-chip.ok { background: var(--teal-soft); color: var(--teal); border-color: var(--color-brand-gold-soft); }
+.meta-chip-danger { background: #FEF3F2; color: #B42318; border-color: #FDA29B; font-weight: 700; }
 
 .topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
@@ -569,6 +579,14 @@ input::placeholder, textarea::placeholder { color: #98A2B3; }
 .mini-table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .table-tile { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; background: #ffffff; }
 .stock-number { font-weight: 800; }
+.stock-number.is-negative { color: #B42318; }
+.inv-neg-chip {
+  display: inline-block; margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px;
+  background: #FEE4E2; color: #B42318; font-size: 10.5px; font-weight: 800; vertical-align: middle;
+}
+.inv-row-negative td { background: #FFFBFB; }
+.inv-row-negative td:first-child { box-shadow: inset -3px 0 0 #F04438; }
+.mini-row-negative { background: #FFF7F6; border-color: #FDA29B; }
 
 /* ─── رسپی ─── */
 .recipe-pills { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -1002,8 +1020,9 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .sidebar-user-meta{flex:1;min-width:0}
 .sidebar-user-meta strong{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sidebar-user-meta small{font-size:11px;color:#98A2B3}
-.sidebar-license{display:flex;align-items:center;justify-content:space-between;background:#F6FAFD;border:1px solid #E7ECF2;border-radius:11px;padding:7px 10px;font-size:11.5px;color:#667085}
+.sidebar-license{display:flex;align-items:center;justify-content:space-between;background:#F6FAFD;border:1px solid #E7ECF2;border-radius:11px;padding:7px 10px;font-size:11.5px;color:#667085;text-decoration:none}
 .sidebar-license strong{color:#067647;font-size:11.5px}
+.sidebar-license:hover{border-color:#B8D2F2;background:#F0F6FF}
 
 /* ===== Auth (license / login) pages — مانند صفحه ورود وب ===== */
 .auth-body{margin:0;min-height:100dvh;background:#F2F7FC;background-image:radial-gradient(circle at 88% 12%,rgba(36,104,204,.13),transparent 340px),radial-gradient(circle at 8% 92%,rgba(36,104,204,.09),transparent 380px),radial-gradient(#D8E4F2 1px,transparent 1px);background-size:auto,auto,22px 22px;font-family:inherit}
@@ -1030,6 +1049,17 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .auth-card h2{text-align:center;font-size:21px;font-weight:900;color:#14395E;margin:8px 0 6px}
 .auth-desc{text-align:center;font-size:12.5px;color:#7A8799;line-height:1.9;margin:0 0 16px}
 .auth-error{background:#FEF3F2;color:#B42318;border:1px solid #F5C6C0;border-radius:11px;padding:10px 13px;font-size:12.5px;margin-bottom:12px;line-height:1.8}
+.auth-note{background:#F6FAFD;color:#475467;border:1px solid #D8E4F2;border-radius:11px;padding:10px 13px;font-size:12px;margin-bottom:12px;line-height:1.8}
+.auth-success{background:#ECFDF3;color:#067647;border:1px solid #ABEFC6;border-radius:11px;padding:10px 13px;font-size:12px;margin-bottom:12px;line-height:1.8}
+.auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px!important}
+.auth-actions .btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.auth-shell-single{justify-content:center}
+.license-status-card{max-width:560px;width:100%}
+.license-status-card h1{text-align:center;font-size:23px;color:#14395E;margin:8px 0 18px}
+.license-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.license-status-grid>div{display:grid;gap:5px;background:#F6FAFD;border:1px solid #E7ECF2;border-radius:11px;padding:10px 12px;min-width:0}
+.license-status-grid span{font-size:11px;color:#98A2B3}
+.license-status-grid strong{font-size:12.5px;color:#344054;overflow-wrap:anywhere}
 .auth-lock{background:#FFFAEB;border:1px solid #F0D9A8;border-radius:13px;padding:13px 15px;margin-bottom:16px}
 .auth-lock strong{color:#B54708;font-size:13.5px}
 .auth-lock p{font-size:12px;color:#8A6D3B;line-height:1.9;margin:5px 0 0}
@@ -1043,6 +1073,12 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .auth-support strong{color:#14395E}
 .auth-support p{margin:4px 0 0}
 .auth-support-phone{font-size:15px;font-weight:900;color:#2468CC}
+.license-renewal-dialog{position:relative;width:min(420px,calc(100vw - 32px));border:0;border-radius:18px;padding:24px;background:#fff;color:#344054;box-shadow:0 24px 70px rgba(16,24,40,.28);line-height:1.9}
+.license-renewal-dialog::backdrop{background:rgba(15,31,50,.46)}
+.license-renewal-dialog h2{margin:0 0 8px;color:#14395E;font-size:18px}
+.license-renewal-dialog p{font-size:12.5px;margin:8px 0}
+.dialog-close{position:absolute;inset-inline-end:12px;top:8px;border:0;background:transparent;color:#667085;font-size:25px;line-height:1;cursor:pointer}
+.dialog-close:focus-visible,.license-renewal-dialog a:focus-visible{outline:3px solid #75A9E9;outline-offset:3px}
 .auth-license-note{text-align:center;font-size:11.5px;color:#98A2B3;margin:14px 0 0}
 @media (max-width:900px){.auth-shell{flex-direction:column;gap:26px;padding-top:20px}.auth-hero h1{font-size:31px}.auth-pill{margin-top:20px}.auth-card{width:100%;max-width:430px}}
 
@@ -1156,6 +1192,24 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pos-tile-card { display: flex; flex-direction: column; height: 100%; background: #fff; border: 1px solid #E3EDF7; border-radius: 16px; overflow: hidden; cursor: pointer; box-shadow: 0 1px 2px rgba(15,27,45,.05); text-align: right; transition: border-color .12s ease; }
 .pos-tile-card:hover { border-color: #2F6FB5; }
 .pos-tile-card.in-cart { border-color: #1D4F8C; }
+/* محصول «ناموجود» (موجودی مواد اولیه کافی نیست) — قابل افزودن به سبد نیست */
+.pos-tile-card.is-out { cursor: not-allowed; background: #FBFCFE; }
+.pos-tile-card.is-out:hover { border-color: #E3EDF7; }
+.pos-tile-card.is-out .pos-tile-photo img,
+.pos-tile-card.is-out .pos-tile-empty { filter: grayscale(1); opacity: .55; }
+.pos-tile-card.is-out .pos-tile-price { color: #98A2B3; }
+.pos-tile-card.is-out .pos-qbtn,
+.pos-tile-card.is-out .pos-qnum { opacity: .45; pointer-events: none; }
+.pos-tile-out {
+  position: absolute; inset-inline-start: 8px; bottom: 8px; z-index: 2;
+  background: #B42318; color: #fff; font-size: 11px; font-weight: 800;
+  padding: 3px 9px; border-radius: 999px; box-shadow: 0 4px 12px rgba(180, 35, 24, .28);
+}
+.pos-tile-low {
+  position: absolute; inset-inline-start: 8px; bottom: 8px; z-index: 2;
+  background: #F79009; color: #fff; font-size: 10.5px; font-weight: 800;
+  padding: 3px 8px; border-radius: 999px;
+}
 .pos-tile-card:focus-visible { outline: 2px solid #2F6FB5; outline-offset: 1px; }
 /* تصویر کارت محصول — وب: مربع تمام‌عرض (aspect-square w-full) بدون سقف ارتفاع */
 .pos-tile-photo { position: relative; aspect-ratio: 1 / 1; width: 100%; background: #F6FAFD; overflow: hidden; flex: none; }
@@ -1757,10 +1811,17 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .club-tab:hover{color:#344054}
 .club-tab.active{border-bottom-color:#2468CC;color:#2468CC;font-weight:600}
 .club-card{background:#fff;border:1px solid #E3EDF7;border-radius:12px;overflow:hidden}
-.club-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #E3EDF7;padding:16px}
-.club-search{position:relative;flex:1;max-width:380px;min-width:220px}
-.club-search input{width:100%;height:40px;border:1px solid #E3EDF7;border-radius:8px;padding:0 36px 0 12px;font:inherit;font-size:13px;box-sizing:border-box}
-.club-search svg{position:absolute;top:50%;transform:translateY(-50%);inset-inline-start:11px;width:16px;height:16px;color:#98A2B3}
+/* نوار ابزار باشگاه: جستجو + فیلترها در یک خط (مثل بقیهٔ صفحات) */
+.club-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #E3EDF7;padding:14px 16px}
+.club-search{display:flex;align-items:center;gap:10px;flex:0 1 auto;min-width:0;max-width:100%;margin:0}
+/* فقط کادر جستجو (نه چک‌باکس کنارش) عرض کامل می‌گیرد؛ قبلاً قاعدهٔ
+   `.club-search input` چک‌باکس را هم ۱۰۰٪/۴۰px می‌کرد و به یک بلوک آبی
+   بزرگ با تیک تبدیل می‌شد. */
+.club-search-field{position:relative;flex:0 1 380px;min-width:170px;max-width:380px}
+.club-search-field input{width:100%;height:40px;border:1px solid #E3EDF7;border-radius:10px;padding:0 36px 0 12px;font:inherit;font-size:13px;box-sizing:border-box;background:#fff;color:#101828}
+.club-search-field input:focus{outline:none;border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.12)}
+.club-search-field input::placeholder{color:#98A2B3}
+.club-search-field svg{position:absolute;top:50%;transform:translateY(-50%);inset-inline-start:11px;width:16px;height:16px;color:#98A2B3;pointer-events:none}
 .club-tier{display:inline-flex;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:500}
 .club-tier.bronze{background:#FFF7ED;color:#C2410C}
 .club-tier.silver{background:#F1F5F9;color:#475569}
@@ -1774,9 +1835,15 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .club-switch input:checked + .track{background:#2468CC}
 .club-switch input:checked + .track:before{transform:translateX(-16px)}
 .club-switch-form{display:inline-flex}
-.club-stat{background:#fff;border:1px solid #E3EDF7;border-radius:12px;padding:16px}
+.club-stat{display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #E3EDF7;border-radius:14px;padding:15px 16px}
+.club-stat-ic{width:42px;height:42px;flex:none;border-radius:13px;display:inline-flex;align-items:center;justify-content:center}
+.club-stat-ic svg{width:21px;height:21px}
+.club-stat-ic.tone-blue{background:#EAF2FF;color:#2468CC}
+.club-stat-ic.tone-green{background:#ECFDF3;color:#067647}
+.club-stat-ic.tone-sky{background:#EFF8FF;color:#175CD3}
 .club-stat p{font-size:12px;font-weight:500;color:#667085;margin:0}
-.club-stat strong{display:block;font-size:22px;font-weight:800;color:#101828;margin-top:6px}
+.club-stat strong{display:block;font-size:20px;font-weight:800;color:#101828;margin-top:3px;line-height:1.4}
+.club-stat strong small{font-size:12px;font-weight:600;color:#98A2B3;margin-inline-start:5px}
 .club-subtabs{display:flex;flex-wrap:wrap;gap:8px}
 .club-subtab{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border:1px solid #E3EDF7;border-radius:10px;background:#fff;color:#344054;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
 .club-subtab.active{background:#2468CC;border-color:#2468CC;color:#fff}
@@ -1809,25 +1876,29 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 /* ── باشگاه مشتریان: اجزای تکمیلی ── */
 .page-sub{font-size:13px;color:#667085;margin:0 0 14px}
 .club-head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.club-head-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .club-toolbar-acts{display:flex;gap:8px;align-items:center}
 .club-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
 .club-stat-money{font-size:16px !important}
-.club-empty{padding:52px 16px;text-align:center;color:#667085;font-size:13px}
+.club-empty{padding:44px 16px 48px;text-align:center;color:#667085;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:0}
+.club-empty-ic{width:46px;height:46px;border-radius:14px;background:#F2F7FD;color:#2468CC;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+.club-empty-ic svg{width:23px;height:23px}
 .club-empty strong{display:block;font-size:14px;color:#344054;margin-bottom:6px}
-.club-empty p{margin:0}
+.club-empty p{margin:0;max-width:420px;line-height:1.9}
+.club-empty .btn{margin-top:14px}
 .club-credit-cell{display:flex;align-items:center;gap:10px}
 .club-credit-on{color:#047857;font-size:13px;font-weight:600}
 .club-detail-name{font-size:17px;color:#101828}
 .club-detail-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .club-nonmember-note{border:1px dashed #E3EDF7;border-radius:12px;padding:14px;font-size:12.5px;line-height:2;color:#667085;margin-top:14px}
 .dlg-hint{font-size:11.5px;line-height:1.9;color:#667085;margin:6px 0 0}
-.club-valid-check{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#344054;cursor:pointer;margin-inline-start:8px}
+.club-valid-check{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#344054;cursor:pointer;margin:0;white-space:nowrap;flex:none}
+.club-valid-check input[type="checkbox"]{width:16px;height:16px;min-width:16px;min-height:0;margin:0;flex:none}
 .club-group-link{color:#101828;text-decoration:none}
 .club-group-link:hover{color:#2468CC}
 .btn-ghost{background:transparent;border:1px solid transparent;color:#344054}
 .btn-ghost:hover{background:#F6FAFD}
 .btn-ghost.danger,.row-acts .danger{color:#B42318}
-.club-group-form{display:grid;gap:14px}
 .club-fieldset{border:0;padding:0;margin:0}
 .club-fieldset legend{font-size:12.5px;font-weight:600;color:#344054;margin-bottom:8px;padding:0}
 .club-pill-row{display:flex;gap:8px;flex-wrap:wrap}
@@ -2258,9 +2329,25 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pf-add-btn{border-style:dashed}
 .pf-recipe-line{display:flex;gap:9px;align-items:center;flex-wrap:wrap;border:1px solid #E7ECF2;border-radius:13px;padding:10px;background:#fff;margin-bottom:9px}
 .pf-recipe-line .ui-select{flex:1;min-width:200px}
-.pf-qty-wrap{position:relative;display:inline-flex;align-items:center}
-.pf-recipe-qty{width:150px;height:42px;border:1px solid #D9E2EC;border-radius:10px;padding:0 64px 0 12px;font:inherit;font-size:13px}
-.pf-unit-badge{position:absolute;inset-inline-end:10px;font-size:11px;font-weight:700;color:#98A2B3;pointer-events:none}
+/* کادر مقدار + نشان واحد در یک قاب واحد؛ نشان کنار عدد می‌نشیند و هرگز
+   روی مقدار/placeholder نمی‌افتد (قبلاً با padding و position:absolute
+   روی هم می‌افتادند). */
+.pf-qty-wrap{
+  display:inline-flex;align-items:center;flex:none;height:42px;background:#fff;
+  border:1px solid #D9E2EC;border-radius:10px;overflow:hidden;
+  transition:border-color .12s, box-shadow .12s;
+}
+.pf-qty-wrap:focus-within{border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.12)}
+.pf-recipe-qty{
+  width:110px;height:100%;min-width:0;border:0;background:transparent;outline:none;
+  padding:0 10px;font:inherit;font-size:13px;font-weight:600;color:#101828;text-align:center;
+}
+.pf-recipe-qty::placeholder{color:#98A2B3;font-weight:400}
+.pf-unit-badge{
+  display:inline-flex;align-items:center;align-self:stretch;padding:0 9px;
+  background:#F4F8FF;border-inline-start:1px solid #E7ECF2;
+  font-size:11px;font-weight:700;color:#475467;white-space:nowrap;
+}
 .sp-cost-hint{display:block;font-size:11px;line-height:1.7;color:#0369A1;margin-top:4px;min-height:0}
 .sp-table .sp-cost-hint:empty{display:none}
 
@@ -2399,3 +2486,1030 @@ button[disabled].is-submitting { opacity: 0.55; pointer-events: none; }
 .pos-recent-card.is-busy .pos-recent-list{opacity:.5;pointer-events:none}
 .pos-recent-card.is-busy .pos-ract-main button{pointer-events:none}
 @media (max-width:640px){.pos-recent-tabs{display:flex;width:100%}.pos-rtab{flex:1;justify-content:center;padding:0 8px}}
+
+/* ════════════════════════════════════════════════════════════════════
+   صفحه «بدهکاران و تسویه» — هم‌طراز دیزاین وب
+   سربرگ + تب‌ها + کارت‌های خلاصه + نوار فیلتر با تقویم شمسی + جدول
+   مستندات سفارش + دیالوگ‌های ثبت/تسویه.
+   ════════════════════════════════════════════════════════════════════ */
+.dbk-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  background: #ffffff; border: 1px solid #E7ECF2; border-radius: 20px;
+  padding: 15px 20px;
+}
+.dbk-head-text { min-width: 0; }
+.dbk-title {
+  margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 16px; font-weight: 800; color: #0F1B2D; line-height: 1.7;
+}
+.dbk-sub { margin: 4px 0 0; font-size: 12px; line-height: 1.9; color: #98A2B3; }
+.dbk-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dbk-head-actions .btn { min-height: 36px; padding: 6px 12px; border-radius: 10px; font-size: 12.5px; gap: 7px; }
+.dbk-head-actions .btn svg { width: 15px; height: 15px; flex: none; }
+.dbk-new-btn { box-shadow: 0 10px 22px -14px rgba(36, 104, 204, 0.9); }
+.dbk-new {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+  border-radius: 999px; background: #ECFDF3; border: 1px solid #D1FADF;
+  color: #067647; font-size: 10.5px; font-weight: 800; white-space: nowrap; line-height: 1;
+}
+.dbk-new-soft { background: #F0FDF6; border-color: #D1FADF; color: #067647; }
+.dbk-new-inverse { background: rgba(255, 255, 255, 0.2); border-color: transparent; color: #ffffff; }
+
+/* تب‌های سگمنتی */
+.dbk-tabs {
+  display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px;
+  background: #F8FAFC; border: 1px solid #EDF1F6; border-radius: 12px;
+  max-width: 100%; overflow-x: auto;
+}
+.dbk-tab {
+  display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px;
+  border-radius: 9px; color: #475467; font-size: 12.5px; font-weight: 700;
+  text-decoration: none; white-space: nowrap; transition: background .12s, color .12s, box-shadow .12s;
+}
+.dbk-tab svg { width: 16px; height: 16px; flex: none; color: #667085; }
+.dbk-tab:hover { background: #EFF4FA; color: #1D4F8C; }
+.dbk-tab:hover svg { color: #1D4F8C; }
+.dbk-tab.is-active { background: #2468CC; color: #ffffff; box-shadow: 0 8px 18px -12px rgba(36, 104, 204, 0.95); }
+.dbk-tab.is-active svg { color: #ffffff; }
+.dbk-tab.is-active .dbk-new { background: #DBEAFE; border-color: transparent; color: #1D4F8C; }
+
+/* کارت‌های خلاصه */
+.dbk-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.dbk-kpi {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  background: #ffffff; border: 1px solid #E7ECF2; border-radius: 16px; padding: 13px 16px;
+}
+.dbk-kpi-icon { width: 38px; height: 38px; flex: none; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; }
+.dbk-kpi-icon svg { width: 19px; height: 19px; }
+.dbk-kpi-icon.tone-blue { background: #EFF6FF; color: #1D4F8C; }
+.dbk-kpi-icon.tone-sky { background: #EFF8FF; color: #175CD3; }
+.dbk-kpi-icon.tone-red { background: #FEF3F2; color: #D92D20; }
+.dbk-kpi-icon.tone-green { background: #ECFDF3; color: #067647; }
+.dbk-kpi-body { min-width: 0; display: grid; gap: 1px; }
+.dbk-kpi-body p { margin: 0; font-size: 11.5px; font-weight: 600; color: #667085; }
+.dbk-kpi-body strong { font-size: 18px; font-weight: 800; color: #0F1B2D; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dbk-kpi-body small { font-size: 10.5px; color: #98A2B3; }
+
+/* نوار فیلتر */
+/* نوار فیلتر: همهٔ کنترل‌ها در یک خط می‌مانند (محتوا به خط بعد نمی‌شکند) و
+   هر کنترل min/max عرض مشخص دارد؛ در عرض کم، خودِ نوار افقی اسکرول می‌شود. */
+.dbk-filters {
+  display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
+  background: #ffffff; border: 1px solid #E7ECF2; border-radius: 16px; padding: 11px 14px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none;
+}
+.dbk-filters::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.dbk-search {
+  display: flex; align-items: center; gap: 8px; flex: 1 1 220px; min-width: 170px; max-width: 420px;
+  height: 38px; border: 1px solid #E3EDF7; border-radius: 10px; background: transparent; padding: 0 11px;
+}
+.dbk-search:focus-within { border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, 0.12); }
+.dbk-search svg { width: 16px; height: 16px; flex: none; color: #98A2B3; }
+.dbk-search input {
+  flex: 1; min-width: 0; height: 100%; border: 0 !important; box-shadow: none !important;
+  background: transparent; padding: 0; font-family: inherit; font-size: 12.5px; color: #1F2328;
+}
+.dbk-search input:focus { outline: none; }
+.dbk-filters select {
+  height: 38px; min-width: 132px; max-width: 190px; border: 1px solid #E3EDF7; border-radius: 10px;
+  background: transparent; color: #344054; font-family: inherit; font-size: 12.5px; padding: 0 10px;
+}
+.dbk-filters .ui-select { flex: 0 1 auto; width: auto; min-width: 132px; max-width: 190px; }
+.dbk-filters .ui-select-trigger {
+  height: 38px; min-height: 38px; padding: 0 10px; border-radius: 10px;
+  border-color: #E3EDF7; font-size: 12.5px; font-weight: 600; color: #344054;
+  background: transparent; width: 100%;
+}
+.dbk-filters .ui-select-trigger:hover { background: rgba(36, 104, 204, 0.05); }
+.dbk-filters .ui-select-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* در یک خط جا نمی‌شود → به‌جای شکستن، کوتاه می‌شود */
+.dbk-filters .ui-select-trigger, .dbk-filters .dbk-date-trigger { white-space: nowrap; }
+.dbk-clear { font-size: 11.5px; font-weight: 700; color: #B42318; padding: 7px 8px; border-radius: 8px; }
+.dbk-clear:hover { background: #FEF3F2; }
+
+/* فیلد تاریخ شمسی */
+.dbk-daterange, .dbk-datefield { position: relative; display: block; }
+.dbk-daterange { flex: 0 1 152px; min-width: 116px; max-width: 172px; }
+.dbk-datefield { width: 100%; flex: none; }
+.dbk-date-trigger {
+  display: inline-flex; align-items: center; gap: 7px; height: 38px; width: 100%;
+  min-width: 0; padding: 0 10px; border: 1px solid #E3EDF7; border-radius: 10px;
+  background: transparent; color: #98A2B3; font-family: inherit; font-size: 12.5px; cursor: pointer;
+  transition: border-color .12s, color .12s;
+}
+.dbk-date-trigger > span[data-jdp-label] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dbk-date-trigger:hover { border-color: #AFC6DC; }
+.dbk-date-trigger.has-value { color: #1F2328; font-weight: 700; }
+.dbk-date-trigger svg { width: 15px; height: 15px; flex: none; color: #98A2B3; }
+.dbk-date-trigger .dbk-date-chev { width: 12px; height: 12px; margin-inline-start: auto; }
+.dbk-datefield .dbk-date-trigger { height: 42px; min-width: 0; }
+
+/* تقویم شمسی (پاپ‌اور) */
+.jdp-pop {
+  position: absolute; z-index: 135; top: calc(100% + 6px); inset-inline-end: 0;
+  width: 276px; max-width: calc(100vw - 16px); background: #ffffff;
+  border: 1px solid #E3EDF7; border-radius: 14px; padding: 10px;
+  box-shadow: 0 20px 44px rgba(16, 24, 40, 0.18), 0 3px 10px rgba(16, 24, 40, 0.06);
+  animation: dlgIn .12s ease-out;
+}
+.jdp-pop[hidden] { display: none !important; }
+.jdp-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.jdp-nav {
+  width: 28px; height: 28px; flex: none; border: 1px solid #E3EDF7; border-radius: 8px;
+  background: #ffffff; color: #475467; font-family: inherit; font-size: 14px; line-height: 1;
+  display: inline-grid; place-items: center; cursor: pointer;
+}
+.jdp-nav:hover { background: #F4F8FF; border-color: #AFC6DC; color: #2468CC; }
+.jdp-selects { display: flex; gap: 5px; flex: 1; min-width: 0; }
+.jdp-selects select {
+  flex: 1; min-width: 0; height: 28px; border: 1px solid #E3EDF7; border-radius: 8px;
+  background: #ffffff; color: #344054; font-family: inherit; font-size: 11.5px; font-weight: 600; padding: 0 4px;
+}
+.jdp-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 3px; }
+.jdp-week span { text-align: center; font-size: 10.5px; font-weight: 700; color: #98A2B3; padding: 2px 0; }
+.jdp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.jdp-day {
+  height: 30px; border: 0; border-radius: 8px; background: transparent;
+  color: #344054; font-family: inherit; font-size: 12px; cursor: pointer;
+}
+.jdp-day:hover { background: #F2F7FD; color: #1D4F8C; }
+.jdp-day.is-today { box-shadow: inset 0 0 0 1px #AFC6DC; color: #1D4F8C; font-weight: 700; }
+.jdp-day.is-selected { background: #2468CC; color: #ffffff; font-weight: 800; }
+.jdp-day.is-selected:hover { background: #1D4F8C; color: #ffffff; }
+.jdp-day.is-empty { visibility: hidden; pointer-events: none; }
+.jdp-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #EEF2F7; }
+.jdp-link {
+  border: 0; background: transparent; border-radius: 7px; padding: 3px 6px;
+  color: #2468CC; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.jdp-link:hover { background: #F2F7FD; }
+.jdp-link.muted { color: #98A2B3; }
+
+/* کارت جدول */
+.dbk-card { background: #ffffff; border: 1px solid #E7ECF2; border-radius: 16px; overflow: hidden; }
+.dbk-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 15px 18px; border-bottom: 1px solid #EEF2F7; }
+.dbk-card-head h3 { margin: 0; font-size: 14.5px; font-weight: 800; color: #0F1B2D; }
+.dbk-card-head p { margin: 4px 0 0; font-size: 12px; color: #98A2B3; line-height: 1.9; }
+.dbk-table { min-width: 940px; font-size: 12.5px; }
+.dbk-table thead th {
+  background: #F8FAFC; color: #667085; font-size: 11.5px; font-weight: 700;
+  padding: 11px 14px; border-bottom: 1px solid #EEF2F7; white-space: nowrap;
+}
+.dbk-table td { padding: 12px 14px; border-bottom: 1px solid #F2F5F9; vertical-align: middle; color: #1F2328; }
+.dbk-table tbody tr:last-child td { border-bottom: none; }
+.dbk-table tbody tr:hover { background: #FAFCFF; }
+.dbk-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dbk-name strong { font-size: 12.5px; font-weight: 800; color: #0F1B2D; }
+.dbk-muted { display: block; font-size: 11px; color: #98A2B3; margin-top: 2px; font-weight: 500; }
+.dbk-phone { direction: ltr; display: inline-block; font-weight: 600; color: #344054; letter-spacing: .02em; }
+.dbk-doc { display: block; max-width: 330px; font-size: 12px; line-height: 1.9; color: #475467; }
+.dbk-date { display: block; font-size: 12px; color: #344054; }
+.dbk-remain { font-weight: 800; color: #0F1B2D; white-space: nowrap; }
+.dbk-remain.is-overdue { color: #B42318; }
+.dbk-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dbk-action {
+  display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+  border: 1px solid #E3EDF7; border-radius: 8px; background: #ffffff;
+  color: #475467; font-family: inherit; font-size: 11.5px; font-weight: 700;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.dbk-action:hover { border-color: #2468CC; color: #2468CC; background: #F4F8FF; }
+.dbk-action.is-primary { background: #EFF6FF; border-color: #D6E6FB; color: #1D4F8C; }
+.dbk-action.is-primary:hover { background: #2468CC; border-color: #2468CC; color: #ffffff; }
+.dbk-empty-row td { padding: 56px 16px !important; text-align: center; color: #98A2B3; font-size: 12.5px; }
+.dbk-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 11px 16px; border-top: 1px solid #EEF2F7; font-size: 11.5px; color: #98A2B3; }
+
+/* دیالوگ‌ها */
+.dbk-create-card, .dbk-detail-card, .dbk-pay-card { display: flex; flex-direction: column; }
+.dbk-create-card { width: min(680px, 96vw); max-width: 680px; border-radius: 16px; padding: 18px 20px; gap: 14px; }
+.dbk-detail-card, .dbk-pay-card { width: min(560px, 96vw); max-width: 560px; border-radius: 16px; padding: 18px 20px; gap: 14px; }
+/* hidden باید بر display:grid/flex این اجزا غالب شود */
+.dbk-field[hidden], .dbk-seg[hidden], .dbk-item[hidden], .dbk-chip[hidden],
+[data-dbk-personal][hidden], [data-dbk-company][hidden], [data-dbk-items-wrap][hidden],
+[data-dbk-amount-wrap][hidden], [data-dbk-d-pay-btn][hidden], .dbk-card[hidden] { display: none !important; }
+.dbk-create-head h3 { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 16px; font-weight: 800; color: #0F1B2D; padding-inline-end: 34px; }
+.dbk-create-head p { margin: 6px 0 0; font-size: 12px; line-height: 1.9; color: #667085; }
+.dbk-form { display: grid; gap: 12px; }
+.dbk-seg { display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E7ECF2; border-radius: 12px; padding: 4px; }
+.dbk-seg-btn {
+  flex: 1; min-height: 38px; border: 0; border-radius: 9px; background: transparent;
+  color: #667085; font-family: inherit; font-size: 12.5px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  cursor: pointer; transition: background .12s, color .12s, box-shadow .12s;
+}
+.dbk-seg-btn svg { width: 16px; height: 16px; flex: none; }
+.dbk-seg-btn:hover { color: #1F2328; }
+.dbk-seg-btn.is-active { background: #ffffff; color: #1D4F8C; font-weight: 800; box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12); }
+.dbk-seg-blue .dbk-seg-btn.is-active { background: #2468CC; color: #ffffff; box-shadow: 0 8px 16px -12px rgba(36, 104, 204, 1); }
+.dbk-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dbk-field { display: grid; gap: 6px; min-width: 0; font-size: 12px; font-weight: 700; color: #344054; }
+.dbk-field .req { color: #F43F5E; font-style: normal; }
+.dbk-field input, .dbk-field select {
+  width: 100%; height: 42px; border: 1px solid #E3EDF7; border-radius: 10px;
+  background: #ffffff; padding: 0 12px; font-family: inherit; font-size: 13px; color: #1F2328;
+}
+.dbk-field input:focus, .dbk-field select:focus { outline: none; border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, 0.12); }
+.dbk-field .ui-select { width: 100%; }
+.dbk-field .ui-select-trigger { min-height: 42px; }
+.dbk-money {
+  display: flex; align-items: center; gap: 6px; height: 42px; padding: 0 10px;
+  border: 1px solid #E3EDF7; border-radius: 10px; background: #ffffff;
+}
+.dbk-money:focus-within { border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, 0.12); }
+.dbk-money input { flex: 1; min-width: 0; height: 100%; border: 0 !important; box-shadow: none !important; background: transparent; padding: 0; font-family: inherit; font-size: 13px; }
+.dbk-money input:focus { outline: none; }
+.dbk-money span { flex: none; font-size: 11px; color: #98A2B3; font-weight: 600; }
+.dbk-hint { margin: 0; font-size: 11.5px; font-weight: 500; line-height: 1.9; color: #667085; }
+.dbk-hint a { color: #2468CC; font-weight: 700; }
+.dbk-items-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) 84px 172px 34px; gap: 8px;
+  padding: 0 4px 6px; font-size: 11px; font-weight: 600; color: #98A2B3;
+}
+.dbk-items { display: grid; gap: 8px; }
+.dbk-doc:empty { display: none; }
+.dbk-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) 84px 172px 34px; gap: 8px; align-items: center;
+  border: 1px solid #E7ECF2; border-radius: 12px; padding: 8px; background: #ffffff;
+}
+.dbk-item input {
+  width: 100%; height: 36px; border: 1px solid #E3EDF7; border-radius: 9px; background: #ffffff;
+  padding: 0 10px; font-family: inherit; font-size: 12.5px; color: #1F2328;
+}
+.dbk-item input:focus { outline: none; border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, 0.12); }
+.dbk-item .dbk-money { height: 36px; border-radius: 9px; padding: 0 9px; }
+.dbk-item .dbk-money input { border: 0 !important; height: 32px; padding: 0; box-shadow: none !important; }
+.dbk-combo { position: relative; min-width: 0; }
+.dbk-combo-pop {
+  position: absolute; z-index: 140; top: calc(100% + 4px); inset-inline-start: 0;
+  width: min(330px, 78vw); max-height: 220px; overflow-y: auto; padding: 5px;
+  background: #ffffff; border: 1px solid #E3EDF7; border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(16, 24, 40, 0.16);
+}
+.dbk-combo-pop[hidden] { display: none !important; }
+.dbk-combo-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  border: 0; border-radius: 8px; background: transparent; padding: 7px 9px;
+  font-family: inherit; font-size: 12.5px; color: #344054; text-align: start; cursor: pointer;
+}
+.dbk-combo-item:hover, .dbk-combo-item:focus { background: #F2F7FD; color: #1D4F8C; outline: none; }
+.dbk-combo-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dbk-combo-price { flex: none; font-size: 11px; color: #98A2B3; }
+.dbk-combo-empty { margin: 0; padding: 10px; font-size: 11.5px; line-height: 1.9; color: #98A2B3; }
+.dbk-remove { width: 34px; height: 34px; border: 0; border-radius: 9px; background: #FEF3F2; color: #D92D20; display: inline-grid; place-items: center; cursor: pointer; }
+.dbk-remove svg { width: 16px; height: 16px; }
+.dbk-remove:hover { background: #FEE4E2; }
+.dbk-add-item {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 4px 2px;
+  border: 0; border-radius: 8px; background: transparent; color: #2468CC;
+  font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+}
+.dbk-add-item svg { width: 14px; height: 14px; }
+.dbk-add-item:hover { background: #F2F7FD; }
+.dbk-total {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 10px;
+  border-top: 1px dashed #E3EDF7; font-size: 12.5px; color: #667085;
+}
+.dbk-total svg { width: 16px; height: 16px; color: #98A2B3; }
+.dbk-total strong { margin-inline-start: auto; font-size: 13.5px; font-weight: 800; color: #0F1B2D; }
+.dbk-modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+.dbk-submit { flex: 1; min-height: 44px; border-radius: 10px; font-size: 13.5px; font-weight: 800; }
+.dbk-modal-actions .btn-outline { min-width: 96px; min-height: 44px; border-radius: 10px; }
+.dbk-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;
+  background: #F8FAFC; border: 1px solid #EEF2F7; border-radius: 12px; padding: 10px 12px;
+}
+.dbk-summary div { display: grid; gap: 2px; }
+.dbk-summary span { font-size: 11px; color: #98A2B3; }
+.dbk-summary strong { font-size: 14px; font-weight: 800; color: #0F1B2D; }
+.dbk-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dbk-label { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 700; color: #667085; }
+.dbk-box {
+  margin: 0; min-height: 38px; padding: 8px 10px; border: 1px solid #EEF2F7;
+  border-radius: 10px; background: #F8FAFC; font-size: 12px; line-height: 1.9; color: #344054;
+}
+.dbk-pays { display: grid; gap: 6px; }
+.dbk-pay-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 10px; border: 1px solid #EEF2F7; border-radius: 10px; font-size: 12px; }
+.dbk-pay-row strong { font-weight: 800; color: #067647; }
+.dbk-pay-row span { font-size: 11px; color: #98A2B3; }
+.dbk-pay-row small { font-size: 11px; color: #667085; }
+.dbk-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.dbk-chip {
+  height: 30px; padding: 0 12px; border: 1px solid #E3EDF7; border-radius: 999px;
+  background: #ffffff; color: #475467; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.dbk-chip:hover { border-color: #2468CC; background: #F4F8FF; color: #2468CC; }
+
+@media (max-width: 1180px) {
+  .dbk-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 820px) {
+  .dbk-head { flex-direction: column; }
+  .dbk-tabs { width: 100%; }
+  .dbk-tab { flex: 1; justify-content: center; padding: 0 10px; font-size: 11.5px; }
+  .dbk-detail-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .dbk-kpis { grid-template-columns: minmax(0, 1fr); }
+  .dbk-grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .dbk-items-head { display: none; }
+  .dbk-item { grid-template-columns: minmax(0, 1fr) 74px; }
+  .dbk-modal-actions { flex-direction: column-reverse; }
+  .dbk-modal-actions .btn { width: 100%; }
+  .dbk-daterange { width: auto; }
+}
+/* در پنجره‌های باریک‌تر هم همه‌چیز در یک خط می‌ماند؛ فقط فاصله‌ها و
+   حداقل عرض‌ها جمع‌وجورتر می‌شوند تا نوار به اسکرول افقی نیفتد. */
+@media (max-width: 1240px) {
+  .dbk-filters { gap: 6px; padding: 10px 10px; }
+  .dbk-search { flex: 1 1 150px; min-width: 128px; }
+  .dbk-filters select { min-width: 104px; }
+  .dbk-filters .ui-select { min-width: 104px; }
+  .dbk-filters .ui-select-trigger { font-size: 12px; padding: 0 7px; gap: 4px; }
+  .dbk-filters .ui-select-chevron { width: 14px; height: 14px; }
+  .dbk-daterange { flex: 0 1 132px; min-width: 104px; }
+  .dbk-date-trigger { font-size: 12px; padding: 0 8px; gap: 5px; }
+  .dbk-clear { font-size: 11px; padding: 6px 6px; }
+}
+/* فقط در موبایل، نوار فیلتر به‌جای اسکرول افقی می‌شکند. */
+@media (max-width: 720px) {
+  .dbk-filters { flex-wrap: wrap; overflow-x: visible; }
+  .dbk-search { flex: 1 1 100%; max-width: none; }
+  .dbk-filters .ui-select, .dbk-filters select { flex: 1 1 calc(50% - 5px); max-width: none; }
+  .dbk-daterange { flex: 1 1 calc(50% - 5px); min-width: 0; max-width: none; }
+  .dbk-date-trigger { max-width: none; }
+}
+
+/* ═══ باشگاه مشتریان — دیالوگ «گروه جدید / ویرایش گروه» ═══
+   به‌جای صفحهٔ تمام‌عرض قبلی، ساخت و ویرایش گروه در یک دیالوگ جمع‌وجور با
+   گرید دوستونه و همان زبان بصری بقیهٔ داشبورد انجام می‌شود. */
+.cgr-page-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  flex-wrap: wrap; background: #ffffff; border: 1px solid #E3EDF7; border-radius: 16px;
+  padding: 16px 18px;
+}
+.cgr-page-text { min-width: 0; }
+.cgr-page-title { margin: 0 0 4px; font-size: 16px; font-weight: 800; color: #101828; }
+.cgr-page-sub { margin: 0; font-size: 12px; line-height: 1.9; color: #667085; }
+.cgr-page-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cgr-page-acts .btn { min-height: 36px; padding: 6px 13px; border-radius: 10px; font-size: 12.5px; gap: 7px; }
+.cgr-page-acts .btn svg { width: 15px; height: 15px; flex: none; }
+
+.cgr-overlay { z-index: 130; }
+.cgr-card {
+  position: relative;
+  width: min(760px, 96vw); max-width: 760px; max-height: min(90vh, 780px);
+  padding: 0; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 18px;
+}
+.cgr-head {
+  display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 14px;
+  border-bottom: 1px solid #EEF2F7; background: #FBFDFF;
+}
+.cgr-head-icon {
+  flex: none; display: grid; place-items: center; width: 38px; height: 38px;
+  border-radius: 12px; background: #EAF2FD; color: #2468CC;
+}
+.cgr-head-icon svg { width: 19px; height: 19px; }
+.cgr-head-text { flex: 1; min-width: 0; padding-inline-end: 26px; }
+.cgr-head-text h3 { margin: 0; font-size: 15.5px; font-weight: 800; color: #101828; }
+.cgr-head-text .dlg-sub { margin: 4px 0 0; font-size: 11.5px; line-height: 1.9; color: #667085; }
+
+.cgr-form { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow-y: auto; }
+.cgr-sec { padding: 14px 18px; border-bottom: 1px solid #F2F6FA; }
+.cgr-sec:last-of-type { border-bottom: 0; }
+.cgr-sec-title {
+  margin: 0 0 10px; font-size: 12px; font-weight: 800; color: #1D4F8C;
+  display: flex; align-items: center; gap: 7px;
+}
+.cgr-sec-title::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: #2468CC; }
+.cgr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.cgr-full { grid-column: 1 / -1; }
+.cgr-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cgr-field > span { font-size: 11.5px; font-weight: 700; color: #344054; }
+.cgr-field > span small { font-weight: 500; color: #98A2B3; }
+.cgr-field > span .req { color: #F04438; font-style: normal; }
+.cgr-field input[type="text"], .cgr-field input[type="tel"], .cgr-field input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]), .cgr-field select {
+  width: 100%; height: 40px; border: 1px solid #D9E2EC; border-radius: 10px; background: #ffffff;
+  color: #1F2328; font-family: inherit; font-size: 12.5px; padding: 0 11px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
+  transition: border-color .12s, box-shadow .12s;
+}
+.cgr-field select {
+  appearance: none; -webkit-appearance: none; padding-inline-end: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: left 10px center; background-size: 14px;
+}
+.cgr-field input:focus, .cgr-field select:focus {
+  outline: none; border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, 0.12);
+}
+.cgr-field input::placeholder { color: #B3BDCB; }
+
+/* انتخاب‌گرهای سگمنتی (نوع قرارداد / نوع تخفیف) */
+.cgr-seg { display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E7ECF2; border-radius: 12px; padding: 3px; }
+.cgr-seg-item { flex: 1; min-width: 0; }
+.cgr-seg-item input { position: absolute; opacity: 0; pointer-events: none; }
+.cgr-seg-item span {
+  display: flex; align-items: center; justify-content: center; height: 32px; border-radius: 9px;
+  font-size: 12px; font-weight: 700; color: #667085; cursor: pointer; transition: background .12s, color .12s;
+}
+.cgr-seg-item span:hover { color: #1F2328; }
+.cgr-seg-item input:checked + span {
+  background: #2468CC; color: #ffffff; box-shadow: 0 8px 16px -12px rgba(36, 104, 204, 1);
+}
+.cgr-hint { margin: 0; font-size: 11px; line-height: 1.95; color: #98A2B3; }
+
+/* کارت نسیه */
+.cgr-credit {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #F5F9FF; border: 1px solid #DCE8F6; border-radius: 12px; padding: 10px 12px;
+}
+.cgr-credit p { margin: 0; }
+.cgr-credit-t { font-size: 12.5px; font-weight: 800; color: #1D4F8C; }
+.cgr-credit-s { font-size: 11px; color: #667085; margin-top: 2px !important; }
+
+/* فیلد تاریخ شمسی داخل دیالوگ */
+.cgr-date { position: relative; }
+.cgr-date-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 40px; padding: 0 11px;
+  border: 1px solid #D9E2EC; border-radius: 10px; background: #ffffff; color: #98A2B3;
+  font-family: inherit; font-size: 12.5px; cursor: pointer; text-align: right;
+  transition: border-color .12s, color .12s;
+}
+.cgr-date-btn:hover { border-color: #AFC6DC; }
+.cgr-date-btn.has-value { color: #1F2328; font-weight: 700; }
+.cgr-date-btn svg { width: 15px; height: 15px; flex: none; color: #98A2B3; }
+.cgr-date-btn .cgr-date-chev { width: 12px; height: 12px; margin-inline-start: auto; }
+.cgr-date .jdp-pop { inset-inline-start: 0; inset-inline-end: auto; }
+
+.cgr-error { padding: 0 18px 8px; }
+.cgr-foot {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+  padding: 12px 18px; border-top: 1px solid #EEF2F7; background: #FBFDFF; position: sticky; bottom: 0;
+}
+.cgr-foot .btn { min-height: 38px; padding: 7px 18px; border-radius: 10px; font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  .cgr-card { width: 100%; max-height: 94vh; border-radius: 16px; }
+  .cgr-grid { grid-template-columns: 1fr; }
+  .cgr-head { padding: 14px; }
+  .cgr-sec { padding: 12px 14px; }
+  .cgr-foot { padding: 10px 14px; }
+  .cgr-foot .btn { flex: 1; }
+  .cgr-page-acts { width: 100%; }
+  .cgr-page-acts .btn { flex: 1; justify-content: center; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ردیف‌های جدول انبار هم‌تراز با نسخهٔ وب (ستون‌های قلم/موقعیت/موجودی/
+   وضعیت/به‌روزرسانی/عملیات، عدد موجودی درشت + واحد + حد سفارش).
+   ════════════════════════════════════════════════════════════════════ */
+.inv-row td { padding-top: 12px; padding-bottom: 12px; }
+.inv-item { display: flex; align-items: center; gap: 10px; }
+.inv-thumb { width: 38px; height: 38px; flex: none; border-radius: 11px; border: 1px solid #E3EDF7; background: #EEF4FF; object-fit: cover; }
+.inv-thumb-empty { display: flex; align-items: center; justify-content: center; color: #2468CC; }
+.inv-thumb-empty svg { width: 18px; height: 18px; }
+.inv-item-text strong { display: block; font-size: 13px; font-weight: 700; color: #101828; }
+.inv-item-text small { display: block; font-size: 11px; color: #98A2B3; margin-top: 2px; }
+.inv-loc { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: #475467; white-space: nowrap; }
+.inv-loc svg { width: 13px; height: 13px; color: #98A2B3; flex: none; }
+.inv-qty .stock-number { display: inline-flex; align-items: baseline; gap: 4px; font-size: 14.5px; font-weight: 800; color: #101828; }
+.inv-qty .stock-number.is-negative { color: #B42318; }
+.inv-qty-unit { font-size: 11.5px; font-weight: 600; color: #98A2B3; }
+.inv-qty .row-sub { display: block; font-size: 11px; color: #98A2B3; margin-top: 3px; white-space: nowrap; }
+.inv-status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.inv-status svg { width: 13px; height: 13px; flex: none; }
+.inv-status.in { background: #ECFDF3; color: #067647; }
+.inv-status.low { background: #FFFAEB; color: #B54708; }
+.inv-status.out, .inv-status.negative { background: #FEF3F2; color: #B42318; }
+.inv-updated strong { display: block; font-size: 12px; font-weight: 600; color: #344054; white-space: nowrap; }
+.inv-updated small { display: block; font-size: 11px; color: #98A2B3; margin-top: 2px; }
+.inv-ops { display: flex; align-items: center; gap: 6px; }
+.btn-inv-add, .btn-inv-sub { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px; border-radius: 9px; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.btn-inv-add { background: #2468CC; color: #fff; border: 1px solid #2468CC; }
+.btn-inv-add:hover { background: #1D57AC; border-color: #1D57AC; }
+.btn-inv-sub { background: #fff; color: #344054; border: 1px solid #D6E2F0; }
+.btn-inv-sub:hover { background: #F4F9FF; border-color: #B9CDE8; color: #1D4F8C; }
+.row-more-note { display: block; padding: 6px 10px 8px; font-size: 11.5px; color: #98A2B3; border-bottom: 1px solid #EEF2F7; margin-bottom: 4px; }
+.row-more-danger { display: block; width: 100%; text-align: start; padding: 8px 10px; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 12.5px; color: #B42318; cursor: pointer; }
+.row-more-danger:hover { background: #FEF3F2; }
+
+/* ════════════════════════════════════════════════════════════════════
+   صفحهٔ محصولات: ستون انتخاب، نوار «ویرایش گروهی» و کشوی ویرایش گروهی
+   (هم‌تراز با ویرایش گروهی محصولات در وب).
+   ════════════════════════════════════════════════════════════════════ */
+.pick-cell { width: 42px; text-align: center; }
+.pick-cell input[type="checkbox"] { width: 16px; height: 16px; flex: none; accent-color: #2468CC; cursor: pointer; }
+.prod-bulk-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #F2F7FD; border-bottom: 1px solid #E7ECF2; }
+.prod-bulk-bar[hidden] { display: none; }
+.prod-bulk-count { font-size: 12.5px; color: #475467; }
+.prod-bulk-count strong { font-size: 13px; font-weight: 800; color: #101828; }
+.prod-bulk-acts { display: flex; align-items: center; gap: 8px; }
+.price-cell { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.price-old { font-size: 11.5px; color: #98A2B3; text-decoration: line-through; }
+.promo-chip { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; background: #ECFDF3; color: #067647; font-size: 11px; font-weight: 700; }
+.chip-featured { display: inline-flex; align-items: center; margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px; background: #FFFAEB; color: #B54708; font-size: 10.5px; font-weight: 700; }
+
+.bulk-drawer-overlay { position: fixed; inset: 0; z-index: 95; display: none; justify-content: flex-end; align-items: stretch; background: rgba(16, 24, 40, .42); }
+.bulk-drawer-overlay.open { display: flex; }
+body.bulk-drawer-opened { overflow: hidden; }
+.bulk-drawer { display: flex; flex-direction: column; width: 430px; max-width: 94vw; background: #fff; box-shadow: -18px 0 44px rgba(16, 24, 40, .18); }
+.bulk-drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 18px; border-bottom: 1px solid #E7ECF2; }
+.bulk-drawer-head h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; color: #101828; }
+.bulk-drawer-head p { margin: 0; font-size: 11.5px; color: #667085; line-height: 1.9; }
+.bulk-drawer-close { width: 30px; height: 30px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E7ECF2; border-radius: 9px; background: #fff; color: #667085; cursor: pointer; }
+.bulk-drawer-close svg { width: 15px; height: 15px; }
+.bulk-drawer-close:hover { background: #F6FAFD; color: #101828; }
+.bulk-drawer form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.bulk-drawer-body { flex: 1; overflow-y: auto; padding: 14px 16px; background: #F7FBFF; }
+.bulk-item { background: #fff; border: 1px solid #E7ECF2; border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+.bulk-item.is-dirty { border-color: #9DBDF0; box-shadow: 0 0 0 3px rgba(36, 104, 204, .10); }
+.bulk-item-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.bulk-item-head strong { display: block; font-size: 12.5px; font-weight: 700; color: #101828; }
+.bulk-item-head small { display: block; font-size: 11px; color: #98A2B3; margin-top: 2px; }
+.bulk-thumb { width: 34px; height: 34px; flex: none; border-radius: 9px; border: 1px solid #E7ECF2; background: #EEF4FF; object-fit: cover; }
+.bulk-thumb-empty { display: flex; align-items: center; justify-content: center; color: #2468CC; }
+.bulk-thumb-empty svg { width: 16px; height: 16px; }
+.bulk-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bulk-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: #667085; }
+.bulk-fields input { height: 36px; padding: 0 10px; border: 1px solid #E3EDF7; border-radius: 9px; background: #fff; font: inherit; font-size: 12.5px; color: #101828; }
+.bulk-fields input:focus { outline: none; border-color: #2468CC; box-shadow: 0 0 0 3px rgba(36, 104, 204, .12); }
+.bulk-fields input.is-invalid { border-color: #F04438; box-shadow: 0 0 0 3px rgba(240, 68, 56, .12); }
+.bulk-item-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.bulk-switch { position: relative; display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; color: #475467; cursor: pointer; }
+.bulk-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.bulk-switch .track { position: relative; width: 34px; height: 19px; flex: none; border-radius: 999px; background: #E4E7EC; transition: .15s; }
+.bulk-switch .track::before { content: ""; position: absolute; top: 2px; inset-inline-start: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, .2); transition: .15s; }
+.bulk-switch input:checked + .track { background: #2468CC; }
+.bulk-switch input:checked + .track::before { transform: translateX(-15px); }
+.bulk-drawer-foot { border-top: 1px solid #E7ECF2; padding: 12px 16px; background: #fff; display: flex; flex-direction: column; gap: 9px; }
+.bulk-drawer-hint { margin: 0; font-size: 11.5px; color: #667085; }
+.bulk-drawer-acts { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
+.bulk-drawer-acts .btn { flex: 1; justify-content: center; }
+.bulk-drawer-acts .btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+/* دسته‌بندی‌های منو: برچسب وضعیت تخفیف/ناموجودی و دیالوگ‌های دسته‌ای */
+.cat-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cat-avail-note { margin: 4px 0 2px; padding: 10px 12px; border: 1px solid #E7ECF2; border-radius: 11px; background: #F6FAFD; font-size: 12.5px; color: #475467; }
+.btn-dlg-primary.is-danger { background: #B42318; }
+.btn-dlg-primary.is-danger:hover { background: #981B13; }
+
+@media (max-width: 720px) {
+  .bulk-drawer { width: 100%; max-width: 100%; }
+  .bulk-fields { grid-template-columns: 1fr; }
+  .inv-ops { flex-wrap: wrap; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   «چه چیزی کم است؟» — دکمهٔ کمبود در انبار، برچسب‌های قابل‌کلیک صندوق و
+   دیالوگ مشترک نمایش کمبود مواد اولیه.
+   ════════════════════════════════════════════════════════════════════ */
+button.pos-tile-out, button.pos-tile-low {
+  display: inline-flex; align-items: center; gap: 4px; border: 0; font-family: inherit;
+  font-size: 11px; font-weight: 800; cursor: pointer; line-height: 1.6;
+}
+button.pos-tile-out svg, button.pos-tile-low svg { width: 12px; height: 12px; }
+button.pos-tile-out:hover, button.pos-tile-low:hover { filter: brightness(1.06); }
+button.pos-tile-out:focus-visible, button.pos-tile-low:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+button.pos-tile-low { font-size: 10.5px; }
+
+.inv-short-chip {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 2px 9px;
+  border: 1px solid #FDA29B; border-radius: 999px; background: #FEF3F2; color: #B42318;
+  font: inherit; font-size: 10.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.inv-short-chip:hover { background: #FEE4E2; }
+.status-cell { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.link-short {
+  border: 0; background: none; padding: 0; font: inherit; font-size: 11px; font-weight: 700;
+  color: #B42318; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+.link-short:hover { color: #912018; }
+
+.shortage-list { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 2px; }
+.shortage-row { border: 1px solid #E3EDF7; border-radius: 12px; padding: 10px 12px; background: #F9FCFF; }
+.shortage-row.is-blocking { border-color: #FDA29B; background: #FFF7F6; }
+.shortage-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.shortage-row-head strong { font-size: 12.5px; font-weight: 700; color: #101828; }
+.shortage-tag { padding: 2px 9px; border-radius: 999px; background: #FEE4E2; color: #B42318; font-size: 10.5px; font-weight: 700; white-space: nowrap; flex: none; line-height: 1.6; }
+.shortage-tag.is-soft { background: #FFFAEB; color: #B54708; }
+.shortage-row-nums { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 11.5px; color: #667085; }
+.shortage-row-nums span { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.shortage-row-nums b { color: #101828; font-weight: 700; }
+.shortage-row-nums .is-danger, .shortage-row-nums .is-danger b { color: #B42318; }
+.shortage-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid #E3EDF7; border-radius: 10px; background: #F9FCFF; font-size: 12px; color: #667085; }
+.shortage-line strong { font-size: 12.5px; font-weight: 700; color: #101828; }
+.shortage-line.is-danger { border-color: #FDA29B; background: #FEF3F2; color: #B42318; }
+.shortage-line.is-danger strong { color: #B42318; }
+
+/* ════════════════════════════════════════════════════════════════════
+   دکمه‌های فوتر دیالوگ: لینک‌هایی مثل «رفتن به انبار» قبلاً display:inline
+   بودند و ارتفاع ثابت ۴۴px نمی‌گرفتند؛ نتیجه‌اش دکمه‌ای بلندتر و ناهم‌تراز
+   با «بستن» بود. حالا لینک و باتن دقیقاً یک‌شکل رندر می‌شوند.
+   ════════════════════════════════════════════════════════════════════ */
+.dlg-actions { align-items: center; }
+.dlg-actions a[class*="btn-dlg"] {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  box-sizing: border-box; text-decoration: none; line-height: 1;
+}
+.dlg-actions .btn-dlg-primary svg,
+.dlg-actions .btn-dlg-cancel svg { width: 15px; height: 15px; flex: none; }
+
+/* فوتر دیالوگ‌های کمبود (صندوق و انبار) */
+.shortage-actions { margin-top: 14px; padding-top: 14px; border-top: 1px solid #EEF2F7; gap: 10px; }
+.shortage-actions .btn-dlg-primary,
+.shortage-actions .btn-dlg-cancel {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 40px; min-width: 118px; padding: 0 18px; border-radius: 10px;
+  box-sizing: border-box; font-size: 12.5px; font-weight: 700; line-height: 1;
+}
+.shortage-actions .btn-dlg-primary { background: #2468CC; color: #fff; box-shadow: 0 6px 14px rgba(36, 104, 204, .22); text-decoration: none; }
+.shortage-actions .btn-dlg-primary:hover { background: #1D57AC; box-shadow: 0 4px 10px rgba(36, 104, 204, .28); }
+.shortage-actions .btn-dlg-cancel { border: 1px solid #E3EDF7; background: #fff; color: #475467; }
+.shortage-actions .btn-dlg-cancel:hover { background: #F6FAFD; border-color: #CFE0F2; color: #1D4F8C; }
+
+/* ════════════════════════════════════════════════════════════════════
+   «موجودی به تفکیک دسته‌بندی» — سوییچ جدول/دسته‌ها و کارت هر دسته با
+   تیتر جمع‌شدنی، مثل صفحهٔ انبار وب.
+   ════════════════════════════════════════════════════════════════════ */
+.inv-view-switch { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border-radius: 11px; background: #F2F7FD; border: 1px solid #E3EDF7; }
+.inv-view-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; color: #475467; text-decoration: none; white-space: nowrap;
+  border: 1px solid transparent; transition: background .15s, color .15s, box-shadow .15s;
+}
+.inv-view-btn svg { width: 14px; height: 14px; flex: none; }
+.inv-view-btn:hover { background: #E8F1FC; color: #1D4F8C; }
+.inv-view-btn.active { background: #2468CC; border-color: #2468CC; color: #fff; box-shadow: 0 4px 10px rgba(36, 104, 204, .22); }
+
+.inv-groups { display: grid; gap: 14px; padding: 14px 16px; }
+.inv-group-card { border: 1px solid #E7ECF2; border-radius: 16px; background: #fff; overflow: hidden; }
+.inv-group-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
+  border: 0; border-bottom: 1px solid #E7ECF2; background: #F7FBFF; font: inherit; cursor: pointer; text-align: start;
+}
+.inv-group-head:hover { background: #F1F8FF; }
+.inv-group-ic { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: none; border-radius: 9px; background: #EAF2FF; color: #2468CC; }
+.inv-group-ic svg { width: 16px; height: 16px; }
+.inv-group-head strong { font-size: 13px; font-weight: 800; color: #101828; }
+.inv-group-count { font-size: 11.5px; font-weight: 600; color: #667085; }
+.inv-group-chev { width: 16px; height: 16px; margin-inline-start: auto; color: #98A2B3; flex: none; transition: transform .15s; }
+.inv-group-card.is-collapsed .inv-group-chev { transform: rotate(-90deg); }
+.inv-group-card.is-collapsed .table-wrap { display: none; }
+.inv-group-card .prod-table th { background: #FCFDFF; }
+
+@media (max-width: 720px) {
+  .inv-view-switch { width: 100%; justify-content: space-between; }
+  .inv-group-head { flex-wrap: wrap; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   منوی «…» ردیف انبار (هم‌تراز نسخهٔ وب) — منوی شناور با position:fixed
+   تا overflow جدول/کارت آن را نبرد، با هدر «ارزش موجودی» و آیکن هر گزینه.
+   ════════════════════════════════════════════════════════════════════ */
+.row-more { position: relative; }
+.row-more-btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #D6E2F0; border-radius: 9px; background: #fff; color: #475467; cursor: pointer; }
+.row-more-btn svg { width: 15px; height: 15px; }
+.row-more-btn:hover, .row-more-btn[aria-expanded="true"] { background: #F1F7FF; border-color: #B9CDE8; color: #1D4F8C; }
+.inv-menu { display: none; position: fixed; z-index: 90; width: 236px; max-width: calc(100vw - 20px); padding: 6px; background: #fff; border: 1px solid #E7ECF2; border-radius: 14px; box-shadow: 0 18px 40px rgba(16,24,40,.16), 0 2px 6px rgba(16,24,40,.06); }
+.inv-menu.open { display: block; animation: invMenuIn .12s ease-out; }
+@keyframes invMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.inv-menu-head { display: grid; gap: 2px; padding: 8px 10px 9px; border-bottom: 1px solid #EEF2F7; margin-bottom: 5px; }
+.inv-menu-head span { font-size: 10.5px; font-weight: 600; color: #98A2B3; }
+.inv-menu-head strong { font-size: 12.5px; font-weight: 800; color: #101828; white-space: nowrap; }
+.inv-menu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 10px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: #344054; text-decoration: none; text-align: start; cursor: pointer; white-space: nowrap; }
+.inv-menu-item svg { width: 15px; height: 15px; flex: none; color: #667085; }
+.inv-menu-item:hover { background: #F5FAFF; color: #1D4F8C; }
+.inv-menu-item:hover svg { color: #1D4F8C; }
+.inv-menu-item.is-danger { color: #B42318; }
+.inv-menu-item.is-danger svg { color: #B42318; }
+.inv-menu-item.is-danger:hover { background: #FEF3F2; }
+.inv-menu-sep { height: 1px; background: #EEF2F7; margin: 5px 4px; }
+
+/* ════════════════════════════════════════════════════════════════════
+   دیالوگ‌های جزئیات (قلم انبار / فاکتور خرید): هدر ثابت، بدنهٔ اسکرول‌شو
+   و نوار عملیات چسبیده به پایین — عین دیالوگ «جزئیات» نسخهٔ وب.
+   ════════════════════════════════════════════════════════════════════ */
+.dlg-detail { display: flex; flex-direction: column; gap: 0; padding: 0; max-width: 720px; max-height: min(88vh, 760px); overflow: hidden; border-radius: 16px; }
+.dlg-detail .dx-close { top: 16px; left: 16px; z-index: 3; width: 34px; height: 34px; border: 1px solid #E7ECF2; border-radius: 999px; background: #fff; color: #475467; transition: background .12s ease, border-color .12s ease; }
+.dlg-detail .dx-close:hover { background: #F5F9FF; border-color: #D6E2F0; color: #101828; }
+.dx-scroll { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px 22px 4px; overflow-y: auto; }
+.dx-head { display: grid; gap: 4px; padding-inline-end: 44px; }
+.dx-title { margin: 0; font-size: 18px; font-weight: 800; color: #101828; }
+.dx-sub { margin: 0; font-size: 12.5px; line-height: 1.9; color: #667085; }
+.dx-hero { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #E6EFFA; border-radius: 16px; background: linear-gradient(180deg, #F8FCFF 0%, #F1F8FF 100%); }
+.dx-hero-main { display: grid; gap: 3px; min-width: 0; }
+.dx-hero-name { font-size: 18px; font-weight: 800; line-height: 1.6; color: #101828; overflow-wrap: anywhere; }
+.dx-hero-sub { font-size: 11.5px; font-weight: 600; color: #98A2B3; letter-spacing: .02em; overflow-wrap: anywhere; }
+.dx-hero .inv-status, .dx-hero .dx-chip { flex: none; }
+.dx-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.dx-stat { display: grid; gap: 3px; align-content: start; min-width: 0; padding: 12px 12px 13px; border: 1px solid #E7ECF2; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+.dx-stat-label { font-size: 10.5px; font-weight: 600; color: #98A2B3; white-space: nowrap; }
+.dx-stat-value { font-size: 14px; font-weight: 800; line-height: 1.75; color: #101828; overflow-wrap: anywhere; }
+.dx-stat-value-sm { font-size: 12px; font-weight: 700; }
+.dx-stat-note { font-size: 10.5px; line-height: 1.7; color: #98A2B3; }
+.dx-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.dx-panel { min-width: 0; padding: 0 14px 6px; border: 1px solid #E7ECF2; border-radius: 14px; background: #fff; }
+.dx-panel-title { margin: 0; padding: 11px 0; border-bottom: 1px solid #EEF2F7; font-size: 12.5px; font-weight: 800; color: #344054; text-align: center; }
+.dx-list { margin: 0; padding: 2px 0 4px; }
+.dx-list > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #F1F5F9; }
+.dx-list > div:last-child { border-bottom: 0; }
+.dx-list dt { font-size: 11.5px; color: #667085; }
+.dx-list dd { margin: 0; font-size: 11.5px; font-weight: 700; color: #101828; text-align: end; overflow-wrap: anywhere; }
+.dx-amount { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid #DCEAFB; border-radius: 14px; background: #F5FAFF; }
+.dx-amount span { font-size: 12px; font-weight: 600; color: #475467; }
+.dx-amount strong { font-size: 16px; font-weight: 800; color: #1B56A6; }
+.dx-chip { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.dx-chip.is-paid { background: #ECFDF3; color: #067647; }
+.dx-chip.is-pending { background: #FFFAEB; color: #B54708; }
+.dx-chip.is-partial { background: #EFF8FF; color: #175CD3; }
+.dx-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 13px 22px; border-top: 1px solid #EEF2F7; background: #fff; }
+.dx-actions.is-end { justify-content: flex-end; }
+.dx-actions form { margin: 0; }
+.dx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 15px; border: 1px solid #DCE7F3; border-radius: 10px; background: #fff; color: #344054; font: inherit; font-size: 12.5px; font-weight: 700; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.dx-btn svg { width: 15px; height: 15px; flex: none; color: #667085; }
+.dx-btn:hover { border-color: #B9CDE8; background: #F5FAFF; color: #1D4F8C; }
+.dx-btn.is-danger { background: #D92D20; border-color: #D92D20; color: #fff; }
+.dx-btn.is-danger svg { color: #fff; }
+.dx-btn.is-danger:hover { background: #B42318; border-color: #B42318; }
+.dx-btn.is-ghost { min-width: 92px; }
+@media (max-width: 860px) {
+  .dx-cols { grid-template-columns: 1fr; }
+  .dx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .dlg-detail { max-height: 94vh; border-radius: 16px; }
+  .dx-scroll { padding: 16px 14px 4px; gap: 12px; }
+  .dlg-detail .dx-close { top: 12px; left: 12px; }
+  .dx-stats { gap: 8px; }
+  .dx-stat { padding: 10px 10px 11px; }
+  .dx-hero { flex-direction: column; align-items: flex-start; }
+  .dx-actions { padding: 12px 14px; gap: 6px; }
+  .dx-btn { flex: 1 1 auto; }
+}
+@media (max-width: 400px) { .dx-stats { grid-template-columns: 1fr; } }
+
+/* ── سرچ‌بار یکدست کل برنامه — الگو: سرچ سالم صفحهٔ محصولات (.search-box) ──
+   قاب (border/پس‌زمینه/شعاع) روی خودِ نگهدارنده است، آیکن داخل جریان فلکس
+   می‌نشیند و ورودی کاملاً شفاف و بدون قاب است؛ پس نه قاب دوتایی دیده می‌شود،
+   نه متن روی آیکن می‌افتد و نه آیکن زیر پس‌زمینهٔ ورودی پنهان می‌شود. */
+.search-box,.ord-search-box,.club-search-field,.inv-cat-search,.rpt-product-search,.waste-search-box,.pos-club-search,.pos-search,.edit-search,.dbk-search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #E3EDF7;border-radius:12px;padding:0 12px;box-sizing:border-box}
+.search-box{height:42px}
+.ord-search-box{height:44px;border-radius:12px}
+.club-search-field{height:40px;border-radius:10px}
+.inv-cat-search{height:42px;border-radius:11px;flex:1 1 280px;min-width:0}
+.rpt-product-search{height:40px;border-radius:11px}
+.waste-search-box{height:40px;border-radius:10px}
+.pos-club-search{height:44px;border-radius:10px}
+.pos-search{height:32px;border-radius:9px;padding:0 10px}
+.pos-search.lg{height:36px;border-radius:10px}
+.edit-search{height:44px;border-radius:10px}
+.search-box:focus-within,.ord-search-box:focus-within,.club-search-field:focus-within,.inv-cat-search:focus-within,.rpt-product-search:focus-within,.waste-search-box:focus-within,.pos-club-search:focus-within,.pos-search:focus-within,.edit-search:focus-within,.dbk-search:focus-within{border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.14)}
+.search-box svg,.ord-search-box svg,.club-search-field svg,.inv-cat-search svg,.rpt-product-search svg,.waste-search-box svg,.pos-club-search svg,.pos-search svg,.edit-search svg,.dbk-search svg{position:static;transform:none;width:17px;height:17px;color:#98A2B3;flex:none;pointer-events:none}
+.pos-search svg{width:14px;height:14px}
+.search-box input,.ord-search-box input,.club-search-field input,.inv-cat-search input,.rpt-product-search input,.waste-search-box input,.pos-club-search input,.pos-search input,.edit-search input,.dbk-search input{flex:1 1 auto;min-width:0;width:auto!important;height:auto;min-height:0!important;border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important;padding:0!important;font:inherit;color:#101828;outline:none}
+.inv-cat-search input,.rpt-product-search input,.waste-search-box input,.dbk-search input{font-size:12.5px!important}
+.search-box input,.ord-search-box input,.edit-search input{font-size:13.5px!important}
+.club-search-field input,.pos-club-search input{font-size:13px!important}
+.pos-search input{font-size:12px!important}
+.pos-search.lg input{font-size:12.5px!important}
+.search-box input::placeholder,.ord-search-box input::placeholder,.club-search-field input::placeholder,.inv-cat-search input::placeholder,.rpt-product-search input::placeholder,.waste-search-box input::placeholder,.pos-club-search input::placeholder,.pos-search input::placeholder,.edit-search input::placeholder,.dbk-search input::placeholder{color:#98A2B3}
+/* دکمهٔ ضربدر بومیِ type=search جای متن را تنگ نکند */
+.search-box input[type="search"]::-webkit-search-cancel-button,.ord-search-box input[type="search"]::-webkit-search-cancel-button,.inv-cat-search input[type="search"]::-webkit-search-cancel-button,.rpt-product-search input[type="search"]::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+/* ابزار دسته‌بندی مواد اولیه: سرچ و دکمهٔ «دستهٔ جدید» همیشه در یک ردیف */
+.inv-cat-tools{flex-wrap:nowrap}
+.inv-cat-tools .btn{flex:none;white-space:nowrap}
+@media (max-width:520px){.inv-cat-tools{flex-wrap:wrap}.inv-cat-search{flex-basis:100%}}
+/* سرچ بدون نگهدارنده (فیلتر میزها): همان قاب استاندارد + آیکن ذره‌بین پس‌زمینه */
+#tbl-q{height:40px;min-height:40px;border:1px solid #E3EDF7;border-radius:10px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2398A2B3' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.8-3.8'/%3E%3C/svg%3E") no-repeat right 11px center/16px 16px;padding:0 36px 0 12px;font-size:12.5px;color:#101828;box-sizing:border-box}
+#tbl-q:focus{border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.14);outline:none}
+
+/* ── حساب و گزارش (accounting وب) ── */
+.acc-crumb{display:flex;align-items:center;gap:6px;font-size:12px;color:#98A2B3;margin:2px 2px 10px}
+.acc-crumb a{color:#667085;text-decoration:none;font-weight:600}
+.acc-crumb a:hover{color:#1B56A6}
+.acc-crumb svg{width:12px;height:12px;color:#C4CDDD}
+.acc-crumb span{color:#475467;font-weight:700}
+.acc-tabs{display:flex;gap:4px;flex-wrap:wrap;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:6px;margin-bottom:14px}
+.acc-tab{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;color:#475467;text-decoration:none;border:1px solid transparent}
+.acc-tab svg{width:16px;height:16px}
+.acc-tab:hover{color:#1B56A6;background:#F7FBFF}
+.acc-tab.active{background:#1D6FD1;color:#fff}
+.acc-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.acc-action{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:16px;text-align:start;cursor:pointer;font:inherit;text-decoration:none;color:#101828}
+.acc-action strong{display:block;font-size:13.5px;font-weight:800}
+.acc-action small{display:block;font-size:11.5px;color:#98A2B3;margin-top:3px}
+.acc-action-ic{width:38px;height:38px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#EEF4FF;color:#2468CC;margin-inline-start:auto;order:2}
+.acc-action-ic svg{width:19px;height:19px}
+.acc-action.is-primary{background:linear-gradient(135deg,#2468CC,#1B56A6);border-color:#1B56A6;color:#fff}
+.acc-action.is-primary small{color:rgba(255,255,255,.75)}
+.acc-action.is-primary .acc-action-ic{background:rgba(255,255,255,.18);color:#fff}
+.acc-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.acc-kpi{display:flex;gap:12px;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:16px;min-width:0}
+.acc-kpi-ic{width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:10px;margin-inline-start:auto;order:2}
+.acc-kpi-ic svg{width:18px;height:18px}
+.acc-kpi-ic.blue{background:#EEF4FF;color:#2468CC}
+.acc-kpi-ic.green{background:#ECFDF3;color:#067647}
+.acc-kpi-ic.rose{background:#FEF3F2;color:#D92D20}
+.acc-kpi p{margin:0 0 5px;font-size:12px;color:#667085;font-weight:700}
+.acc-kpi strong{font-size:15px;font-weight:800;color:#101828;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.acc-kpi strong span{font-size:11px;color:#98A2B3;font-weight:600}
+.acc-kpi small{display:block;margin-top:4px;font-size:11px;color:#98A2B3}
+.acc-dot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+.acc-dot.green{background:#12B76A}
+.acc-dot.rose{background:#F04438}
+.acc-net-val{color:#067647!important}
+.acc-grid{display:grid;grid-template-columns:1.9fr 1fr;gap:12px}
+.acc-panel{background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:18px;margin-bottom:14px;min-width:0}
+.acc-grid .acc-panel{margin-bottom:0}
+.acc-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.acc-panel-head h3{margin:0;font-size:15px;font-weight:800;color:#101828}
+.acc-panel-head p{margin:4px 0 0;font-size:11.5px;color:#98A2B3}
+.acc-panel-title{display:flex;gap:10px;align-items:flex-start}
+.acc-panel-ic{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#EEF4FF;color:#2468CC}
+.acc-panel-ic svg{width:18px;height:18px}
+.acc-full-link{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:#2468CC;text-decoration:none;padding-top:4px}
+.acc-full-link svg{width:13px;height:13px}
+.acc-perf{display:flex;flex-direction:column}
+.acc-perf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9}
+.acc-perf-lb{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#344054}
+.acc-perf-ic{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+.acc-perf-ic svg{width:15px;height:15px}
+.acc-perf-ic.green{background:#ECFDF3;color:#067647}
+.acc-perf-ic.rose{background:#FEF3F2;color:#D92D20}
+.acc-perf-row strong{font-size:13.5px;font-weight:800;color:#101828}
+.acc-perf-row strong span{font-size:11px;color:#98A2B3;font-weight:600}
+.acc-net{background:#F7FBFF;border:1px solid #E3EDF7;border-radius:12px;padding:13px 14px;margin-top:14px}
+.acc-net-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:#344054}
+.acc-net-row strong{font-size:15px;font-weight:800;color:#067647}
+.acc-net-bar{height:6px;border-radius:99px;background:#E7ECF2;margin-top:11px;overflow:hidden}
+.acc-net-bar i{display:block;height:100%;background:#12B76A;border-radius:99px}
+.acc-net-note{margin:9px 0 0;font-size:11.5px;color:#98A2B3;text-align:end}
+.acc-activity{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.acc-act{position:relative;background:#F7FBFF;border:1px solid #E3EDF7;border-radius:12px;padding:16px 14px;text-decoration:none;display:block}
+.acc-act-ic{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#fff;border:1px solid #E3EDF7;color:#2468CC;margin-bottom:12px}
+.acc-act-ic svg{width:16px;height:16px}
+.acc-act strong{display:block;font-size:20px;font-weight:800;color:#101828}
+.acc-act span:last-child{font-size:11.5px;color:#667085;font-weight:600}
+.acc-footnote{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#98A2B3;margin:12px 2px 0}
+.acc-footnote svg{width:14px;height:14px;flex:none}
+/* فیلترها و جدول‌ها */
+.acc-filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid #EEF2F7;margin-bottom:4px}
+.acc-filter{display:flex;flex-direction:column;gap:6px;flex:0 1 210px;min-width:150px}
+.acc-filter.grow{flex:1 1 240px}
+.acc-filter-lb{font-size:11px;font-weight:700;color:#667085;text-align:end}
+.acc-filter select{height:38px;min-height:38px;border:1px solid #E3EDF7;border-radius:10px;background:transparent;font-size:12.5px;color:#344054;padding:0 10px;width:100%}
+.acc-date{position:relative}
+.acc-date-trigger{width:100%;height:38px;display:flex;align-items:center;gap:8px;border:1px solid #E3EDF7;border-radius:10px;background:transparent;color:#98A2B3;font:inherit;font-size:12.5px;padding:0 11px;cursor:pointer;box-sizing:border-box}
+.acc-date-trigger span{flex:1;text-align:start;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-date-trigger svg{width:15px;height:15px;flex:none;color:#98A2B3}
+.acc-date-trigger.has-value{color:#101828;font-weight:700}
+.acc-date-trigger:hover{border-color:#AFC6DC}
+.acc-clear{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border:1px solid #E3EDF7;border-radius:10px;background:#F7FBFF;color:#667085;font-size:12px;font-weight:700;text-decoration:none;margin-inline-start:auto;flex:none}
+.acc-clear svg{width:14px;height:14px}
+.acc-clear:hover{color:#1B56A6;border-color:#AFC6DC}
+.acc-table-panel{padding-bottom:8px}
+.acc-table-wrap{overflow-x:auto;margin:0 -18px;padding:0 18px}
+.acc-table{width:100%;border-collapse:collapse;min-width:720px}
+.acc-table th{font-size:11.5px;font-weight:700;color:#667085;text-align:start;padding:11px 10px;border-bottom:1px solid #EEF2F7;white-space:nowrap}
+.acc-table td{font-size:12.5px;color:#344054;padding:12px 10px;border-bottom:1px solid #F4F7FB;vertical-align:middle}
+.acc-table tbody tr:last-child td{border-bottom:0}
+.acc-td-title{display:block;font-size:13px;font-weight:800;color:#101828}
+.acc-td-sub{display:block;font-size:11px;color:#98A2B3;margin-top:2px}
+.acc-td-date{color:#667085;white-space:nowrap}
+.acc-td-num{font-weight:700;color:#101828;text-align:left;white-space:nowrap}
+.acc-td-amount{font-size:13px;font-weight:800;color:#101828;white-space:nowrap}
+.acc-acc-cell{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.acc-code{background:#F2F7FD;color:#1B56A6;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700}
+.acc-pill{display:inline-flex;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+.acc-pill.is-posted{background:#ECFDF3;color:#027A48;border:1px solid #ABEFC6}
+.acc-pill.is-void{background:#F2F4F7;color:#98A2B3;border:1px solid #E4E7EC}
+.acc-src{display:inline-flex;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+.acc-src.src-inventory{background:#EEF4FF;color:#1B56A6;border:1px solid #D6E4F7}
+.acc-src.src-expense{background:#FFF1F3;color:#C01048;border:1px solid #FECDD6}
+.acc-src.src-manual{background:#F2F4F7;color:#475467;border:1px solid #E4E7EC}
+.acc-th-ops{text-align:end}
+.acc-td-ops{text-align:end;white-space:nowrap}
+.acc-td-ops form{display:inline}
+.acc-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:0;background:transparent;border-radius:8px;color:#667085;cursor:pointer;vertical-align:middle}
+.acc-icon-btn svg{width:16px;height:16px}
+.acc-icon-btn:hover{background:#F2F7FD;color:#1B56A6}
+.acc-icon-btn.is-danger:hover{background:#FEF3F2;color:#D92D20}
+.acc-empty{font-size:12.5px;color:#98A2B3;text-align:center;padding:26px 0;margin:0}
+/* صدور سند از انبار */
+.acc-post-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+.acc-post-lb{font-size:12px;font-weight:700;color:#667085;margin:0 0 10px}
+.acc-mov-list{display:flex;flex-direction:column;gap:8px}
+.acc-mov{display:flex;align-items:center;gap:10px;border:1px solid #E7ECF2;border-radius:12px;padding:10px 12px}
+.acc-mov-ic{width:30px;height:30px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#F5F3FF;color:#6941C6}
+.acc-mov-ic svg{width:15px;height:15px}
+.acc-mov-txt{flex:1;min-width:0}
+.acc-mov-txt strong{display:block;font-size:12.5px;font-weight:800;color:#101828;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-mov-txt small{font-size:11px;color:#98A2B3}
+.acc-uuid{background:#F7FBFF;border:1px solid #E3EDF7;border-radius:12px;padding:14px}
+.acc-uuid input[type="text"]{width:100%;height:38px;min-height:38px;border:1px solid #E3EDF7;border-radius:10px;background:#fff;padding:0 11px;font-size:12.5px;box-sizing:border-box;text-align:left}
+.acc-uuid-hint{font-size:11px;color:#98A2B3;margin:9px 0 12px;line-height:1.8}
+.acc-uuid-hint.is-error{color:#D92D20}
+/* کدینگ حساب‌ها */
+.acc-head-acts{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.acc-show-inactive{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#475467;text-decoration:none}
+.acc-switch{width:36px;height:20px;flex:none;border-radius:99px;background:#E4E7EC;display:inline-flex;align-items:center;padding:2px;box-sizing:border-box;transition:background .15s}
+.acc-switch i{width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.2);transition:transform .15s}
+.acc-switch.on{background:#2468CC}
+.acc-switch.on i{transform:translateX(-16px)}
+.acc-switch.is-locked{opacity:.55}
+.acc-switch-btn{border:0;background:transparent;padding:0;cursor:pointer;display:inline-flex}
+.acc-type-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.acc-type-card{border:1px solid #E7ECF2;border-radius:12px;padding:12px 13px;background:#FBFDFF;min-width:0}
+.acc-type-card strong{display:block;font-size:12.5px;font-weight:800;color:#101828;margin-bottom:4px}
+.acc-type-card span{font-size:10.5px;color:#98A2B3;line-height:1.7;display:block}
+.acc-group{margin-bottom:16px}
+.acc-group-head{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+.acc-type-chip{padding:3px 11px;border-radius:99px;font-size:11px;font-weight:800}
+.acc-type-chip.type-asset{background:#EEF4FF;color:#1B56A6}
+.acc-type-chip.type-liability{background:#FFFAEB;color:#B54708}
+.acc-type-chip.type-equity{background:#F5F3FF;color:#6941C6}
+.acc-type-chip.type-income{background:#ECFDF3;color:#027A48}
+.acc-type-chip.type-expense{background:#FFF1F3;color:#C01048}
+.acc-group-desc{font-size:11px;color:#98A2B3}
+.acc-group-total{margin-inline-start:auto;font-size:11px;color:#667085;font-weight:700;white-space:nowrap}
+.acc-rows{display:flex;flex-direction:column;gap:6px}
+.acc-row{display:flex;align-items:center;gap:10px;border:1px solid #EEF2F7;border-radius:12px;padding:10px 14px;background:#fff;flex-wrap:wrap}
+.acc-row.is-inactive{opacity:.55}
+.acc-row-code{background:#F2F7FD;color:#1B56A6;border-radius:7px;padding:2px 8px;font-size:11.5px;font-weight:800;min-width:38px;text-align:center}
+.acc-row-name{font-size:13px;font-weight:800;color:#101828}
+.acc-sys-chip{display:inline-flex;align-items:center;gap:4px;background:#F2F4F7;color:#667085;border-radius:99px;padding:2px 9px;font-size:10.5px;font-weight:700}
+.acc-sys-chip svg{width:11px;height:11px}
+.acc-link-chip{background:#EEF4FF;color:#1B56A6;border-radius:99px;padding:2px 9px;font-size:10.5px;font-weight:700}
+.acc-row-end{margin-inline-start:auto;display:inline-flex;align-items:center;gap:10px}
+.acc-row-bal{font-size:13px;font-weight:800;color:#101828;white-space:nowrap}
+.acc-row-bal span{font-size:10.5px;color:#98A2B3;font-weight:600}
+.acc-row-bal.neg{color:#D92D20}
+/* سود و زیان */
+.acc-pnl-range{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.acc-month-btn{height:38px;display:inline-flex;align-items:center;flex:none}
+.acc-pnl-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.acc-pnl-col{border:1px solid #E7ECF2;border-radius:12px;padding:14px;min-width:0}
+.acc-pnl-col header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.acc-pnl-col header strong{font-size:12.5px;font-weight:800;color:#101828}
+.acc-pnl-total{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#667085;white-space:nowrap}
+.acc-pnl-lines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.acc-pnl-lines li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px dashed #EDF1F6;font-size:12px;color:#475467}
+.acc-pnl-lines li:last-child{border-bottom:0}
+.acc-pnl-lines strong{color:#101828;font-weight:800;white-space:nowrap}
+.acc-pnl-empty{font-size:11.5px;color:#98A2B3;text-align:center;margin:0;padding:16px 0 8px}
+.acc-pnl-summary{display:flex;gap:14px;justify-content:space-between;background:#F7FBFF;border:1px solid #E3EDF7;border-radius:12px;padding:14px 16px;margin-top:12px;flex-wrap:wrap}
+.acc-pnl-sum{display:inline-flex;align-items:center;gap:14px;font-size:12px;color:#667085;font-weight:600}
+.acc-pnl-sum strong{font-size:14px;font-weight:800;color:#101828;white-space:nowrap}
+.acc-inv-total{text-align:end}
+.acc-inv-total small{display:block;font-size:11px;color:#98A2B3;margin-bottom:3px}
+.acc-inv-total strong{font-size:16px;font-weight:800;color:#101828}
+.acc-inv-total strong span{font-size:11px;color:#98A2B3;font-weight:600}
+/* دیالوگ‌های مالی */
+.acc-dlg{max-width:480px}
+.acc-dlg-wide{max-width:600px}
+.acc-dlg-head{display:flex;gap:11px;align-items:flex-start;margin-bottom:16px;padding-inline-end:26px}
+.acc-dlg-head h3{margin:0;font-size:15.5px;font-weight:800;color:#101828}
+.acc-dlg-head p{margin:4px 0 0;font-size:11.5px;color:#98A2B3;line-height:1.8}
+.acc-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-size:12px;font-weight:700;color:#475467}
+.acc-field b{color:#D92D20}
+.acc-field input,.acc-field select{height:42px;min-height:42px;border:1px solid #E3EDF7;border-radius:10px;background:#fff;padding:0 12px;font:inherit;font-size:13px;color:#101828;width:100%;box-sizing:border-box}
+.acc-field input:focus,.acc-field select:focus{border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.14);outline:none}
+.acc-field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.acc-field-row.is-code{grid-template-columns:130px 1fr}
+.acc-dlg-hint{font-size:11px;color:#98A2B3;margin:2px 0 14px;line-height:1.8}
+.acc-art-head{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:#475467;margin-bottom:9px}
+.acc-art-head b{color:#D92D20}
+.acc-art-head small{color:#98A2B3;font-weight:600}
+.acc-art{border:1px solid #E7ECF2;border-radius:12px;padding:12px;margin-bottom:10px;background:#FBFDFF}
+.acc-art-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.acc-art-no{font-size:11.5px;font-weight:800;color:#667085}
+.acc-art-x{border:0;background:transparent;color:#98A2B3;font-size:17px;line-height:1;cursor:pointer;width:26px;height:26px;border-radius:7px}
+.acc-art-x:hover{background:#FEF3F2;color:#D92D20}
+.acc-art-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.acc-art select,.acc-art input{height:40px;min-height:40px;border:1px solid #E3EDF7;border-radius:10px;background:#fff;padding:0 11px;font:inherit;font-size:12.5px;color:#101828;width:100%;box-sizing:border-box}
+.acc-art select:focus,.acc-art input:focus{border-color:#2468CC;box-shadow:0 0 0 3px rgba(36,104,204,.14);outline:none}
+.acc-add-line{display:inline-flex;align-items:center;gap:5px;border:1px solid #E3EDF7;background:#fff;border-radius:10px;height:36px;padding:0 14px;font:inherit;font-size:12px;font-weight:700;color:#1B56A6;cursor:pointer;margin-bottom:12px}
+.acc-add-line:hover{background:#F2F7FD}
+.acc-balance{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:11px;padding:11px 13px;margin-bottom:16px;flex-wrap:wrap}
+.acc-balance-msg{font-size:11.5px;font-weight:700;color:#667085}
+.acc-balance.is-balanced{background:#ECFDF3;border-color:#ABEFC6}
+.acc-balance.is-balanced .acc-balance-msg{color:#027A48}
+.acc-balance-nums{font-size:11.5px;color:#98A2B3;font-weight:600;white-space:nowrap}
+.acc-balance-nums strong{color:#101828}
+@media (max-width:1100px){
+  .acc-actions,.acc-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .acc-grid{grid-template-columns:1fr}
+  .acc-type-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .acc-post-grid{grid-template-columns:1fr}
+  .acc-pnl-cols{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .acc-actions,.acc-kpis{grid-template-columns:1fr}
+  .acc-type-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .acc-field-row,.acc-field-row.is-code{grid-template-columns:1fr}
+  .acc-art-grid{grid-template-columns:1fr}
+  .acc-filter{flex:1 1 150px}
+  .acc-clear{margin-inline-start:0}
+  .acc-activity{grid-template-columns:1fr 1fr}
+}

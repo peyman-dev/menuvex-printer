@@ -28,7 +28,7 @@ for item in "${TARGETS[@]}"; do
     cgo_flag="1"
   fi
   echo "  -> Building ${out} (CGO_ENABLED=${cgo_flag}) ..."
-  CGO_ENABLED="${cgo_flag}" GOOS="${goos}" GOARCH="${goarch}" go build -a -trimpath -ldflags="-s -w" -o "${out}" ./cmd/coffish-desktop
+  CGO_ENABLED="${cgo_flag}" GOOS="${goos}" GOARCH="${goarch}" go build -tags production -a -trimpath -ldflags="-s -w" -o "${out}" ./cmd/coffish-desktop
 done
 
 echo "==> Packaging native macOS .app bundle (dist/CoffishDesktop.app)..."

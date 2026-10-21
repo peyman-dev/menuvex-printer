@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>فعال‌سازی لایسنس منووکس آفلاین</title>
+  <title>وضعیت اشتراک منووکس آفلاین</title>
   <link rel="icon" href="/static/logo.webp">
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -13,43 +13,96 @@
       <a class="auth-brand" href="/license"><img src="/static/logo.webp" alt="منووکس"><strong>منووکس</strong></a>
       <span class="auth-pill">✦ سامانه جامع مدیریت کافه و رستوران</span>
       <h1>مدیریت حرفه‌ای<br>کسب‌وکارتان،<br><span>ساده‌تر از همیشه</span></h1>
-      <p>نسخه آفلاین منووکس روی سیستم شما اجرا می‌شود؛ بدون نیاز به اینترنت، با چاپ مستقیم فیش، انبار و گزارش‌های محلی.</p>
+      <p>نسخه آفلاین منووکس روی سیستم شما اجرا می‌شود؛ اطلاعات محلی شما حتی هنگام قطع اینترنت حفظ می‌شود.</p>
       <ul class="auth-points">
-        <li>مدیریت یکپارچه فروش و سفارش‌ها</li>
-        <li>کنترل هوشمند موجودی و ضایعات</li>
-        <li>گزارش‌های دقیق برای تصمیم‌گیری بهتر</li>
+        <li>فعال‌سازی امن برای همین دستگاه</li>
+        <li>اعتبارسنجی امضای دیجیتال لایسنس</li>
+        <li>کارکرد محلی تا پایان اعتبار اشتراک</li>
       </ul>
     </section>
 
     <section class="auth-card">
-      {{if .Expired}}
+      {{if or (eq .License.Status "expired") (eq .License.Status "revoked") (eq .License.Status "suspended") (eq .License.Status "clock_rollback")}}
       <div class="auth-lock">
-        <strong>اشتراک شما به پایان رسیده است</strong>
-        <p>برای ادامه استفاده از منووکس آفلاین، اشتراک را از سایت منووکس تمدید کنید و کد لایسنس جدید را این‌جا وارد کنید.</p>
+        {{if eq .License.Status "expired"}}<strong>اشتراک نسخهٔ آفلاین منووکس به پایان رسیده است</strong>{{else if eq .License.Status "revoked"}}<strong>اشتراک نسخهٔ آفلاین منووکس لغو شده است</strong>{{else if eq .License.Status "clock_rollback"}}<strong>زمان دستگاه نیاز به بررسی دارد</strong>{{else}}<strong>دسترسی آفلاین موقتاً قفل شده است</strong>{{end}}
+        <p>برای ادامهٔ استفاده، اشتراک را تمدید و لایسنس را پس از اتصال اینترنت به‌روز کنید. اطلاعات محلی شما حفظ شده است.</p>
+        <p class="auth-actions"><button type="button" class="btn btn-primary" onclick="document.getElementById('renewalDialog').showModal()">راهنمای تمدید اشتراک</button> <a class="btn btn-secondary" href="tel:+989101486607">تماس با پشتیبانی</a></p>
+        <p class="auth-support-phone"><a href="tel:+989101486607"><bdi dir="ltr">09101486607</bdi></a> — آقای غفاری — پشتیبانی</p>
+        <dialog id="renewalDialog" class="license-renewal-dialog" aria-labelledby="renewalDialogTitle">
+          <form method="dialog"><button type="submit" class="dialog-close" aria-label="بستن">×</button></form>
+          <h2 id="renewalDialogTitle">تمدید اشتراک نسخهٔ آفلاین</h2>
+          <p>پلن و پرداخت فقط از مسیر رسمی وب انجام می‌شود؛ قیمت و مدت در برنامهٔ آفلاین تعیین نمی‌شود.</p>
+          <p><a class="btn btn-primary btn-block" href="https://menuvex.ir/pricing#plans" target="_blank" rel="noopener">بازکردن صفحهٔ رسمی اشتراک</a></p>
+          <p class="auth-support-phone"><a href="tel:+989101486607"><bdi dir="ltr">09101486607</bdi></a> — آقای غفاری — پشتیبانی</p>
+        </dialog>
       </div>
       {{end}}
       <div class="auth-card-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.2" r="1.4"/></svg>
       </div>
-      <p class="auth-welcome">فعال‌سازی اشتراک</p>
-      <h2>لایسنس خریداری‌شده را وارد کنید</h2>
-      <p class="auth-desc">کد لایسنس را از پنل کاربری سایت منووکس دریافت کرده‌اید؛ همان را این‌جا وارد کنید تا برنامه فعال شود.</p>
-      {{if .Error}}<div class="auth-error">{{.Error}}</div>{{end}}
+      <p class="auth-welcome">وضعیت اشتراک آفلاین</p>
+      <h2>{{if eq .License.Status "not_activated"}}کد فعال‌سازی را وارد کنید{{else}}مدیریت اتصال این دستگاه{{end}}</h2>
+      <p class="auth-desc">کد یک‌بارمصرف را از پنل وب منووکس دریافت کنید. کد فقط برای اتصال این دستگاه است و تمدید دستگاه فعال با کد تازه انجام نمی‌شود.</p>
+      {{if .Error}}<div class="auth-error" role="alert">{{.Error}}</div>{{end}}
+      {{if .License.Reason}}<div class="auth-note">{{.License.Reason}}</div>{{end}}
+      {{if .License.OnlineRefreshAvailable}}
+      <form method="post" action="/license/refresh" class="auth-form auth-refresh-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-secondary btn-lg btn-block">تلاش دوباره برای دریافت لایسنس تازه</button>
+      </form>
+      {{end}}
+      {{if and .License.ActivationAvailable (or (eq .License.Status "not_activated") (eq .License.Status "invalid") (eq .License.Status "secure_store_unavailable"))}}
       <form method="post" action="/license/activate" class="auth-form">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <label>نام کافه / دارنده اشتراک
-          <input name="holder" placeholder="مثلاً: کافه نمونه — شعبه مرکزی" autocomplete="organization">
+        <label>کد فعال‌سازی *
+          <input name="activation_code" placeholder="کد فعال‌سازی دریافتی از پنل وب" required maxlength="512" autocomplete="one-time-code" dir="ltr" style="text-align:left">
         </label>
-        <label>کد لایسنس *
-          <input name="license_key" placeholder="کد لایسنس خریداری‌شده" required autocomplete="off" dir="ltr" style="text-align:left">
-        </label>
-        <button type="submit" class="btn btn-primary btn-lg btn-block">فعال‌سازی و ورود به برنامه ←</button>
+        <button type="submit" class="btn btn-primary btn-lg btn-block">فعال‌سازی این دستگاه ←</button>
       </form>
+      {{end}}
       <div class="auth-support">
         <strong>اشتراک ندارید یا کد را پیدا نمی‌کنید؟</strong>
-        <p>وارد سایت <bdi>menuvex.ir</bdi> شوید و از آن‌جا اشتراک بخرید، یا با پشتیبانی تماس بگیرید:</p>
-        <p class="auth-support-phone"><bdi dir="ltr">0910 148 6607</bdi> — آقای غفاری</p>
+        <p>از صفحهٔ رسمی <a href="https://menuvex.ir/pricing#plans" target="_blank" rel="noopener"><bdi>menuvex.ir/pricing</bdi></a> استفاده کنید یا با پشتیبانی تماس بگیرید.</p>
+        <p class="auth-support-phone"><a href="tel:+989101486607"><bdi dir="ltr">09101486607</bdi></a> — آقای غفاری</p>
+        <a class="auth-foot" href="/license/status">مشاهدهٔ وضعیت لایسنس</a>
       </div>
+    </section>
+  </main>
+</body>
+</html>{{end}}
+
+{{define "license-status"}}<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>وضعیت لایسنس منووکس</title>
+  <link rel="icon" href="/static/logo.webp">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="auth-body">
+  <main class="auth-shell auth-shell-single">
+    <section class="auth-card license-status-card">
+      <a class="auth-brand" href="/"><img src="/static/logo.webp" alt="منووکس"><strong>منووکس</strong></a>
+      <p class="auth-welcome">وضعیت لایسنس</p>
+      <h1>{{if eq .License.Status "active"}}اشتراک فعال است{{else if eq .License.Status "expired"}}اشتراک نسخهٔ آفلاین منووکس به پایان رسیده است{{else}}وضعیت لایسنس: {{.License.DisplayStatus}}{{end}}</h1>
+      {{if .Notice}}<div class="auth-success" role="status">وضعیت لایسنس با موفقیت بررسی شد.</div>{{end}}
+      <div class="license-status-grid">
+        <div><span>نام کافه</span><strong>{{if .License.CafeName}}{{.License.CafeName}}{{else}}—{{end}}</strong></div>
+        <div><span>نوع پلن</span><strong>{{if .License.PlanTitle}}{{.License.PlanTitle}}{{else}}—{{end}}</strong></div>
+        <div><span>وضعیت</span><strong>{{.License.DisplayStatus}}</strong></div>
+        <div><span>تاریخ پایان</span><strong>{{if .License.ExpiresAt}}{{.License.ExpiresAt}}{{else}}—{{end}}</strong></div>
+        <div><span>آخرین بررسی</span><strong>{{if .License.LastValidatedAt}}{{.License.LastValidatedAt}}{{else}}—{{end}}</strong></div>
+        <div><span>روز باقی‌مانده</span><strong>{{faInt .License.DaysLeft}}</strong></div>
+      </div>
+      {{if .License.OnlineRefreshAvailable}}
+      <form method="post" action="/license/refresh" class="auth-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-primary btn-lg btn-block">بروزرسانی از سرور</button>
+      </form>
+      {{end}}
+      {{if not .License.Valid}}<p class="auth-lock">اطلاعات محلی شما حذف نمی‌شود. برای تمدید، <a href="https://menuvex.ir/pricing#plans" target="_blank" rel="noopener">صفحهٔ رسمی اشتراک</a> یا <a href="tel:+989101486607">آقای غفاری — پشتیبانی</a> را باز کنید.</p>{{end}}
+      <p class="auth-foot"><a href="/">بازگشت به برنامه</a></p>
     </section>
   </main>
 </body>
@@ -79,8 +132,7 @@
     </section>
 
     <section class="auth-card">
-      <div class="auth-trial">✦ ۱۵ روز اشتراک کامل هدیه</div>
-      <p class="auth-welcome">شروع رایگان</p>
+      <p class="auth-welcome">ثبت اطلاعات مدیر محلی</p>
       <h2>ایجاد حساب کاربری</h2>
       <p class="auth-desc">اطلاعات خود را وارد کنید؛ این ثبت‌نام فقط یک بار انجام می‌شود و بعداً با همین حساب وارد می‌شوید.</p>
       {{if .Error}}<div class="auth-error">{{.Error}}</div>{{end}}

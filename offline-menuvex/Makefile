@@ -24,20 +24,20 @@ test:
 windows:
 	@mkdir -p $(DIST_DIR)
 	rm -f $(DIST_DIR)/$(BINARY_NAME)-windows-amd64.exe $(DIST_DIR)/$(BINARY_NAME)-windows-arm64.exe
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-windows-amd64.exe $(PKG)
-	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-windows-arm64.exe $(PKG)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags production -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-windows-amd64.exe $(PKG)
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -tags production -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-windows-arm64.exe $(PKG)
 
 darwin:
 	@mkdir -p $(DIST_DIR)
 	rm -f $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64
-	CGO_ENABLED=$(DARWIN_CGO) GOOS=darwin GOARCH=arm64 go build -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 $(PKG)
-	CGO_ENABLED=$(DARWIN_CGO) GOOS=darwin GOARCH=amd64 go build -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64 $(PKG)
+	CGO_ENABLED=$(DARWIN_CGO) GOOS=darwin GOARCH=arm64 go build -tags production -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 $(PKG)
+	CGO_ENABLED=$(DARWIN_CGO) GOOS=darwin GOARCH=amd64 go build -tags production -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64 $(PKG)
 
 linux:
 	@mkdir -p $(DIST_DIR)
 	rm -f $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 $(DIST_DIR)/$(BINARY_NAME)-linux-arm64
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 $(PKG)
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 $(PKG)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags production -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 $(PKG)
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags production -a -trimpath -ldflags="$(LDFLAGS)" -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 $(PKG)
 
 macos-bundle: clean darwin
 	@mkdir -p $(DIST_DIR)/CoffishDesktop.app/Contents/MacOS

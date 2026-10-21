@@ -41,6 +41,7 @@ mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 (
     cd "$ROOT"
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build \
+        -tags production \
         -trimpath -buildvcs=false \
         -ldflags "-s -w -X main.version=$VERSION" \
         -o "$APPDIR/usr/bin/menuvex-offline" \

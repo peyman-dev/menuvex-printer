@@ -25,7 +25,7 @@ name: MenuVex Offline Installers
 
 on:
   push:
-    branches: ['arena/9d25b45b-menuvex-printer']
+    branches: ['arena/d792fd1d-menuvex-printer']
     tags: ['offline-v*']
   pull_request:
     paths:
@@ -128,6 +128,15 @@ jobs:
           curl -s -o /dev/null -w 'ui page: %{http_code}\n' http://127.0.0.1:18787/license
           curl -s -o /dev/null -w 'static asset: %{http_code}\n' http://127.0.0.1:18787/static/app.css
           test -f "$HOME/.config/CoffishDesktop/coffish-desktop.db"
+          python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path.home() / ".config" / "CoffishDesktop" / "coffish-desktop.db"
+data = json.loads(p.read_text())
+assert not data.get("entities"), "production installer created entities on first run"
+assert not data.get("outbox"), "production installer queued unexpected first-run operations"
+print("fresh production store is empty: OK")
+PY
           kill "$(cat /tmp/app.pid)" || true
           sleep 1
 

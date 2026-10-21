@@ -22,6 +22,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -34,6 +35,7 @@ import (
 	"github.com/sinaqaffari/coffish/desktop/internal/printer"
 	"github.com/sinaqaffari/coffish/desktop/internal/store"
 	"github.com/sinaqaffari/coffish/desktop/internal/syncclient"
+	"github.com/sinaqaffari/coffish/desktop/internal/syncengine"
 )
 
 //go:embed ui/* ui/static/* contracts/*.json
@@ -58,8 +60,12 @@ type Application struct {
 	sessionsPath string
 	sessionsMu   sync.Mutex
 	authDisabled bool // فقط برای تست‌های خودکار
-	client       *syncclient.Client
-	csrf         string
+	client         *syncclient.Client
+	engine         *syncengine.Engine // زمان‌بند پس‌زمینهٔ سینک (nil در حالت مستقل)
+	engineCancel   context.CancelFunc
+	license        *LicenseManager
+	licenseCancel  context.CancelFunc
+	csrf           string
 	templates    *template.Template
 	endpoints    []Endpoint
 	allowed      map[string]bool
@@ -84,6 +90,7 @@ type View struct {
 	JalaliNow                   string
 	Connected                   bool
 	PrinterEnabled              bool
+	Sync                        syncengine.Status
 	Stats                       store.SummaryStats
 	Analytics                   store.FinancialAnalytics
 	CafeProfile                 store.Entity
@@ -134,6 +141,12 @@ type View struct {
 
 	POSFormToken        string
 	POSGroups           []POSGroup
+	// POSStock موجودی قابل تهیهٔ هر محصول (از رسپی) است؛ کارت‌های «ناموجود»
+	// صندوق از همین نقشه ساخته می‌شوند و ثبت سفارش هم سمت سرور کنترل می‌شود.
+	POSStock map[string]store.ProductPortion
+	// POSStockJSON همان نقشه به شکل JSON برای دیالوگ «چه چیزی کم است؟»؛
+	// فقط محصول‌هایی که کمبود دارند داخلش می‌آیند.
+	POSStockJSON string
 	POSTables           []POSTableRow
 	POSRecent           []POSRecentRow
 	POSLastOrderID      string
@@ -160,6 +173,10 @@ type View struct {
 	ClubGroupsTotal     int
 	ClubGroupsValid     int
 	ClubGroupsMembers   int
+	// دیالوگ «گروه جدید / ویرایش گروه» روی همان صفحهٔ باشگاه مشتریان باز می‌شود.
+	ClubGroupsJSON  template.JS
+	ClubGroupDialog string // "" | new | edit
+	ClubGroupEditID string
 	Pricing             []PricingRow
 	SmartQuotes         []store.Entity
 	// حساب و گزارش (accounting وب): تب فعال و ارقام نمای کلی/سود و زیان
@@ -172,7 +189,76 @@ type View struct {
 	FinMonthCOGSFa   string
 	FinMonthExpFa    string
 	FinMonthProfitFa string
+	// صفحه «حساب و گزارش» عین accounting وب: فیلترها، ردیف‌های دفتر روزنامه،
+	// کدینگ حساب‌ها، سود و زیان بازه‌ای و ارزش موجودی انبار.
+	FinMonthLabel     string
+	FinMonthHasRev    bool
+	FinNetPct         int
+	FinEntryCount     int
+	FinExpenseCount   int
+	FinAccountCount   int
+	FinExpFromISO     string
+	FinExpToISO       string
+	FinExpFromShamsi  string
+	FinExpToShamsi    string
+	FinExpCategory    string
+	FinExpStatus      string
+	FinExpCategories  []string
+	FinExpenseRows    []FinExpenseRow
+	FinJFromISO       string
+	FinJToISO         string
+	FinJFromShamsi    string
+	FinJToShamsi      string
+	FinJSource        string
+	FinJStatus        string
+	FinJournalRows    []FinJournalRow
+	FinMovements      []FinMovementRow
+	FinMovementsJSON  template.JS
+	FinAccountGroups  []FinAccountGroup
+	FinShowInactive   bool
+	FinPnlFromISO     string
+	FinPnlToISO       string
+	FinPnlFromShamsi  string
+	FinPnlToShamsi    string
+	FinPnlRangeLabel  string
+	FinPnlRevFa       string
+	FinPnlCOGSFa      string
+	FinPnlExpFa       string
+	FinPnlGrossFa     string
+	FinPnlNetFa       string
+	FinPnlRevLines    []FinPnlLine
+	FinPnlCOGSLines   []FinPnlLine
+	FinPnlExpLines    []FinPnlLine
+	FinInvRows        []FinInvRow
+	FinInvTotalFa     string
+	FinInvCount       int
 	DebtorRows       []DebtorRow
+	// صفحه «بدهکاران و تسویه» هم‌طراز وب: تب فعال، کارت‌های خلاصه، فیلترها،
+	// گزارش گروه‌ها و کاتالوگ محصولات برای انتخاب آیتم‌های بدهی دستی.
+	DebtorTab             string
+	DebtorCount           int
+	DebtorKPIRemainingFa  string
+	DebtorKPIOpenFa       string
+	DebtorKPIOverdueFa    string
+	DebtorKPICollectedFa  string
+	DebtorKPIOverdueSumFa string
+	DebtorQuery           string
+	DebtorStatusFilter    string
+	DebtorSourceFilter    string
+	DebtorAccountFilter   string
+	DebtorSortFilter      string
+	DebtorGroupFilter     string
+	DebtorFromShamsi      string
+	DebtorToShamsi        string
+	DebtorFromISO         string
+	DebtorToISO           string
+	DebtorGroups          []store.Entity
+	DebtorGroupRows       []DebtorGroupRow
+	DebtorProductsJSON    template.JS
+	DebtorRowsJSON        template.JS
+	DebtorTodayShamsi     string
+	DebtorFiltered        int
+	DebtorFilterQuery     string
 	TopProducts      []TopProduct
 	ProductRows      []ProductRow
 	// ضایعات (waste-page وب): ردیف‌های نمایشی + تجمیع دلیل/اقلام
@@ -215,6 +301,10 @@ type View struct {
 	InvTotal                            int
 	InvOut                              int
 	InvLow                              int
+	InvNegative                         int
+	// InvView نمای جدول انبار است: table (پیش‌فرض) یا group (به تفکیک دسته‌بندی).
+	InvView   string
+	InvGroups []InvGroupRow
 	InvEndingSoon                       int
 	InvValueToman                       string
 	InvCategories                       []string
@@ -447,10 +537,16 @@ func (a *Application) fillDashboard(v *View, r *http.Request) {
 			if len(v.DashLowItems) < 4 {
 				stock, _ := strconv.ParseFloat(ing.Field("current_stock"), 64)
 				key := "low"
-				if stock <= 0 {
+				if stock < 0 {
+					key = "negative"
+				} else if stock == 0 {
 					key = "out"
 				}
-				v.DashLowItems = append(v.DashLowItems, InvRow{Entity: ing, StatusKey: key, StockDisplay: store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64)) + " " + ing.UnitLabel()})
+				stockText := store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64))
+				if stock < 0 {
+					stockText = "−" + strings.TrimPrefix(stockText, "-")
+				}
+				v.DashLowItems = append(v.DashLowItems, InvRow{Entity: ing, Negative: stock < 0, StatusKey: key, StockDisplay: stockText + " " + ing.UnitLabel()})
 			}
 		}
 	}
@@ -1039,6 +1135,7 @@ type POSRecentRow struct {
 
 // DebtorRow ردیف بدهکار با جزئیات کامل سفارش پیوندخورده برای دیالوگ جزئیات:
 // چه چیزی سفارش داده، چقدر بدهی دارد، توضیحات و تاریخ/ساعت دقیق سفارش.
+// فیلدهای قالبی صفحه «بدهکاران و تسویه» عین ستون‌های نسخه وب هستند.
 type DebtorRow struct {
 	Entity      store.Entity
 	ItemsText   string // اقلام سفارش پیوندخورده (نام × تعداد)
@@ -1048,7 +1145,175 @@ type DebtorRow struct {
 	NoteText    string
 	OtherDebts  string // خلاصه سایر بدهی‌های همان شخص
 	OtherCount  int
+
+	// ستون‌ها و جزئیات صفحهٔ بدهکاران (هم‌طراز لیست وب)
+	Phone        string
+	GroupLabel   string
+	AccountKey   string // personal | company
+	AccountLabel string
+	SourceKey    string // pos | manual
+	SourceLabel  string
+	TotalFa      string
+	PaidFa       string
+	RemainingFa  string
+	RemainingIRR string
+	DateFa       string
+	TimeFa       string
+	StatusKey    string // open | partial | paid | overdue
+	StatusLabel  string
+	StatusClass  string
+	Overdue      bool
+	IsNew        bool
+	ItemCount    int
+	HasDocument  bool
+	PaymentFa    string // جمع پرداخت‌های ثبت‌شده برای این حساب
+	PaymentCount int
+	Payments     []DebtorPaymentRow
+	CreatedISO   string
+	DueISO       string
 }
+
+// DebtorPaymentRow یک سطر پرداخت ثبت‌شده روی حساب دفتری (دفتر وصولی).
+type DebtorPaymentRow struct {
+	AmountFa string
+	DateFa   string
+	Note     string
+}
+
+// DebtorGroupRow گزارش بدهی گروه‌های سازمانی: تعداد حساب‌ها و مانده بدهی.
+type DebtorGroupRow struct {
+	Entity       store.Entity
+	Name         string
+	Accounts     int
+	Members      int
+	TotalFa      string
+	RemainingFa  string
+	OverdueCount int
+	StatusKey    string
+	StatusLabel  string
+}
+
+// webDigitsFa ارقام لاتین را فارسی و جداکننده هزارگان را کاما می‌گذارد؛
+// دقیقاً همان شکل عددی نسخه وب (۲۴,۱۹۵,۰۰۰).
+func webDigitsFa(digits string) string {
+	digits = strings.TrimSpace(digits)
+	if digits == "" {
+		return "۰"
+	}
+	neg := strings.HasPrefix(digits, "-")
+	if neg {
+		digits = strings.TrimPrefix(digits, "-")
+	}
+	var b strings.Builder
+	for i, r := range digits {
+		if i > 0 && (len(digits)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(r)
+	}
+	out := store.ToPersianDigits(b.String())
+	if neg {
+		return "-" + out
+	}
+	return out
+}
+
+// tomanFaWeb مبلغ ریالی را به «۲۴,۱۹۵,۰۰۰ تومان» تبدیل می‌کند.
+func tomanFaWeb(irr string) string {
+	bi := parseIRRBig(irr)
+	bi.Quo(bi, big.NewInt(10))
+	return webDigitsFa(bi.String()) + " تومان"
+}
+
+// tomanFaWebInt همان tomanFaWeb برای مبالغ ریالی big.Int.
+func tomanFaWebInt(irr *big.Int) string {
+	if irr == nil {
+		return webDigitsFa("0") + " تومان"
+	}
+	return tomanFaWeb(irr.String())
+}
+
+// debtorStatusOf وضعیت نمایشی حساب را یک‌جا تعیین می‌کند تا لیست، فیلتر و
+// شمارنده‌های بالای صفحه همیشه یک پاسخ بدهند.
+func debtorStatusOf(remaining *big.Int, rawStatus string, overdue bool) (string, string, string) {
+	status := strings.ToLower(strings.TrimSpace(rawStatus))
+	if remaining.Sign() <= 0 || status == "paid" {
+		return "paid", "تسویه شده", "status-ok"
+	}
+	if overdue {
+		return "overdue", "سررسید گذشته", "status-danger"
+	}
+	if status == "partial" {
+		return "partial", "پرداخت بخشی از بدهی", "status-info"
+	}
+	return "open", "بدهکار (باز)", "status-warn"
+}
+
+// debtorDueInfo تاریخ سررسید ذخیره‌شده (ISO یا شمسی یا متن آزاد) را برای
+// نمایش و مقایسه برمی‌گرداند. نتیجه: ISO، نمایش شمسی، سررسید گذشته.
+func debtorDueInfo(rawDue string, remaining *big.Int, now time.Time) (iso, label string, overdue bool) {
+	rawDue = strings.TrimSpace(rawDue)
+	if rawDue == "" {
+		return "", "", false
+	}
+	if t, ok := jalaliOrISODate(rawDue); ok {
+		iso = t.Format("2006-01-02")
+		label = ShamsiFromISO(iso)
+		y, m, d := now.In(tehranZone()).Date()
+		todayISO := time.Date(y, m, d, 0, 0, 0, 0, tehranZone()).Format("2006-01-02")
+		overdue = remaining.Sign() > 0 && iso < todayISO
+		return iso, label, overdue
+	}
+	return "", rawDue, false
+}
+
+// jalaliOrISODate ورودی تاریخ را از قالب ISO یا ۱۴۰۵/۰۷/۲۶ می‌خواند.
+func jalaliOrISODate(raw string) (time.Time, bool) {
+	if t, ok := JalaliTimeOf(raw); ok {
+		return t, true
+	}
+	return ParseJalali(raw)
+}
+
+// isoDateOrEmpty ورودی تاریخ (ISO یا شمسی) را فقط در صورت معتبر بودن به
+// 2006-01-02 تبدیل می‌کند تا مقایسه بازه تاریخ همیشه درست باشد.
+func isoDateOrEmpty(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if t, ok := jalaliOrISODate(raw); ok {
+		return t.Format("2006-01-02")
+	}
+	return ""
+}
+
+// debtorItemsFromPayload اقلام ثبت‌شده روی خود حساب (ثبت دستی بدهی) را
+// می‌خواند تا ستون «مستندات سفارش (سفارش چی بود؟)» خالی نماند.
+func debtorItemsFromPayload(e store.Entity) [][3]string {
+	var payload struct {
+		Items []struct {
+			Title        string          `json:"title"`
+			Qty          json.RawMessage `json:"qty"`
+			UnitPriceIRR json.RawMessage `json:"unit_price_irr"`
+		} `json:"items"`
+	}
+	if json.Unmarshal(e.Payload, &payload) != nil {
+		return nil
+	}
+	out := make([][3]string, 0, len(payload.Items))
+	for _, it := range payload.Items {
+		title := strings.TrimSpace(it.Title)
+		if title == "" {
+			continue
+		}
+		qty := strings.Trim(strings.TrimSpace(string(it.Qty)), `"`)
+		price := strings.Trim(strings.TrimSpace(string(it.UnitPriceIRR)), `"`)
+		out = append(out, [3]string{title, qty, price})
+	}
+	return out
+}
+
 
 // WasteRow یک ردیف نمایشی ضایعات: دلیل با برچسب وب و هزینه تقریبی
 // (مقدار × میانگین بهای ماده اولیه).
@@ -1071,7 +1336,15 @@ type WasteAgg struct {
 type CategoryRow struct {
 	Entity   store.Entity
 	Products int
+	// AvailableProducts تعداد محصول‌های قابل فروش دسته است تا دکمهٔ
+	// «ناموجود کردن» یا «موجود کردن» دسته درست انتخاب شود.
+	AvailableProducts int
+	DiscountPercent   int
+	AllUnavailable    bool
 }
+
+// HasDiscount یعنی تخفیف دسته‌ای فعال است و قیمت خط‌خورده باید نمایش داده شود.
+func (r CategoryRow) HasDiscount() bool { return r.DiscountPercent > 0 }
 
 // BestSellerRow ردیف پرفروش‌ترین محصولات در گزارش دوره.
 type BestSellerRow struct {
@@ -1554,8 +1827,16 @@ func clubGroupRowOf(g store.Entity, membersCount int, now time.Time) ClubGroupRo
 		row.CapText = "—"
 	}
 	active := g.Field("is_active") != "false"
+	// تاریخ‌ها یا ISO ذخیره شده‌اند (تقویم جدید) یا شمسی (فرم قدیمی)؛ برای
+	// مقایسه همیشه به ISO تبدیل می‌شوند.
 	validFrom := strings.TrimSpace(g.Field("valid_from"))
 	validUntil := strings.TrimSpace(g.Field("valid_until"))
+	if iso := isoDateOrEmpty(validFrom); iso != "" {
+		validFrom = iso
+	}
+	if iso := isoDateOrEmpty(validUntil); iso != "" {
+		validUntil = iso
+	}
 	today := now.Format("2006-01-02")
 	currentlyValid := active && (validFrom == "" || validFrom <= today) && (validUntil == "" || validUntil >= today)
 	switch {
@@ -1577,6 +1858,105 @@ func clubGroupRowOf(g store.Entity, membersCount int, now time.Time) ClubGroupRo
 		row.ValidityText = "بدون پایان"
 	}
 	return row
+}
+
+// ClubGroupDialogJSON شکل دادهٔ دیالوگ «گروه جدید / ویرایش گروه» است. همهٔ
+// گروه‌ها یک‌جا به صفحه می‌روند تا بازکردن دیالوگ بدون رفت‌وبرگشت سرور و
+// مستقل از فیلتر فعلی جدول انجام شود.
+type ClubGroupDialogJSON struct {
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Description       string `json:"description"`
+	ContactName       string `json:"contact_name"`
+	ContactPhone      string `json:"contact_phone"`
+	ContractNumber    string `json:"contract_number"`
+	ContractType      string `json:"contract_type"`
+	Headcount         string `json:"headcount"`
+	MealsPerDay       string `json:"meals_per_day"`
+	BillingCycle      string `json:"billing_cycle"`
+	BillingDay        string `json:"billing_day"`
+	ServiceAddress    string `json:"service_address"`
+	DiscountType      string `json:"discount_type"`
+	DiscountValue     string `json:"discount_value"`
+	MaxDiscountAmount string `json:"max_discount_amount"`
+	ValidFrom         string `json:"valid_from"`
+	ValidUntil        string `json:"valid_until"`
+	Notes             string `json:"notes"`
+	CreditEnabled     bool   `json:"credit_enabled"`
+	Active            bool   `json:"active"`
+	DiscountText      string `json:"discount_text"`
+	ValidityText      string `json:"validity_text"`
+	StatusLabel       string `json:"status_label"`
+}
+
+// clubGroupsJSON همهٔ گروه‌های مشتریان را برای دیالوگ صفحه باشگاه آماده می‌کند.
+func (a *Application) clubGroupsJSON(ctx context.Context) template.JS {
+	groups, err := a.store.Entities(ctx, "customer_group")
+	if err != nil {
+		return template.JS("[]")
+	}
+	out := make([]ClubGroupDialogJSON, 0, len(groups))
+	for _, g := range groups {
+		row := clubGroupRowOf(g, 0, time.Now())
+		num := func(key string) string { return strings.TrimSpace(normalizeDigits(g.Field(key))) }
+		contractType := strings.TrimSpace(g.Field("contract_type"))
+		if contractType == "" {
+			contractType = "catering"
+		}
+		discountType := strings.TrimSpace(g.Field("discount_type"))
+		if discountType != "fixed" {
+			discountType = "percentage"
+		}
+		billingCycle := strings.TrimSpace(g.Field("billing_cycle"))
+		if billingCycle == "" {
+			billingCycle = "monthly"
+		}
+		out = append(out, ClubGroupDialogJSON{
+			ID:                g.ID,
+			Name:              g.Label(),
+			Description:       strings.TrimSpace(g.Field("description")),
+			ContactName:       strings.TrimSpace(g.Field("contact_name")),
+			ContactPhone:      strings.TrimSpace(normalizeDigits(g.Field("contact_phone"))),
+			ContractNumber:    strings.TrimSpace(g.Field("contract_number")),
+			ContractType:      contractType,
+			Headcount:         num("headcount"),
+			MealsPerDay:       num("meals_per_day"),
+			BillingCycle:      billingCycle,
+			BillingDay:        num("billing_day"),
+			ServiceAddress:    strings.TrimSpace(g.Field("service_address")),
+			DiscountType:      discountType,
+			DiscountValue:     num("discount_value"),
+			MaxDiscountAmount: num("max_discount_amount"),
+			ValidFrom:         isoDateOrEmpty(g.Field("valid_from")),
+			ValidUntil:        isoDateOrEmpty(g.Field("valid_until")),
+			Notes:             strings.TrimSpace(g.Field("notes")),
+			CreditEnabled:     g.Field("credit_enabled") == "true",
+			Active:            g.Field("is_active") != "false",
+			DiscountText:      row.DiscountText,
+			ValidityText:      row.ValidityText,
+			StatusLabel:       row.StatusLabel,
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	raw, mErr := json.Marshal(out)
+	if mErr != nil {
+		return template.JS("[]")
+	}
+	return template.JS(raw)
+}
+
+// clubGroupFormError خطای فرم گروه را بدون بستن دیالوگ گزارش می‌کند: با
+// HX-Request پاسخ swap نمی‌شود و فقط پیام برای همان دیالوگ فرستاده می‌شود تا
+// چیزی که کاربر تایپ کرده از دست نرود.
+func (a *Application) clubGroupFormError(w http.ResponseWriter, r *http.Request, msg string) {
+	if r.Header.Get("HX-Request") == "true" {
+		payload, _ := json.Marshal(map[string]string{"message": msg})
+		w.Header().Set("HX-Reswap", "none")
+		w.Header().Set("HX-Trigger", `{"club-group-error":`+string(payload)+`}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	a.navigatePage(w, r, "club-groups", msg)
 }
 
 // orderAdvanceTarget مرحله بعدی فعال از وضعیت فعلی؛ اگر مرحله‌ای نمانده باشد
@@ -1670,6 +2050,9 @@ func normalizeNumInput(v string) string {
 			b.WriteRune('0' + (r - '۰'))
 		case r >= '٠' && r <= '٩':
 			b.WriteRune('0' + (r - '٠'))
+		case r == '٫':
+			// ممیز فارسی (U+066B) — برای ParseFloat به نقطه تبدیل می‌شود.
+			b.WriteRune('.')
 		case r == ' ' || r == '‌':
 		default:
 			b.WriteRune(r)
@@ -1688,23 +2071,170 @@ type DashPopularRow struct {
 
 // ProductRow ردیف لیست محصولات هم‌تراز با جدول محصولات داشبورد وب.
 type ProductRow struct {
-	Rank          int
-	Entity        store.Entity
-	CategoryLabel string
-	OrdersCount   int
-	StatusKey     string // in | low | out
-	StockDisplay  string
-	ImageURL      string
+	Rank            int
+	Entity          store.Entity
+	CategoryLabel   string
+	OrdersCount     int
+	StatusKey       string // in | low | out
+	StockDisplay    string
+	ImageURL        string
+	DiscountPercent int    // تخفیف فعال دسته‌بندی روی این محصول
+	BasePriceToman  string // قیمت پیش از تخفیف (تومان)
+	Featured        bool   // «پیشنهاد روز»
+	Shortage        bool   // کمبود مواد اولیه دارد و علتش قابل دیدن است
 }
 
+// HasDiscount یعنی قیمت این محصول با تخفیف دسته‌بندی کم شده و باید قیمت
+// قبلی هم کنارش دیده شود.
+func (r ProductRow) HasDiscount() bool { return r.DiscountPercent > 0 && r.BasePriceToman != "" }
+
 // InvRow ردیف لیست موجودی هم‌تراز با جدول انبار داشبورد وب.
+// ردیف‌های صفحه «حساب و گزارش» (accounting وب): همه مبالغ از پیش به تومانِ
+// فارسی تبدیل شده‌اند تا قالب فقط نمایش بدهد.
+type FinExpenseRow struct {
+	Entity      store.Entity
+	DateFa      string
+	AmountFa    string
+	Category    string
+	Note        string
+	PayLabel    string
+	AccountCode string
+	AccountName string
+	StatusKey   string // posted | voided
+	StatusText  string
+}
+
+type FinJournalRow struct {
+	ID            string
+	Kind          string // accounting_entry | expense
+	Number        string
+	DateFa        string
+	Title         string
+	LinesText     string
+	SourceKey     string // manual | expense | inventory
+	SourceText    string
+	AmountFa      string
+	StatusKey     string // posted | voided
+	StatusText    string
+	DebitAccount  string
+	CreditAccount string
+	Note          string
+	CreatedISO    string
+}
+
+type FinMovementRow struct {
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	MetaFa        string `json:"meta"`
+	AmountIRR     string `json:"amount_irr"`
+	DebitAccount  string `json:"debit_account"`
+	CreditAccount string `json:"credit_account"`
+	EntryTitle    string `json:"entry_title"`
+}
+
+type FinAccountRow struct {
+	ID        string
+	Code      string
+	Name      string
+	Linked    string
+	BalanceFa string
+	System    bool
+	Negative  bool
+	Active    bool
+}
+
+type FinAccountGroup struct {
+	TypeKey   string
+	TypeLabel string
+	Desc      string
+	TotalFa   string
+	Count     int
+	Accounts  []FinAccountRow
+}
+
+type FinPnlLine struct {
+	Label    string
+	AmountFa string
+}
+
+type FinInvRow struct {
+	Name       string
+	SKU        string
+	QtyFa      string
+	UnitCostFa string
+	ValueFa    string
+}
+
 type InvRow struct {
 	Entity       store.Entity
-	StatusKey    string // in | low | out
+	StatusKey    string // in | low | out | negative
+	Negative     bool   // موجودی زیر صفر است (کمبود واقعی انبار)
 	StockDisplay string
 	ValueToman   string
 	Location     string
 	Category     string
+	// مثل نسخهٔ وب، عدد موجودی و واحد جدا نمایش داده می‌شوند تا عدد بزرگ
+	// و واحد کنارش بنشیند؛ حد سفارش هم زیر عدد می‌آید.
+	QtyDisplay string
+	UnitShort  string
+	MinOrderFa string
+	SKU        string
+	UpdatedFa  string
+	UpdatedRel string
+	// CSRF برای فرم حذف داخل ردیف؛ در نمودار گروهی و جدول ساده هر دو لازم است.
+	CSRF string
+	// کمبود نسبت به حد سفارش: برای دکمهٔ «چه چیزی کم است؟» در جدول انبار.
+	HasShortfall        bool
+	ShortfallFa         string
+	ShortfallQty        string
+	ShortfallValueToman string
+
+	// اطلاعات دیالوگ «جزئیات قلم انبار»: قیمت خرید، ارزش موجودی و
+	// مشخصات تکمیلی قلم. همهٔ مبالغ از پیش به تومان تبدیل شده‌اند.
+	Supplier         string
+	UnitLabel        string
+	AverageCostToman string
+	LastCostToman    string
+	LastValueToman   string
+	BatchCode        string
+	ExpiryFa         string
+	Notes            string
+	Image            string
+}
+
+// InvGroupRow یک گروه «موجودی به تفکیک دسته‌بندی» است (نمای دسته‌بندی‌ها
+// در صفحهٔ انبار وب): نام دسته، تعداد اقلام و ردیف‌های همان دسته.
+type InvGroupRow struct {
+	Label   string
+	Count   int
+	CountFa string
+	Rows    []InvRow
+}
+
+// InvViewURL آدرس نمای انبار (جدول یا دسته‌بندی‌ها) را با حفظ فیلترهای
+// فعلی می‌سازد تا سوییچ نما فیلترها و جستجو را از دست ندهد.
+func (v View) InvViewURL(mode string) string {
+	q := url.Values{}
+	q.Set("page", "ingredients")
+	if strings.TrimSpace(v.Query) != "" {
+		q.Set("q", strings.TrimSpace(v.Query))
+	}
+	if v.InvCategory != "" {
+		q.Set("icategory", v.InvCategory)
+	}
+	if v.InvLocation != "" {
+		q.Set("ilocation", v.InvLocation)
+	}
+	if v.InvStatus != "" {
+		q.Set("istatus", v.InvStatus)
+	}
+	if v.InvSort != "" {
+		q.Set("isort", v.InvSort)
+	}
+	if mode != "" {
+		q.Set("iview", mode)
+	}
+	return "/?" + q.Encode()
 }
 
 // InvCategoryRow ردیف جدول «دسته‌بندی مواد اولیه» (categories-page وب):
@@ -1720,12 +2250,157 @@ type InvCategoryRow struct {
 // StatusText برچسب وضعیت موجودی قلم انبار مانند نسخه وب.
 func (r InvRow) StatusText() string {
 	switch r.StatusKey {
+	case "negative":
+		return "موجودی منفی"
 	case "low":
 		return "کم‌موجودی"
 	case "out":
 		return "پایان‌یافته"
 	default:
 		return "موجود"
+	}
+}
+
+// shortUnitLabel واحد را کوتاه می‌کند («گرم (g)» ← «گرم») تا کنار عدد
+// موجودی مثل نسخهٔ وب بنشیند.
+func shortUnitLabel(label string) string {
+	if i := strings.Index(label, " ("); i > 0 {
+		return label[:i]
+	}
+	return label
+}
+
+// jalaliDayMonth تاریخ ISO را به شکل «۲۴ مهر ۱۴۰۵ — ۱۳:۳۹» برمی‌گرداند؛
+// ستون «به‌روزرسانی» جدول انبار از همین استفاده می‌کند.
+// finTomanNum مبلغ ریالی را به عدد تومانی فارسی بدون پسوند «تومان» برمی‌گرداند
+// تا قالبِ حسابداری خودش واحد را کنار عدد بگذارد (عین نسخه وب).
+func finTomanNum(irr string) string {
+	out := store.FormatIRRToToman(strings.TrimSpace(irr))
+	out = strings.TrimSuffix(out, " تومان")
+	return out
+}
+
+// finExpenseAccount دسته هزینه را به حساب کدینگ متناظرش در نسخه وب وصل می‌کند.
+func finExpenseAccount(category string) (string, string) {
+	c := strings.TrimSpace(category)
+	switch {
+	case strings.Contains(c, "اجاره"):
+		return "۵۲۰۰", "اجاره"
+	case strings.Contains(c, "حقوق") || strings.Contains(c, "دستمزد"):
+		return "۵۱۰۰", "حقوق و دستمزد"
+	case strings.Contains(c, "قبوض") || strings.Contains(c, "آب") || strings.Contains(c, "برق") || strings.Contains(c, "گاز") || strings.Contains(c, "انرژی"):
+		return "۵۳۰۰", "قبوض و انرژی"
+	case strings.Contains(c, "خرید مواد") || strings.Contains(c, "مواد اولیه") || strings.Contains(c, "مواد"):
+		return "۵۴۰۰", "خرید مواد"
+	case strings.Contains(c, "تعمیر") || strings.Contains(c, "نگهداری"):
+		return "۵۵۰۰", "تعمیر و نگهداری"
+	case strings.Contains(c, "بازاریابی") || strings.Contains(c, "تبلیغات"):
+		return "۵۶۰۰", "بازاریابی"
+	default:
+		return "۵۹۰۰", "سایر هزینه‌ها"
+	}
+}
+
+// finPayLabel روش پرداخت هزینه را به برچسب وب («نقدی» / «کارت‌خوان») تبدیل می‌کند.
+func finPayLabel(method string) string {
+	m := strings.ToLower(strings.TrimSpace(method))
+	if m == "cash" || strings.Contains(method, "نقد") {
+		return "نقدی"
+	}
+	return "کارت‌خوان"
+}
+
+func finIsCashMethod(method string) bool {
+	return finPayLabel(method) == "نقدی"
+}
+
+// jalaliMonthYearLabel برچسب ماه شمسی جاری مثل «مهر ۱۴۰۵» می‌سازد.
+func jalaliMonthYearLabel(t time.Time) string {
+	loc := t.In(tehranZone())
+	jy, jm, _ := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	name := ""
+	if jm >= 1 && jm <= 12 {
+		name = jalaliMonthNames[jm]
+	}
+	return name + " " + store.ToPersianDigits(strconv.Itoa(jy))
+}
+
+// jalaliMonthRange بازه میلادی ماه شمسی جاری را برمی‌گرداند: [from, to).
+func jalaliMonthRange(t time.Time) (time.Time, time.Time) {
+	loc := t.In(tehranZone())
+	jy, jm, _ := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	gy, gm, gd := JalaliToGregorian(jy, jm, 1)
+	from := time.Date(gy, time.Month(gm), gd, 0, 0, 0, 0, tehranZone())
+	ny, nm := jy, jm+1
+	if nm > 12 {
+		nm = 1
+		ny++
+	}
+	gy2, gm2, gd2 := JalaliToGregorian(ny, nm, 1)
+	to := time.Date(gy2, time.Month(gm2), gd2, 0, 0, 0, 0, tehranZone())
+	return from, to
+}
+
+// finEntryNumber شماره سند وب را می‌سازد: ACC-20261003-001.
+func finEntryNumber(createdISO string, seq int) string {
+	datePart := ""
+	if t, ok := JalaliTimeOf(createdISO); ok {
+		datePart = t.Format("20060102")
+	}
+	if datePart == "" {
+		datePart = time.Now().Format("20060102")
+	}
+	return store.ToPersianDigits(fmt.Sprintf("ACC-%s-%03d", datePart, seq))
+}
+
+// jalaliDayMonthOnly مثل jalaliDayMonth ولی بدون ساعت: «۱ مهر ۱۴۰۵».
+func jalaliDayMonthOnly(iso string) string {
+	t, ok := JalaliTimeOf(iso)
+	if !ok {
+		return "—"
+	}
+	loc := t.In(tehranZone())
+	jy, jm, jd := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	name := ""
+	if jm >= 1 && jm <= 12 {
+		name = jalaliMonthNames[jm]
+	}
+	return store.ToPersianDigits(fmt.Sprintf("%d %s %d", jd, name, jy))
+}
+
+func jalaliDayMonth(iso string) string {
+	t, ok := JalaliTimeOf(iso)
+	if !ok {
+		return "—"
+	}
+	loc := t.In(tehranZone())
+	jy, jm, jd := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	name := ""
+	if jm >= 1 && jm <= 12 {
+		name = jalaliMonthNames[jm]
+	}
+	return store.ToPersianDigits(fmt.Sprintf("%d %s %d — %02d:%02d", jd, name, jy, loc.Hour(), loc.Minute()))
+}
+
+// relativeFa فاصلهٔ زمانی تا حالا را به فارسی می‌گوید («۳ روز پیش»).
+func relativeFa(iso string) string {
+	t, ok := JalaliTimeOf(iso)
+	if !ok {
+		return "—"
+	}
+	diff := time.Since(t)
+	if diff < 0 {
+		diff = 0
+	}
+	switch {
+	case diff < time.Minute:
+		return "همین حالا"
+	case diff < time.Hour:
+		return store.ToPersianDigits(fmt.Sprintf("%d دقیقه پیش", int(diff.Minutes())))
+	case diff < 24*time.Hour:
+		return store.ToPersianDigits(fmt.Sprintf("%d ساعت پیش", int(diff.Hours())))
+	default:
+		return store.ToPersianDigits(fmt.Sprintf("%d روز پیش", int(diff.Hours()/24)))
 	}
 }
 
@@ -1822,6 +2497,14 @@ func New(dataDir string) (*Application, error) {
 			"wails":           true,
 		},
 	}
+	licenseManager := newLicenseManager(dataDir, s, defaultLicenseConfig())
+	a.license = licenseManager
+	licenseManager.startupValidate(context.Background())
+	if licenseManager.Current().Status == "active" && licenseManager.Current().OnlineRefreshAvailable {
+		refreshCtx, cancel := context.WithCancel(context.Background())
+		a.licenseCancel = cancel
+		go a.licenseRefreshLoop(refreshCtx, licenseManager)
+	}
 	raw, _ := assets.ReadFile("contracts/catalog.json")
 	if err = json.Unmarshal(raw, &a.endpoints); err != nil {
 		s.Close()
@@ -1843,21 +2526,28 @@ func New(dataDir string) (*Application, error) {
 			s.Close()
 			return nil, err
 		}
-	} else if isDefaultUserDir {
-		_ = a.SeedIfEmpty(context.Background())
+		// موتور همگام‌سازی پس‌زمینه: شروع برنامه + هر ۱۰ دقیقه + بعد از
+		// هر تغییر محلی + هنگام بازگشت سرور. قبلاً سینک فقط دستی بود.
+		a.engine = syncengine.New(a.client, s, nil)
+		s.SetSyncNotify(a.engine.NotifyLocalChange)
+		var engineCtx context.Context
+		engineCtx, a.engineCancel = context.WithCancel(context.Background())
+		a.engine.Start(engineCtx)
 	}
 	return a, nil
 }
 
-func (a *Application) Close() error { return a.store.Close() }
-
-// SeedIfEmpty populates authentic Iranian café initial data when launching the standalone desktop executable.
-func (a *Application) SeedIfEmpty(ctx context.Context) error {
-	st := a.store.Stats(ctx)
-	if st.CategoriesCount == 0 && st.ProductsCount == 0 && st.OrdersCount == 0 {
-		return a.store.SeedIranianCafeData(ctx)
+func (a *Application) Close() error {
+	if a.engine != nil {
+		a.engine.Stop()
 	}
-	return nil
+	if a.engineCancel != nil {
+		a.engineCancel()
+	}
+	if a.licenseCancel != nil {
+		a.licenseCancel()
+	}
+	return a.store.Close()
 }
 
 func (a *Application) Handler() http.Handler {
@@ -1873,10 +2563,10 @@ func (a *Application) Handler() http.Handler {
 	})
 	mux.HandleFunc("GET /backup.json", a.downloadBackup)
 	mux.HandleFunc("POST /sync", a.refresh)
+	mux.HandleFunc("GET /sync/status", a.syncStatusFragment)
 	mux.HandleFunc("POST /catalog", a.queueCatalog)
 
 	// Full standalone desktop actions (no external server required)
-	mux.HandleFunc("POST /local/seed-demo", a.handleSeedDemo)
 	mux.HandleFunc("POST /local/save", a.handleLocalSave)
 	mux.HandleFunc("POST /local/tables-bulk", a.handleTablesBulk)
 	mux.HandleFunc("POST /local/delete", a.handleLocalDelete)
@@ -1903,6 +2593,8 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /local/waste-void", a.handleWasteVoid)
 	mux.HandleFunc("POST /local/recipe", a.handleSaveRecipe)
 	mux.HandleFunc("POST /local/debtor-pay", a.handleDebtorPay)
+	mux.HandleFunc("POST /local/debtor-create", a.handleDebtorCreate)
+	mux.HandleFunc("GET /local/debtors-export", a.handleDebtorsExport)
 	mux.HandleFunc("POST /local/task-toggle", a.handleTaskToggle)
 	mux.HandleFunc("POST /local/day-close", a.handleDayClose)
 	mux.HandleFunc("POST /local/printer-toggle", a.handlePrinterToggle)
@@ -1929,13 +2621,21 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /local/export-backup", a.handleExportBackup)
 	mux.HandleFunc("GET /local/products-export", a.handleProductsExport)
 	mux.HandleFunc("GET /local/inventory-export", a.handleInventoryExport)
+	mux.HandleFunc("GET /license", func(w http.ResponseWriter, r *http.Request) {
+		a.renderAuth(w, "license", authPageData{License: a.LicenseState()})
+	})
+	mux.HandleFunc("GET /license/status", a.handleLicenseStatus)
 	mux.HandleFunc("POST /license/activate", a.handleLicenseActivate)
+	mux.HandleFunc("POST /license/refresh", a.handleLicenseRefresh)
 	mux.HandleFunc("POST /login", a.handleLogin)
 	mux.HandleFunc("POST /register", a.handleRegister)
 	mux.HandleFunc("POST /logout", a.handleLogout)
 	mux.HandleFunc("GET /logout", a.handleLogout)
 	mux.HandleFunc("GET /uploads/", a.handleUploadServe)
 	mux.HandleFunc("POST /local/products-import", a.handleProductsImport)
+	mux.HandleFunc("POST /local/products-bulk", a.handleProductsBulk)
+	mux.HandleFunc("POST /local/category-availability", a.handleCategoryAvailability)
+	mux.HandleFunc("POST /local/category-discount", a.handleCategoryDiscount)
 
 	a.registerLocalAPIRoutes(mux)
 
@@ -1994,6 +2694,9 @@ func (a *Application) Handler() http.Handler {
 				return
 			}
 		}
+		if a.blockLockedMutation(w, r) {
+			return
+		}
 		mux.ServeHTTP(w, r)
 	})
 }
@@ -2013,6 +2716,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		Message:         message,
 		JalaliNow:       FormatJalaliFull(time.Now()),
 		Connected:       a.client != nil,
+		Sync:            a.SyncStatus(ctx),
 		Stats:           a.store.Stats(ctx),
 		Analytics:       a.store.Analytics(ctx),
 		Query:           r.URL.Query().Get("q"),
@@ -2034,6 +2738,32 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		return
 	}
 
+	// ساخت/ویرایش گروه باشگاه دیگر صفحهٔ جداگانه ندارد: همان فهرست گروه‌ها
+	// رندر می‌شود و دیالوگ گروه روی آن باز می‌شود. لینک‌های قدیمی
+	// (?page=club-group-form) هم به همین مسیر می‌رسند.
+	if page == "club-group-form" {
+		page = "club-groups"
+		v.Page = page
+		v.ClubGroupDialog = "new"
+		if gid := strings.TrimSpace(r.URL.Query().Get("id")); gid != "" {
+			v.ClubGroupDialog = "edit"
+			v.ClubGroupEditID = gid
+		}
+	}
+	// دیالوگ گروه روی هر سه صفحهٔ باشگاه در دسترس است (فهرست گروه‌ها، جزئیات
+	// گروه و مشتریان) تا ویرایش همیشه در همان صفحه و بدون ترک کردن باز شود.
+	if page == "club-groups" || page == "club-group" || page == "customers" {
+		switch strings.TrimSpace(r.URL.Query().Get("dlg")) {
+		case "new":
+			v.ClubGroupDialog = "new"
+		case "edit":
+			v.ClubGroupDialog = "edit"
+			if gid := strings.TrimSpace(r.URL.Query().Get("id")); gid != "" {
+				v.ClubGroupEditID = gid
+			}
+		}
+	}
+
 	switch page {
 	case "home":
 		v.Entities, _ = a.store.Entities(ctx, "order")
@@ -2049,6 +2779,25 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		}
 		v.Categories, _ = a.store.Entities(ctx, "category")
 		v.Products, _ = a.store.Entities(ctx, "product")
+		// «ناموجودی» صندوق: محصولی که مواد اولیهٔ رسپی‌اش در انبار کافی نیست
+		// (یا مستقیم غیرفعال/بدون موجودی است) نباید قابل افزودن به سبد باشد.
+		v.POSStock = a.store.ProductPortions(ctx)
+		for _, pr := range v.Products {
+			// پیش‌فرض: بدون رسپی = بدون محدودیت مواد اولیه.
+			if _, seen := v.POSStock[pr.ID]; !seen {
+				v.POSStock[pr.ID] = store.ProductPortion{Portions: -1}
+			}
+			if pr.Field("is_available") == "false" || strings.EqualFold(pr.Field("status"), "inactive") {
+				v.POSStock[pr.ID] = store.ProductPortion{Portions: 0, Missing: "غیرفعال در منو"}
+				continue
+			}
+			if raw := strings.TrimSpace(pr.Field("stock")); raw != "" {
+				if st, stErr := strconv.ParseFloat(raw, 64); stErr == nil && st <= 0 {
+					v.POSStock[pr.ID] = store.ProductPortion{Portions: 0, Missing: "موجودی محصول"}
+				}
+			}
+		}
+		v.POSStockJSON = posStockJSON(v.POSStock)
 		v.Tables, _ = a.store.Entities(ctx, "table")
 		v.Customers, _ = a.store.Entities(ctx, "customer")
 		// گروه‌های باشگاه برای تب «حساب شرکتی / گروه» دیالوگ بدهکاران صندوق
@@ -2349,6 +3098,8 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		products, pErr := a.store.Entities(ctx, "product")
 		v.Categories, _ = a.store.Entities(ctx, "category")
 		v.ModifierGroups, _ = a.store.Entities(ctx, "modifier_group")
+		// کمبود مواد اولیهٔ هر محصول برای دکمهٔ «چه چیزی کم است؟» در جدول.
+		v.POSStock = a.store.ProductPortions(ctx)
 		if pErr == nil {
 			v.Entities = products
 			catLabel := map[string]string{}
@@ -2371,6 +3122,16 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 			for _, prod := range products {
 				row := ProductRow{Entity: prod, OrdersCount: ordersCount[prod.ID], ImageURL: prod.Field("image")}
+				// تخفیف دسته‌بندی: قیمت فعلی تخفیف‌خورده است و قیمت پایه در
+				// base_price مانده؛ هر دو در جدول نشان داده می‌شوند.
+				if pct, pctErr := strconv.Atoi(strings.TrimSpace(prod.Field("discount_percent"))); pctErr == nil && pct > 0 {
+					if baseRaw := strings.TrimSpace(prod.Field("base_price")); baseRaw != "" {
+						row.DiscountPercent = pct
+						row.BasePriceToman = store.FormatIRRToToman(baseRaw)
+					}
+				}
+				row.Featured = prod.Field("is_featured") == "true"
+				row.Shortage = len(v.POSStock[prod.ID].Shortages) > 0
 				row.CategoryLabel = catLabel[prod.Field("category_id")]
 				if row.CategoryLabel == "" {
 					row.CategoryLabel = "—"
@@ -2414,6 +3175,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				v.ProductRows = append(v.ProductRows, row)
 			}
 		}
+		v.POSStockJSON = posStockJSON(v.POSStock)
 	case "product-form":
 		v.Kind = "product"
 		v.EntityID = strings.TrimSpace(r.URL.Query().Get("id"))
@@ -2482,7 +3244,15 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				counts[p.Field("category_id")]++
 			}
 			for _, c := range v.Entities {
-				v.CatRows = append(v.CatRows, CategoryRow{Entity: c, Products: counts[c.ID]})
+				available, _ := store.ProductsAvailableCount(products, c.ID)
+				row := CategoryRow{
+					Entity:            c,
+					Products:          counts[c.ID],
+					AvailableProducts: available,
+					DiscountPercent:   store.CategoryDiscountPercent(products, c.ID),
+				}
+				row.AllUnavailable = row.Products > 0 && available == 0
+				v.CatRows = append(v.CatRows, row)
 			}
 		}
 	case "ingredients":
@@ -2497,6 +3267,11 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			v.InvLocation = strings.TrimSpace(r.URL.Query().Get("ilocation"))
 			v.InvStatus = strings.TrimSpace(r.URL.Query().Get("istatus"))
 			v.InvSort = strings.TrimSpace(r.URL.Query().Get("isort"))
+			// نمای «به تفکیک دسته‌بندی» مثل وب (سوییچ جدول/دسته‌بندی‌ها).
+			v.InvView = strings.TrimSpace(r.URL.Query().Get("iview"))
+			if v.InvView != "group" {
+				v.InvView = "table"
+			}
 			// مصرف ۳۰ روز گذشته برای پیش‌بینی «در آستانه اتمام» مانند وب
 			consumption := map[string]float64{}
 			cutoff := time.Now().AddDate(0, 0, -30)
@@ -2513,7 +3288,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			catSet, locSet := map[string]bool{}, map[string]bool{}
 			totalValue := big.NewInt(0)
 			for _, ing := range ingredients {
-				row := InvRow{Entity: ing, Location: ing.Field("storage_location"), Category: ing.Field("category")}
+				row := InvRow{Entity: ing, Location: ing.Field("storage_location"), Category: ing.Field("category"), CSRF: a.csrf}
 				if row.Location == "" {
 					row.Location = "انبار اصلی"
 				}
@@ -2523,9 +3298,74 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				catSet[row.Category] = true
 				locSet[row.Location] = true
 				stock, _ := strconv.ParseFloat(ing.Field("current_stock"), 64)
-				row.StockDisplay = store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64)) + " " + ing.UnitLabel()
+				row.Negative = stock < 0
+				stockText := store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64))
+				// موجودی منفی با علامت واضح و جدا از «پایان‌یافته» نشان داده
+				// می‌شود تا کمبود واقعی انبار (مثلاً ۳ کیلو زیر صفر) گم نشود.
+				if row.Negative {
+					stockText = "−" + strings.TrimPrefix(stockText, "-")
+				}
+				row.StockDisplay = stockText + " " + ing.UnitLabel()
+				row.QtyDisplay = stockText
+				row.UnitShort = shortUnitLabel(ing.UnitLabel())
+				row.SKU = ing.Field("sku")
+				row.Supplier = strings.TrimSpace(ing.Field("supplier"))
+				row.UnitLabel = ing.UnitLabel()
+				row.Image = ing.Field("image")
+				row.BatchCode = strings.TrimSpace(ing.Field("batch_code"))
+				row.Notes = strings.TrimSpace(ing.Field("notes"))
+				if exp := strings.TrimSpace(ing.Field("expiry_date")); exp != "" {
+					row.ExpiryFa = FormatJalaliShort(exp)
+				}
+				if avg := strings.TrimSpace(ing.Field("average_cost")); avg != "" {
+					row.AverageCostToman = store.FormatIRRToToman(avg)
+				}
+				if last := strings.TrimSpace(ing.Field("last_purchase_cost")); last != "" {
+					row.LastCostToman = store.FormatIRRToToman(last)
+					if lc := parseIRRBig(last); lc.Sign() > 0 && stock > 0 {
+						lv := new(big.Float).Mul(big.NewFloat(stock), new(big.Float).SetInt(lc))
+						if lvInt, _ := lv.Int(nil); lvInt != nil {
+							row.LastValueToman = store.FormatIRRToToman(lvInt.String())
+						}
+					}
+				}
+				minOrder := strings.TrimSpace(ing.Field("reorder_point"))
+				if minOrder == "" {
+					minOrder = strings.TrimSpace(ing.Field("minimum_stock"))
+				}
+				if minOrder != "" {
+					row.MinOrderFa = store.FormatPersianNumber(minOrder)
+				}
+				// کمبود نسبت به حد سفارش (و اگر حدی ثبت نشده، هر موجودی منفی):
+				// دکمهٔ «چه چیزی کم است؟» و پیش‌پر کردن مقدار خرید در دیالوگ
+				// ثبت ورود کالا.
+				minOrderRaw := strings.NewReplacer(",", "", "٬", "").Replace(normalizeNumInput(minOrder))
+				minOrderVal, minErr := strconv.ParseFloat(minOrderRaw, 64)
+				if minErr != nil {
+					minOrderVal = 0
+				}
+				if minOrderVal > stock {
+					row.HasShortfall = true
+					short := minOrderVal - stock
+					row.ShortfallFa = store.FormatPersianNumber(strconv.FormatFloat(short, 'f', -1, 64))
+					row.ShortfallQty = strconv.FormatFloat(short, 'f', -1, 64)
+					if avg, aErr := strconv.ParseFloat(strings.TrimSpace(ing.Field("average_cost")), 64); aErr == nil && avg > 0 {
+						value := new(big.Float).Mul(big.NewFloat(short), big.NewFloat(avg))
+						if valueInt, _ := value.Int(nil); valueInt != nil {
+							row.ShortfallValueToman = store.FormatIRRToToman(valueInt.String())
+						}
+					}
+				}
+				updatedISO := ing.Field("updated_at")
+				if strings.TrimSpace(updatedISO) == "" {
+					updatedISO = ing.Field("created_at")
+				}
+				row.UpdatedFa = jalaliDayMonth(updatedISO)
+				row.UpdatedRel = relativeFa(updatedISO)
 				switch {
-				case stock <= 0:
+				case stock < 0:
+					row.StatusKey = "negative"
+				case stock == 0:
 					row.StatusKey = "out"
 				case ing.NeedsReorder():
 					row.StatusKey = "low"
@@ -2538,6 +3378,9 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				totalValue.Add(totalValue, valInt)
 				row.ValueToman = store.FormatIRRToToman(valInt.String())
 				switch row.StatusKey {
+				case "negative":
+					v.InvOut++
+					v.InvNegative++
 				case "out":
 					v.InvOut++
 				case "low":
@@ -2563,7 +3406,10 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 					continue
 				}
 				if v.InvStatus != "" && row.StatusKey != v.InvStatus {
-					continue
+					// فیلتر «پایان‌یافته» اقلام منفی را هم شامل می‌شود (موجودی ≤ ۰).
+					if !(v.InvStatus == "out" && row.StatusKey == "negative") {
+						continue
+					}
 				}
 				v.InvRows = append(v.InvRows, row)
 			}
@@ -2608,6 +3454,55 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			case "name":
 				sort.SliceStable(v.InvRows, func(i, j int) bool { return v.InvRows[i].Entity.Label() < v.InvRows[j].Entity.Label() })
 			}
+			// گروه‌بندی ردیف‌های فیلترشده بر اساس دستهٔ انبار؛ ترتیب گروه‌ها
+			// الفبایی است و «بدون دسته‌بندی» همیشه آخر می‌آید.
+			if v.InvView == "group" {
+				order := make([]string, 0, 8)
+				byLabel := map[string][]InvRow{}
+				for _, row := range v.InvRows {
+					label := row.Category
+					if strings.TrimSpace(label) == "" {
+						label = "بدون دسته‌بندی"
+					}
+					if _, seen := byLabel[label]; !seen {
+						order = append(order, label)
+					}
+					byLabel[label] = append(byLabel[label], row)
+				}
+				sort.Slice(order, func(i, j int) bool {
+					if order[i] == "بدون دسته‌بندی" {
+						return false
+					}
+					if order[j] == "بدون دسته‌بندی" {
+						return true
+					}
+					return order[i] < order[j]
+				})
+				for _, label := range order {
+					rows := byLabel[label]
+					v.InvGroups = append(v.InvGroups, InvGroupRow{
+						Label:   label,
+						Count:   len(rows),
+						CountFa: store.FormatPersianNumber(strconv.Itoa(len(rows))),
+						Rows:    rows,
+					})
+				}
+			}
+			// در کارت «هشدارهای فوری» اول اقلام منفی (کمبود واقعی) می‌آیند.
+			alertRank := func(k string) int {
+				switch k {
+				case "negative":
+					return 0
+				case "out":
+					return 1
+				case "low":
+					return 2
+				}
+				return 3
+			}
+			sort.SliceStable(v.InvAlerts, func(i, j int) bool {
+				return alertRank(v.InvAlerts[i].StatusKey) < alertRank(v.InvAlerts[j].StatusKey)
+			})
 			if len(v.Movements) > 8 {
 				v.InvMovements = v.Movements[:8]
 			} else {
@@ -3042,6 +3937,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.Customers, err = a.store.Entities(ctx, "customer")
 		v.Debtors, _ = a.store.Entities(ctx, "debtor")
 		v.ClubGroupOpts, _ = a.store.Entities(ctx, "customer_group")
+		v.ClubGroupsJSON = a.clubGroupsJSON(ctx)
 		clubOrders, _ := a.store.Entities(ctx, "order")
 		v.ClubTab = strings.TrimSpace(r.URL.Query().Get("tab"))
 		if v.ClubTab != "membership" {
@@ -3167,26 +4063,10 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 			v.ClubGroups = append(v.ClubGroups, row)
 		}
 		v.Entities = groups
-	case "club-group-form":
-		v.Kind = "customer_group"
-		v.EntityID = strings.TrimSpace(r.URL.Query().Get("id"))
-		v.Action = "create"
-		v.Fields = map[string]string{}
-		if v.EntityID != "" {
-			if e, eErr := a.store.Entity(ctx, "customer_group", v.EntityID); eErr == nil {
-				v.Action = "update"
-				var values map[string]json.RawMessage
-				_ = json.Unmarshal(e.Payload, &values)
-				for key, raw := range values {
-					var value string
-					if json.Unmarshal(raw, &value) != nil {
-						value = string(raw)
-					}
-					v.Fields[key] = value
-				}
-			}
-		}
+		v.ClubGroupOpts = groups
+		v.ClubGroupsJSON = a.clubGroupsJSON(ctx)
 	case "club-group":
+		v.ClubGroupsJSON = a.clubGroupsJSON(ctx)
 		gid := strings.TrimSpace(r.URL.Query().Get("id"))
 		if g, gErr := a.store.Entity(ctx, "customer_group", gid); gErr == nil {
 			customers, _ := a.store.Entities(ctx, "customer")
@@ -3244,16 +4124,50 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 	case "debtors":
 		v.Debtors, err = a.store.Entities(ctx, "debtor")
 		v.Customers, _ = a.store.Entities(ctx, "customer")
+		v.DebtorGroups, _ = a.store.Entities(ctx, "customer_group")
 		v.Entities = v.Debtors
 		{
-			// جزئیات هر بدهی از سفارش پیوندخورده خوانده می‌شود تا در صفحه
-			// بدهکاران معلوم باشد مشتری چه سفارش داده، چقدر بدهکار است،
-			// چه توضیحی ثبت شده و سفارش دقیقاً چه تاریخ و ساعتی بوده است.
+			// صفحه «لیست بدهکاران، مستندات سفارش‌ها و خرید اعتباری» عین وب:
+			// کارت‌های خلاصه، فیلترهای همان جدول، ستون «مستندات سفارش
+			// (سفارش چی بود؟)»، تسویه و ثبت بدهی دستی با آیتم‌های محصول و
+			// تاریخ شمسی. همه ارقام از همین داده محلی محاسبه می‌شوند.
+			now := time.Now()
+			loc := now.In(tehranZone())
+			v.DebtorTab = strings.TrimSpace(r.URL.Query().Get("tab"))
+			if v.DebtorTab != "groups" {
+				v.DebtorTab = "list"
+			}
+			tjy, tjm, tjd := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+			v.DebtorTodayShamsi = store.ToPersianDigits(fmt.Sprintf("%04d/%02d/%02d", tjy, tjm, tjd))
+
+			groupLabels := map[string]string{}
+			for _, g := range v.DebtorGroups {
+				groupLabels[g.ID] = g.Label()
+			}
+			memberCounts := map[string]int{}
+			for _, c := range v.Customers {
+				if gid := strings.TrimSpace(c.Field("group_id")); gid != "" {
+					memberCounts[gid]++
+				}
+			}
+
+			// جزئیات هر بدهی از سفارش پیوندخورده (یا آیتم‌های ثبت دستی) خوانده
+			// می‌شود تا معلوم باشد مشتری چه سفارش داده، چقدر بدهکار است، چه
+			// توضیحی ثبت شده و سفارش دقیقاً چه تاریخ و ساعتی بوده است.
 			ordersByID := map[string]store.Entity{}
 			if allOrders, oErr := a.store.Entities(ctx, "order"); oErr == nil {
 				for _, o := range allOrders {
 					ordersByID[o.ID] = o
 				}
+			}
+			paymentsByDebtor := map[string][]store.Entity{}
+			allPayments, _ := a.store.Entities(ctx, "debtor_payment")
+			for _, p := range allPayments {
+				key := strings.TrimSpace(p.Field("debtor_id"))
+				if key == "" {
+					continue
+				}
+				paymentsByDebtor[key] = append(paymentsByDebtor[key], p)
 			}
 			byPerson := map[string][]store.Entity{}
 			for _, d := range v.Debtors {
@@ -3263,11 +4177,58 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				}
 				byPerson[key] = append(byPerson[key], d)
 			}
+
+			rows := make([]DebtorRow, 0, len(v.Debtors))
 			for _, d := range v.Debtors {
-				row := DebtorRow{Entity: d, DueLabel: strings.TrimSpace(d.Field("due_at")), NoteText: strings.TrimSpace(d.Field("note"))}
+				row := DebtorRow{Entity: d, NoteText: strings.TrimSpace(d.Field("note"))}
 				if row.NoteText == "" {
 					row.NoteText = strings.TrimSpace(d.Field("description"))
 				}
+				row.Phone = store.ToPersianDigits(strings.TrimSpace(d.Field("phone")))
+				row.AccountKey = "personal"
+				row.AccountLabel = "مشتری شخصی"
+				if strings.EqualFold(strings.TrimSpace(d.Field("account_type")), "company") {
+					row.AccountKey = "company"
+					row.AccountLabel = "حساب شرکتی / گروه"
+				}
+				if gid := strings.TrimSpace(d.Field("group_id")); gid != "" {
+					row.GroupLabel = groupLabels[gid]
+				}
+				row.SourceKey = strings.TrimSpace(d.Field("source"))
+				if row.SourceKey == "" {
+					if strings.TrimSpace(d.Field("order_id")) != "" {
+						row.SourceKey = "pos"
+					} else {
+						row.SourceKey = "manual"
+					}
+				}
+				if row.SourceKey == "pos" {
+					row.SourceLabel = "سفارش صندوق"
+				} else {
+					row.SourceLabel = "ثبت دستی"
+				}
+
+				totalIRR := parseIRRBig(d.Field("total"))
+				paidIRR := parseIRRBig(d.Field("paid"))
+				remainingIRR := parseIRRBig(d.Field("remaining"))
+				row.RemainingIRR = remainingIRR.String()
+				row.TotalFa = tomanFaWebInt(totalIRR)
+				row.PaidFa = tomanFaWebInt(paidIRR)
+				row.RemainingFa = tomanFaWebInt(remainingIRR)
+
+				dueISO, dueLabel, overdue := debtorDueInfo(d.Field("due_at"), remainingIRR, now)
+				row.DueISO = dueISO
+				row.DueLabel = dueLabel
+				row.Overdue = overdue
+				row.StatusKey, row.StatusLabel, row.StatusClass = debtorStatusOf(remainingIRR, d.Field("status"), overdue)
+
+				row.CreatedISO = strings.TrimSpace(d.Field("created_at"))
+				if ct, ok := JalaliTimeOf(row.CreatedISO); ok {
+					row.DateFa = ShamsiFromISO(row.CreatedISO)
+					row.TimeFa = store.ToPersianDigits(ct.Format("15:04"))
+					row.IsNew = now.Sub(ct) < 72*time.Hour
+				}
+
 				if oid := strings.TrimSpace(d.Field("order_id")); oid != "" {
 					if o, ok := ordersByID[oid]; ok {
 						row.OrderNumber = displayOrderNumber(o.Field("order_number"))
@@ -3276,16 +4237,51 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 							parts = append(parts, it.ProductName+" ×"+store.FormatPersianNumber(strconv.Itoa(it.Quantity)))
 						}
 						row.ItemsText = strings.Join(parts, "، ")
+						row.ItemCount = len(o.OrderItems())
 						if ct, pErr := time.Parse(time.RFC3339, o.Field("created_at")); pErr == nil {
 							row.OrderWhen = FormatJalaliFull(ct)
 						}
 					}
 				}
+				if row.ItemsText == "" {
+					if items := debtorItemsFromPayload(d); len(items) > 0 {
+						var parts []string
+						for _, it := range items {
+							qty := store.FormatPersianNumber(it[1])
+							if strings.TrimSpace(it[1]) == "" {
+								qty = store.FormatPersianNumber("1")
+							}
+							parts = append(parts, it[0]+" ×"+qty)
+						}
+						row.ItemsText = strings.Join(parts, "، ")
+						row.ItemCount = len(items)
+					}
+				}
+				row.HasDocument = row.ItemsText != "" || row.OrderNumber != ""
 				if row.OrderWhen == "" {
 					if ct, pErr := time.Parse(time.RFC3339, d.Field("created_at")); pErr == nil {
 						row.OrderWhen = FormatJalaliFull(ct)
 					}
 				}
+
+				// پرداخت‌های ثبت‌شده این حساب (دفتر وصولی) برای دیالوگ جزئیات.
+				paySum := big.NewInt(0)
+				pays := paymentsByDebtor[d.ID]
+				sort.SliceStable(pays, func(i, j int) bool { return pays[i].Field("created_at") > pays[j].Field("created_at") })
+				for _, p := range pays {
+					amt := parseIRRBig(p.Field("amount_irr"))
+					paySum.Add(paySum, amt)
+					row.Payments = append(row.Payments, DebtorPaymentRow{
+						AmountFa: tomanFaWebInt(amt),
+						DateFa:   ShamsiFromISO(p.Field("created_at")),
+						Note:     strings.TrimSpace(p.Field("note")),
+					})
+				}
+				if len(row.Payments) > 0 {
+					row.PaymentFa = tomanFaWebInt(paySum)
+					row.PaymentCount = len(row.Payments)
+				}
+
 				key := strings.TrimSpace(d.Field("phone"))
 				if key == "" {
 					key = strings.TrimSpace(d.Label())
@@ -3303,7 +4299,309 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 				if others > 0 {
 					row.OtherDebts = store.FormatPersianNumber(strconv.Itoa(others)) + " بدهی دیگر به مبلغ " + store.FormatIRRToToman(otherRemain.String())
 				}
+				rows = append(rows, row)
+			}
+
+			// کارت‌های خلاصه بالای صفحه: همه بدهی‌ها، حساب‌های باز، سررسید
+			// گذشته و وصول همین ماه شمسی (از دفتر پرداخت‌های ثبت‌شده).
+			remainingSum := big.NewInt(0)
+			overdueSum := big.NewInt(0)
+			openCount, overdueCount := 0, 0
+			for _, row := range rows {
+				rem := parseIRRBig(row.Entity.Field("remaining"))
+				remainingSum.Add(remainingSum, rem)
+				if row.StatusKey == "paid" {
+					continue
+				}
+				openCount++
+				if row.Overdue {
+					overdueCount++
+					overdueSum.Add(overdueSum, rem)
+				}
+			}
+			collected := big.NewInt(0)
+			for _, p := range allPayments {
+				pt, ok := JalaliTimeOf(p.Field("created_at"))
+				if !ok {
+					continue
+				}
+				py, pm, _ := GregorianToJalali(pt.Year(), int(pt.Month()), pt.Day())
+				if py == tjy && pm == tjm {
+					collected.Add(collected, parseIRRBig(p.Field("amount_irr")))
+				}
+			}
+			v.DebtorCount = len(rows)
+			v.DebtorKPIRemainingFa = tomanFaWebInt(remainingSum)
+			v.DebtorKPIOpenFa = store.FormatPersianNumber(strconv.Itoa(openCount))
+			v.DebtorKPIOverdueFa = store.FormatPersianNumber(strconv.Itoa(overdueCount))
+			v.DebtorKPIOverdueSumFa = tomanFaWebInt(overdueSum)
+			v.DebtorKPICollectedFa = tomanFaWebInt(collected)
+
+			// گزارش بدهی گروه‌ها (سازمانی) — تب دوم.
+			for _, g := range v.DebtorGroups {
+				grow := DebtorGroupRow{Entity: g, Name: g.Label(), Members: memberCounts[g.ID]}
+				total := big.NewInt(0)
+				remain := big.NewInt(0)
+				for _, row := range rows {
+					if strings.TrimSpace(row.Entity.Field("group_id")) != g.ID {
+						continue
+					}
+					grow.Accounts++
+					total.Add(total, parseIRRBig(row.Entity.Field("total")))
+					remain.Add(remain, parseIRRBig(row.Entity.Field("remaining")))
+					if row.Overdue {
+						grow.OverdueCount++
+					}
+				}
+				grow.TotalFa = tomanFaWebInt(total)
+				grow.RemainingFa = tomanFaWebInt(remain)
+				switch {
+				case grow.OverdueCount > 0:
+					grow.StatusKey, grow.StatusLabel = "overdue", "سررسید گذشته"
+				case remain.Sign() > 0:
+					grow.StatusKey, grow.StatusLabel = "open", "بدهی باز"
+				default:
+					grow.StatusKey, grow.StatusLabel = "paid", "تسویه شده"
+				}
+				v.DebtorGroupRows = append(v.DebtorGroupRows, grow)
+			}
+			sort.SliceStable(v.DebtorGroupRows, func(i, j int) bool {
+				return v.DebtorGroupRows[i].Name < v.DebtorGroupRows[j].Name
+			})
+
+			// فیلترهای همان نوار وب (وضعیت، منبع ثبت، حساب، گروه، بازه تاریخ
+			// شمسی و مرتب‌سازی).
+			q := strings.TrimSpace(r.URL.Query().Get("q"))
+			v.DebtorQuery = q
+			v.DebtorStatusFilter = strings.TrimSpace(r.URL.Query().Get("status"))
+			switch v.DebtorStatusFilter {
+			case "open", "partial", "paid", "overdue":
+			default:
+				v.DebtorStatusFilter = "all"
+			}
+			v.DebtorSourceFilter = strings.TrimSpace(r.URL.Query().Get("source"))
+			if v.DebtorSourceFilter != "pos" && v.DebtorSourceFilter != "manual" {
+				v.DebtorSourceFilter = "all"
+			}
+			v.DebtorAccountFilter = strings.TrimSpace(r.URL.Query().Get("account"))
+			if v.DebtorAccountFilter != "personal" && v.DebtorAccountFilter != "company" {
+				v.DebtorAccountFilter = "all"
+			}
+			v.DebtorGroupFilter = strings.TrimSpace(r.URL.Query().Get("group"))
+			if v.DebtorGroupFilter == "all" {
+				v.DebtorGroupFilter = ""
+			}
+			v.DebtorSortFilter = strings.TrimSpace(r.URL.Query().Get("sort"))
+			switch v.DebtorSortFilter {
+			case "created", "remaining", "due", "name":
+			default:
+				v.DebtorSortFilter = "updated"
+			}
+			v.DebtorFromISO = isoDateOrEmpty(r.URL.Query().Get("from"))
+			v.DebtorToISO = isoDateOrEmpty(r.URL.Query().Get("to"))
+			v.DebtorFromShamsi = ShamsiFromISO(v.DebtorFromISO)
+			v.DebtorToShamsi = ShamsiFromISO(v.DebtorToISO)
+
+			needle := strings.ToLower(normalizeDigits(q))
+			for _, row := range rows {
+				if needle != "" {
+					haystack := strings.ToLower(normalizeDigits(row.Entity.Label() + " " + row.Entity.Field("phone") + " " +
+						row.GroupLabel + " " + row.ItemsText + " " + row.Entity.Field("description") + " " + row.OrderNumber))
+					if !strings.Contains(haystack, needle) {
+						continue
+					}
+				}
+				if v.DebtorStatusFilter != "all" && row.StatusKey != v.DebtorStatusFilter {
+					continue
+				}
+				if v.DebtorSourceFilter != "all" && row.SourceKey != v.DebtorSourceFilter {
+					continue
+				}
+				if v.DebtorAccountFilter != "all" && row.AccountKey != v.DebtorAccountFilter {
+					continue
+				}
+				if v.DebtorGroupFilter != "" && strings.TrimSpace(row.Entity.Field("group_id")) != v.DebtorGroupFilter {
+					continue
+				}
+				createdDay := ""
+				if ct, ok := JalaliTimeOf(row.CreatedISO); ok {
+					createdDay = ct.Format("2006-01-02")
+				}
+				if v.DebtorFromISO != "" && (createdDay == "" || createdDay < v.DebtorFromISO) {
+					continue
+				}
+				if v.DebtorToISO != "" && (createdDay == "" || createdDay > v.DebtorToISO) {
+					continue
+				}
 				v.DebtorRows = append(v.DebtorRows, row)
+			}
+			switch v.DebtorSortFilter {
+			case "remaining":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					return parseIRRBig(v.DebtorRows[i].Entity.Field("remaining")).Cmp(parseIRRBig(v.DebtorRows[j].Entity.Field("remaining"))) > 0
+				})
+			case "due":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					di, dj := v.DebtorRows[i].DueISO, v.DebtorRows[j].DueISO
+					if di == "" || dj == "" {
+						return dj != "" && di == ""
+					}
+					return di < dj
+				})
+			case "name":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					return v.DebtorRows[i].Entity.Label() < v.DebtorRows[j].Entity.Label()
+				})
+			case "created":
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					return v.DebtorRows[i].CreatedISO > v.DebtorRows[j].CreatedISO
+				})
+			default:
+				sort.SliceStable(v.DebtorRows, func(i, j int) bool {
+					ui := v.DebtorRows[i].Entity.Field("updated_at")
+					if ui == "" {
+						ui = v.DebtorRows[i].CreatedISO
+					}
+					uj := v.DebtorRows[j].Entity.Field("updated_at")
+					if uj == "" {
+						uj = v.DebtorRows[j].CreatedISO
+					}
+					if ui == uj {
+						return v.DebtorRows[i].CreatedISO > v.DebtorRows[j].CreatedISO
+					}
+					return ui > uj
+				})
+			}
+			v.DebtorFiltered = len(v.DebtorRows)
+
+			// فیلترهای فعال به‌صورت query نگه داشته می‌شوند تا بعد از ثبت/تسویه
+			// کاربر دوباره روی همان نمای فیلترشده برگردد (رفتار وب).
+			filterQ := url.Values{}
+			if v.DebtorTab != "list" {
+				filterQ.Set("tab", v.DebtorTab)
+			}
+			if q != "" {
+				filterQ.Set("q", q)
+			}
+			if v.DebtorStatusFilter != "all" {
+				filterQ.Set("status", v.DebtorStatusFilter)
+			}
+			if v.DebtorSourceFilter != "all" {
+				filterQ.Set("source", v.DebtorSourceFilter)
+			}
+			if v.DebtorAccountFilter != "all" {
+				filterQ.Set("account", v.DebtorAccountFilter)
+			}
+			if v.DebtorGroupFilter != "" {
+				filterQ.Set("group", v.DebtorGroupFilter)
+			}
+			if v.DebtorSortFilter != "updated" {
+				filterQ.Set("sort", v.DebtorSortFilter)
+			}
+			if v.DebtorFromISO != "" {
+				filterQ.Set("from", v.DebtorFromISO)
+			}
+			if v.DebtorToISO != "" {
+				filterQ.Set("to", v.DebtorToISO)
+			}
+			v.DebtorFilterQuery = filterQ.Encode()
+
+			// کاتالوگ محصولات برای «ثبت با نام محصولات سفارش»: کاربر آیتم را از
+			// فهرست واقعی محصولات جستجو و اضافه می‌کند، نه تایپ آزاد.
+			type debtorProductJSON struct {
+				ID       string `json:"id"`
+				Title    string `json:"title"`
+				Price    int64  `json:"price"`
+				Category string `json:"category"`
+			}
+			catLabel := map[string]string{}
+			if cats, cErr := a.store.Entities(ctx, "category"); cErr == nil {
+				for _, c := range cats {
+					catLabel[c.ID] = c.Label()
+				}
+			}
+			options := []debtorProductJSON{}
+			if products, pErr := a.store.Entities(ctx, "product"); pErr == nil {
+				for _, p := range products {
+					priceToman := parseIRRBig(p.PriceIRR())
+					priceToman.Quo(priceToman, big.NewInt(10))
+					price := priceToman.Int64()
+					options = append(options, debtorProductJSON{
+						ID:       p.ID,
+						Title:    p.Label(),
+						Price:    price,
+						Category: catLabel[p.Field("category_id")],
+					})
+				}
+			}
+			sort.SliceStable(options, func(i, j int) bool { return options[i].Title < options[j].Title })
+			if raw, mErr := json.Marshal(options); mErr == nil {
+				v.DebtorProductsJSON = template.JS(raw)
+			} else {
+				v.DebtorProductsJSON = template.JS("[]")
+			}
+
+			// داده دیالوگ‌های «جزئیات حساب» و «ثبت پرداخت»: کل ردیف‌های فیلترشده
+			// با همه پرداخت‌ها، تا صفحه بدون درخواست اضافه و بدون data-attribute
+			// شکننده کار کند.
+			type debtorPayJSON struct {
+				Amount string `json:"amount"`
+				Date   string `json:"date"`
+				Note   string `json:"note"`
+			}
+			type debtorRowJSON struct {
+				ID           string          `json:"id"`
+				Name         string          `json:"name"`
+				Phone        string          `json:"phone"`
+				Account      string          `json:"account"`
+				Group        string          `json:"group"`
+				Items        string          `json:"items"`
+				OrderNumber  string          `json:"order_number"`
+				When         string          `json:"when"`
+				Total        string          `json:"total"`
+				Paid         string          `json:"paid"`
+				Remaining    string          `json:"remaining"`
+				RemainingIRR string          `json:"remaining_irr"`
+				Due          string          `json:"due"`
+				Note         string          `json:"note"`
+				Status       string          `json:"status"`
+				StatusKey    string          `json:"status_key"`
+				Source       string          `json:"source"`
+				Other        string          `json:"other"`
+				Payments     []debtorPayJSON `json:"payments"`
+			}
+			rowJSON := make([]debtorRowJSON, 0, len(v.DebtorRows))
+			for _, row := range v.DebtorRows {
+				item := debtorRowJSON{
+					ID:           row.Entity.ID,
+					Name:         row.Entity.Label(),
+					Phone:        row.Phone,
+					Account:      row.AccountLabel,
+					Group:        row.GroupLabel,
+					Items:        row.ItemsText,
+					OrderNumber:  row.OrderNumber,
+					When:         row.OrderWhen,
+					Total:        row.TotalFa,
+					Paid:         row.PaidFa,
+					Remaining:    row.RemainingFa,
+					RemainingIRR: row.RemainingIRR,
+					Due:          row.DueLabel,
+					Note:         row.NoteText,
+					Status:       row.StatusLabel,
+					StatusKey:    row.StatusKey,
+					Source:       row.SourceLabel,
+					Other:        row.OtherDebts,
+					Payments:     []debtorPayJSON{},
+				}
+				for _, p := range row.Payments {
+					item.Payments = append(item.Payments, debtorPayJSON{Amount: p.AmountFa, Date: p.DateFa, Note: p.Note})
+				}
+				rowJSON = append(rowJSON, item)
+			}
+			if raw, mErr := json.Marshal(rowJSON); mErr == nil {
+				v.DebtorRowsJSON = template.JS(raw)
+			} else {
+				v.DebtorRowsJSON = template.JS("[]")
 			}
 		}
 	case "finance":
@@ -3313,43 +4611,43 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.Debtors, _ = a.store.Entities(ctx, "debtor")
 		v.Entities = v.Expenses
 		{
-			// «حساب و گزارش» عین accounting وب: تب‌ها از ?tab= خوانده می‌شوند و
-			// ارقام نمای کلی از داده واقعی محلی (فروش نقد/کارت، ارزش انبار با
-			// بهای میانگین، مطالبات) و عملکرد ماه جاری با COGS رسپی ساخته می‌شود.
-			v.FinTab = strings.TrimSpace(r.URL.Query().Get("tab"))
+			// «حساب و گزارش» عین accounting وب: پنج تب نمای کلی/هزینه‌ها/اسناد
+			// حسابداری/حساب‌ها/سود و زیان. همه ارقام از داده واقعی محلی ساخته
+			// می‌شوند: مانده صندوق و بانک = فروش منهای هزینه همان کانال، دفتر
+			// روزنامه = اسناد دستی + سند خودکار هر هزینه + اسناد صادرشده از
+			// انبار، و سود و زیان با COGS رسپی در بازه انتخابی کاربر.
+			q := r.URL.Query()
+			v.FinTab = strings.TrimSpace(q.Get("tab"))
 			switch v.FinTab {
 			case "expenses", "journal", "accounts", "pnl":
 			default:
 				v.FinTab = "overview"
 			}
-			now := time.Now()
-			monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-			month := a.store.AnalyticsSince(ctx, monthStart)
-			toman := func(irr string) string { return store.FormatIRRToToman(irr) }
-			// موجودی صندوق = فروش نقدی کل؛ موجودی بانک = فروش کارتخوان کل.
-			v.FinCashFa = toman(v.Analytics.CashSalesIRR)
-			v.FinBankFa = toman(v.Analytics.CardSalesIRR)
-			v.FinReceivablesFa = toman(v.Analytics.TotalReceivablesIRR)
-			invValue := big.NewInt(0)
-			if ings, iErr := a.store.Entities(ctx, "ingredient"); iErr == nil {
-				for _, ing := range ings {
-					stock, _ := strconv.ParseFloat(strings.TrimSpace(ing.Field("current_stock")), 64)
-					avg := parseIRRBig(ing.Field("average_cost"))
-					val := new(big.Float).Mul(big.NewFloat(stock), new(big.Float).SetInt(avg))
-					vi, _ := val.Int(nil)
-					invValue.Add(invValue, vi)
-				}
+			num := finTomanNum
+			isVoided := func(e store.Entity) bool {
+				st := strings.ToLower(strings.TrimSpace(e.Field("status")))
+				return st == "voided" || st == "void" || st == "cancelled" || st == "canceled"
 			}
-			v.FinInvValueFa = toman(invValue.String())
-			// COGS ماه: مجموع بهای رسپی اقلام سفارش‌های تکمیل‌شده ماه جاری.
-			cogs := big.NewInt(0)
+			createdOf := func(e store.Entity) time.Time {
+				t, _ := time.Parse(time.RFC3339, strings.TrimSpace(e.Field("created_at")))
+				return t
+			}
+			sortByCreatedDesc := func(list []store.Entity) {
+				sort.SliceStable(list, func(x, y int) bool {
+					return createdOf(list[x]).After(createdOf(list[y]))
+				})
+			}
+			orders, _ := a.store.Entities(ctx, "order")
+			// COGS بازه [from,to): مجموع بهای رسپی اقلام سفارش‌های تکمیل‌شده.
 			costCache := map[string]*big.Int{}
-			if orders, oErr := a.store.Entities(ctx, "order"); oErr == nil {
+			cogsInRange := func(from, to time.Time) *big.Int {
+				cogs := big.NewInt(0)
 				for _, o := range orders {
 					if strings.ToLower(strings.TrimSpace(o.Field("status"))) != "completed" {
 						continue
 					}
-					if ct, pErr := time.Parse(time.RFC3339, o.Field("created_at")); pErr != nil || ct.Before(monthStart) {
+					ct := createdOf(o)
+					if ct.IsZero() || ct.Before(from) || !ct.Before(to) {
 						continue
 					}
 					for _, it := range o.OrderItems() {
@@ -3364,14 +4662,432 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 						cogs.Add(cogs, new(big.Int).Mul(unit, big.NewInt(int64(it.Quantity))))
 					}
 				}
+				return cogs
+			}
+			// ارزش موجودی انبار با بهای میانگین + ردیف‌های جدول سود و زیان.
+			invValue := big.NewInt(0)
+			if ings, iErr := a.store.Entities(ctx, "ingredient"); iErr == nil {
+				for _, ing := range ings {
+					stock, _ := strconv.ParseFloat(strings.TrimSpace(ing.Field("current_stock")), 64)
+					avg := parseIRRBig(ing.Field("average_cost"))
+					val := new(big.Float).Mul(big.NewFloat(stock), new(big.Float).SetInt(avg))
+					vi, _ := val.Int(nil)
+					invValue.Add(invValue, vi)
+					v.FinInvRows = append(v.FinInvRows, FinInvRow{
+						Name:       ing.Label(),
+						SKU:        strings.TrimSpace(ing.Field("sku")),
+						QtyFa:      store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64)) + " " + shortUnitLabel(ing.UnitLabel()),
+						UnitCostFa: num(avg.String()),
+						ValueFa:    num(vi.String()),
+					})
+				}
+			}
+			v.FinInvValueFa = num(invValue.String())
+			v.FinInvTotalFa = num(invValue.String())
+			v.FinInvCount = len(v.FinInvRows)
+			// مانده واقعی صندوق/بانک: فروش همان کانال منهای هزینه‌های پرداخت‌شده از آن.
+			cashExp, cardExp := big.NewInt(0), big.NewInt(0)
+			expByAccount := map[string]*big.Int{}
+			for _, e := range v.Expenses {
+				if isVoided(e) {
+					continue
+				}
+				amt := parseIRRBig(e.Field("price"))
+				if finIsCashMethod(e.Field("payment_method")) {
+					cashExp.Add(cashExp, amt)
+				} else {
+					cardExp.Add(cardExp, amt)
+				}
+				_, accName := finExpenseAccount(e.Field("category"))
+				if expByAccount[accName] == nil {
+					expByAccount[accName] = big.NewInt(0)
+				}
+				expByAccount[accName].Add(expByAccount[accName], amt)
+			}
+			cashBal := new(big.Int).Sub(parseIRRBig(v.Analytics.CashSalesIRR), cashExp)
+			bankBal := new(big.Int).Sub(parseIRRBig(v.Analytics.CardSalesIRR), cardExp)
+			v.FinCashFa = num(cashBal.String())
+			v.FinBankFa = num(bankBal.String())
+			v.FinReceivablesFa = num(v.Analytics.TotalReceivablesIRR)
+			// عملکرد ماه شمسی جاری (نمای کلی).
+			now := time.Now()
+			monthFrom, monthTo := jalaliMonthRange(now)
+			v.FinMonthLabel = jalaliMonthYearLabel(now)
+			month := a.store.AnalyticsSince(ctx, monthFrom)
+			monthExp := big.NewInt(0)
+			for _, e := range v.Expenses {
+				if isVoided(e) {
+					continue
+				}
+				ct := createdOf(e)
+				if !ct.IsZero() && !ct.Before(monthFrom) && ct.Before(monthTo) {
+					monthExp.Add(monthExp, parseIRRBig(e.Field("price")))
+				}
 			}
 			rev := parseIRRBig(month.TotalSalesIRR)
-			exp := parseIRRBig(month.TotalExpensesIRR)
-			profit := new(big.Int).Sub(new(big.Int).Sub(rev, cogs), exp)
-			v.FinMonthRevFa = toman(rev.String())
-			v.FinMonthCOGSFa = toman(cogs.String())
-			v.FinMonthExpFa = toman(exp.String())
-			v.FinMonthProfitFa = toman(profit.String())
+			monthCOGS := cogsInRange(monthFrom, monthTo)
+			profit := new(big.Int).Sub(new(big.Int).Sub(rev, monthCOGS), monthExp)
+			v.FinMonthRevFa = num(rev.String())
+			v.FinMonthCOGSFa = num(monthCOGS.String())
+			v.FinMonthExpFa = num(monthExp.String())
+			v.FinMonthProfitFa = num(profit.String())
+			v.FinMonthHasRev = rev.Sign() > 0
+			if rev.Sign() > 0 {
+				pct := new(big.Float).Quo(new(big.Float).SetInt(profit), new(big.Float).SetInt(rev))
+				f, _ := pct.Float64()
+				v.FinNetPct = int(f * 100)
+				if v.FinNetPct < 0 {
+					v.FinNetPct = 0
+				}
+				if v.FinNetPct > 100 {
+					v.FinNetPct = 100
+				}
+			}
+			// ── دفتر روزنامه: اسناد دستی/انبار + سند خودکار هر هزینه ──
+			var journalAll []FinJournalRow
+			for _, e := range v.AccountingEntries {
+				src := strings.TrimSpace(e.Field("source"))
+				srcText := "دستی"
+				switch src {
+				case "inventory":
+					srcText = "انبار"
+				case "expense":
+					srcText = "هزینه"
+				default:
+					src = "manual"
+				}
+				row := FinJournalRow{
+					ID: e.ID, Kind: "accounting_entry",
+					DateFa: jalaliDayMonth(e.Field("created_at")), Title: e.Label(),
+					LinesText: "۲ آرتیکل", SourceKey: src, SourceText: srcText,
+					AmountFa: num(e.Field("price")), StatusKey: "posted", StatusText: "ثبت‌شده",
+					DebitAccount: e.Field("debit_account"), CreditAccount: e.Field("credit_account"),
+					Note: e.Field("note"), CreatedISO: e.Field("created_at"),
+				}
+				if isVoided(e) {
+					row.StatusKey, row.StatusText = "voided", "ابطال‌شده"
+				}
+				journalAll = append(journalAll, row)
+			}
+			for _, e := range v.Expenses {
+				_, accName := finExpenseAccount(e.Field("category"))
+				credit := "بانک (۱۱۰۰)"
+				if finIsCashMethod(e.Field("payment_method")) {
+					credit = "صندوق (۱۰۰۰)"
+				}
+				row := FinJournalRow{
+					ID: e.ID, Kind: "expense",
+					DateFa: jalaliDayMonth(e.Field("created_at")), Title: e.Label(),
+					LinesText: "۲ آرتیکل", SourceKey: "expense", SourceText: "هزینه",
+					AmountFa: num(e.Field("price")), StatusKey: "posted", StatusText: "ثبت‌شده",
+					DebitAccount: accName, CreditAccount: credit,
+					Note: e.Field("note"), CreatedISO: e.Field("created_at"),
+				}
+				if isVoided(e) {
+					row.StatusKey, row.StatusText = "voided", "ابطال‌شده"
+				}
+				journalAll = append(journalAll, row)
+			}
+			sort.SliceStable(journalAll, func(x, y int) bool { return journalAll[x].CreatedISO < journalAll[y].CreatedISO })
+			for i := range journalAll {
+				journalAll[i].Number = finEntryNumber(journalAll[i].CreatedISO, i+1)
+				if journalAll[i].StatusKey == "posted" {
+					v.FinEntryCount++
+				}
+			}
+			sort.SliceStable(journalAll, func(x, y int) bool { return journalAll[x].CreatedISO > journalAll[y].CreatedISO })
+			// فیلترهای دفتر روزنامه
+			v.FinJFromISO = isoDateOrEmpty(q.Get("jfrom"))
+			v.FinJToISO = isoDateOrEmpty(q.Get("jto"))
+			v.FinJFromShamsi = ShamsiFromISO(v.FinJFromISO)
+			v.FinJToShamsi = ShamsiFromISO(v.FinJToISO)
+			v.FinJSource = strings.TrimSpace(q.Get("jsource"))
+			v.FinJStatus = strings.TrimSpace(q.Get("jstatus"))
+			for _, row := range journalAll {
+				day := ""
+				if t, ok := JalaliTimeOf(row.CreatedISO); ok {
+					day = t.Format("2006-01-02")
+				}
+				if v.FinJFromISO != "" && (day == "" || day < v.FinJFromISO) {
+					continue
+				}
+				if v.FinJToISO != "" && (day == "" || day > v.FinJToISO) {
+					continue
+				}
+				if v.FinJSource != "" && row.SourceKey != v.FinJSource {
+					continue
+				}
+				if v.FinJStatus != "" && row.StatusKey != v.FinJStatus {
+					continue
+				}
+				v.FinJournalRows = append(v.FinJournalRows, row)
+			}
+			// ── هزینه‌ها: ردیف‌ها + فیلتر تاریخ/دسته/وضعیت ──
+			v.FinExpFromISO = isoDateOrEmpty(q.Get("efrom"))
+			v.FinExpToISO = isoDateOrEmpty(q.Get("eto"))
+			v.FinExpFromShamsi = ShamsiFromISO(v.FinExpFromISO)
+			v.FinExpToShamsi = ShamsiFromISO(v.FinExpToISO)
+			v.FinExpCategory = strings.TrimSpace(q.Get("ecat"))
+			v.FinExpStatus = strings.TrimSpace(q.Get("estatus"))
+			sortedExpenses := append([]store.Entity(nil), v.Expenses...)
+			sortByCreatedDesc(sortedExpenses)
+			catSeen := map[string]bool{}
+			for _, e := range sortedExpenses {
+				cat := strings.TrimSpace(e.Field("category"))
+				if cat != "" && !catSeen[cat] {
+					catSeen[cat] = true
+					v.FinExpCategories = append(v.FinExpCategories, cat)
+				}
+				if !isVoided(e) {
+					v.FinExpenseCount++
+				}
+				code, accName := finExpenseAccount(cat)
+				row := FinExpenseRow{
+					Entity: e, DateFa: jalaliDayMonth(e.Field("created_at")),
+					AmountFa: num(e.Field("price")), Category: cat, Note: strings.TrimSpace(e.Field("note")),
+					PayLabel: finPayLabel(e.Field("payment_method")), AccountCode: code, AccountName: accName,
+					StatusKey: "posted", StatusText: "ثبت‌شده",
+				}
+				if isVoided(e) {
+					row.StatusKey, row.StatusText = "voided", "ابطال‌شده"
+				}
+				day := ""
+				if t, ok := JalaliTimeOf(e.Field("created_at")); ok {
+					day = t.Format("2006-01-02")
+				}
+				if v.FinExpFromISO != "" && (day == "" || day < v.FinExpFromISO) {
+					continue
+				}
+				if v.FinExpToISO != "" && (day == "" || day > v.FinExpToISO) {
+					continue
+				}
+				if v.FinExpCategory != "" && cat != v.FinExpCategory {
+					continue
+				}
+				if v.FinExpStatus != "" && row.StatusKey != v.FinExpStatus {
+					continue
+				}
+				v.FinExpenseRows = append(v.FinExpenseRows, row)
+			}
+			// ── صدور سند از انبار: حرکت‌هایی که هنوز سند نخورده‌اند ──
+			postedRefs := map[string]bool{}
+			for _, e := range v.AccountingEntries {
+				if ref := strings.TrimSpace(e.Field("source_ref")); ref != "" {
+					postedRefs[ref] = true
+				}
+			}
+			txLabels := map[string]string{
+				"opening_balance": "موجودی اولیه", "purchase": "خرید مواد", "incoming": "رسید انبار",
+				"consumption": "مصرف", "waste": "ضایعات", "adjustment": "اصلاح", "adjustment_target": "اصلاح",
+				"outgoing": "خروج از انبار", "return_to_supplier": "برگشت به تأمین‌کننده", "transfer_in": "انتقال ورودی", "transfer_out": "انتقال خروجی",
+			}
+			movements, _ := a.store.Entities(ctx, "inventory_movement")
+			sortByCreatedDesc(movements)
+			var allMovements []FinMovementRow
+			for _, mv := range movements {
+				if postedRefs[mv.ID] {
+					continue
+				}
+				qty, _ := strconv.ParseFloat(strings.TrimSpace(mv.Field("quantity")), 64)
+				unitCost := parseIRRBig(mv.Field("unit_cost"))
+				amtF := new(big.Float).Mul(big.NewFloat(math.Abs(qty)), new(big.Float).SetInt(unitCost))
+				amt, _ := amtF.Int(nil)
+				tx := strings.TrimSpace(mv.Field("transaction_type"))
+				txLabel := txLabels[tx]
+				if txLabel == "" {
+					txLabel = "حرکت انبار"
+				}
+				title := strings.TrimSpace(mv.Field("description"))
+				if title == "" {
+					title = txLabel
+				}
+				debit, credit := "بهای تمام‌شده (۵۰۰۰)", "موجودی انبار (۱۳۰۰)"
+				if qty >= 0 {
+					debit, credit = "موجودی انبار (۱۳۰۰)", "حساب‌های پرداختنی (۲۰۰۰)"
+				}
+				qtyFa := store.FormatPersianNumber(strconv.FormatFloat(math.Abs(qty), 'f', -1, 64))
+				unitFa := shortUnitLabel(strings.TrimSpace(mv.Field("unit")))
+				allMovements = append(allMovements, FinMovementRow{
+					ID: mv.ID, Title: title,
+					MetaFa: txLabel + " · " + qtyFa + " " + unitFa + " · " + jalaliDayMonth(mv.Field("created_at")),
+					AmountIRR: amt.String(), DebitAccount: debit, CreditAccount: credit,
+					EntryTitle: "سند انبار — " + mv.Field("ingredient_name"),
+				})
+			}
+			v.FinMovements = allMovements
+			if len(v.FinMovements) > 5 {
+				v.FinMovements = v.FinMovements[:5]
+			}
+			if raw, mErr := json.Marshal(allMovements); mErr == nil {
+				v.FinMovementsJSON = template.JS(raw)
+			} else {
+				v.FinMovementsJSON = template.JS("[]")
+			}
+			// ── کدینگ حساب‌ها ──
+			payables := big.NewInt(0)
+			if purchases, pErr := a.store.Entities(ctx, "purchase"); pErr == nil {
+				for _, pu := range purchases {
+					if !strings.Contains(pu.Field("status"), "تسویه") {
+						payables.Add(payables, parseIRRBig(pu.Field("price")))
+					}
+				}
+			}
+			capital := big.NewInt(0)
+			for _, e := range v.AccountingEntries {
+				if isVoided(e) {
+					continue
+				}
+				if strings.Contains(e.Field("credit_account"), "سرمایه") {
+					capital.Add(capital, parseIRRBig(e.Field("price")))
+				}
+				if strings.Contains(e.Field("debit_account"), "سرمایه") {
+					capital.Sub(capital, parseIRRBig(e.Field("price")))
+				}
+			}
+			v.FinShowInactive = q.Get("show_inactive") == "1"
+			customAccounts, _ := a.store.Entities(ctx, "ledger_account")
+			mkRow := func(code, name string, bal *big.Int, linked string) FinAccountRow {
+				return FinAccountRow{Code: store.ToPersianDigits(code), Name: name, BalanceFa: num(bal.String()), System: true, Negative: bal.Sign() < 0, Active: true, Linked: linked}
+			}
+			expenseChart := []struct{ code, name string }{
+				{"5100", "حقوق و دستمزد"}, {"5200", "اجاره"}, {"5300", "قبوض و انرژی"},
+				{"5400", "خرید مواد"}, {"5500", "تعمیر و نگهداری"}, {"5600", "بازاریابی"}, {"5900", "سایر هزینه‌ها"},
+			}
+			var expenseRows []FinAccountRow
+			expenseTotal := big.NewInt(0)
+			for _, ch := range expenseChart {
+				bal := expByAccount[ch.name]
+				if bal == nil {
+					bal = big.NewInt(0)
+				}
+				expenseTotal.Add(expenseTotal, bal)
+				expenseRows = append(expenseRows, mkRow(ch.code, ch.name, bal, ""))
+			}
+			assetTotal := new(big.Int).Add(new(big.Int).Add(cashBal, bankBal), new(big.Int).Add(parseIRRBig(v.Analytics.TotalReceivablesIRR), invValue))
+			v.FinAccountGroups = []FinAccountGroup{
+				{TypeKey: "asset", TypeLabel: "دارایی", Desc: "آنچه کافه دارد: صندوق، بانک، موجودی انبار و طلب‌ها", TotalFa: num(assetTotal.String()), Accounts: []FinAccountRow{
+					mkRow("1000", "صندوق", cashBal, ""), mkRow("1100", "بانک", bankBal, ""),
+					mkRow("1200", "حساب‌های دریافتنی", parseIRRBig(v.Analytics.TotalReceivablesIRR), ""),
+					mkRow("1300", "موجودی انبار", invValue, "متصل به انبار"),
+				}},
+				{TypeKey: "liability", TypeLabel: "بدهی", Desc: "آنچه کافه بدهکار است: وام، بدهی به تأمین‌کننده", TotalFa: num(payables.String()), Accounts: []FinAccountRow{
+					mkRow("2000", "حساب‌های پرداختنی", payables, ""),
+				}},
+				{TypeKey: "equity", TypeLabel: "سرمایه", Desc: "سرمایه‌ی مالک و سود انباشته", TotalFa: num(capital.String()), Accounts: []FinAccountRow{
+					mkRow("3000", "سرمایه", capital, ""),
+				}},
+				{TypeKey: "income", TypeLabel: "درآمد", Desc: "درآمد فروش و سایر درآمدها", TotalFa: num(v.Analytics.TotalSalesIRR), Accounts: []FinAccountRow{
+					mkRow("4000", "درآمد فروش", parseIRRBig(v.Analytics.TotalSalesIRR), ""),
+				}},
+				{TypeKey: "expense", TypeLabel: "هزینه", Desc: "هزینه‌های جاری و بهای تمام‌شده", TotalFa: num(expenseTotal.String()), Accounts: expenseRows},
+			}
+			for _, ca := range customAccounts {
+				active := ca.Field("is_active") != "false"
+				if !active && !v.FinShowInactive {
+					continue
+				}
+				row := FinAccountRow{
+					ID: ca.ID, Code: store.ToPersianDigits(strings.TrimSpace(ca.Field("code"))),
+					Name: ca.Label(), BalanceFa: num("0"), System: false, Active: active,
+				}
+				if mod := strings.TrimSpace(ca.Field("module")); mod == "inventory" {
+					row.Linked = "متصل به انبار"
+				}
+				for gi := range v.FinAccountGroups {
+					if v.FinAccountGroups[gi].TypeKey == strings.TrimSpace(ca.Field("type")) {
+						v.FinAccountGroups[gi].Accounts = append(v.FinAccountGroups[gi].Accounts, row)
+					}
+				}
+			}
+			for gi := range v.FinAccountGroups {
+				v.FinAccountGroups[gi].Count = len(v.FinAccountGroups[gi].Accounts)
+				for _, acc := range v.FinAccountGroups[gi].Accounts {
+					if acc.Active {
+						v.FinAccountCount++
+					}
+				}
+			}
+			// ── سود و زیان بازه‌ای (پیش‌فرض: ماه شمسی جاری) ──
+			v.FinPnlFromISO = isoDateOrEmpty(q.Get("pfrom"))
+			v.FinPnlToISO = isoDateOrEmpty(q.Get("pto"))
+			pnlFrom, pnlToExcl := monthFrom, monthTo
+			if v.FinPnlFromISO == "" {
+				v.FinPnlFromISO = monthFrom.Format("2006-01-02")
+			} else if t, pErr := time.ParseInLocation("2006-01-02", v.FinPnlFromISO, tehranZone()); pErr == nil {
+				pnlFrom = t
+			}
+			if v.FinPnlToISO == "" {
+				v.FinPnlToISO = monthTo.AddDate(0, 0, -1).Format("2006-01-02")
+			}
+			if t, pErr := time.ParseInLocation("2006-01-02", v.FinPnlToISO, tehranZone()); pErr == nil {
+				pnlToExcl = t.AddDate(0, 0, 1)
+			}
+			v.FinPnlFromShamsi = ShamsiFromISO(v.FinPnlFromISO)
+			v.FinPnlToShamsi = ShamsiFromISO(v.FinPnlToISO)
+			v.FinPnlRangeLabel = "از " + jalaliDayMonthOnly(v.FinPnlFromISO) + " تا " + jalaliDayMonthOnly(v.FinPnlToISO)
+			revCash, revCard, revCredit := big.NewInt(0), big.NewInt(0), big.NewInt(0)
+			for _, o := range orders {
+				if strings.ToLower(strings.TrimSpace(o.Field("status"))) != "completed" {
+					continue
+				}
+				ct := createdOf(o)
+				if ct.IsZero() || ct.Before(pnlFrom) || !ct.Before(pnlToExcl) {
+					continue
+				}
+				amt := parseIRRBig(o.PriceIRR())
+				switch o.Field("payment_method") {
+				case "cash":
+					revCash.Add(revCash, amt)
+				case "credit_debtor":
+					revCredit.Add(revCredit, amt)
+				default:
+					revCard.Add(revCard, amt)
+				}
+			}
+			pnlRev := new(big.Int).Add(new(big.Int).Add(revCash, revCard), revCredit)
+			if revCash.Sign() > 0 {
+				v.FinPnlRevLines = append(v.FinPnlRevLines, FinPnlLine{Label: "فروش نقدی", AmountFa: num(revCash.String())})
+			}
+			if revCard.Sign() > 0 {
+				v.FinPnlRevLines = append(v.FinPnlRevLines, FinPnlLine{Label: "فروش کارت‌خوان", AmountFa: num(revCard.String())})
+			}
+			if revCredit.Sign() > 0 {
+				v.FinPnlRevLines = append(v.FinPnlRevLines, FinPnlLine{Label: "فروش نسیه", AmountFa: num(revCredit.String())})
+			}
+			pnlCOGS := cogsInRange(pnlFrom, pnlToExcl)
+			if pnlCOGS.Sign() > 0 {
+				v.FinPnlCOGSLines = append(v.FinPnlCOGSLines, FinPnlLine{Label: "بهای تمام‌شده‌ی مواد مصرفی", AmountFa: num(pnlCOGS.String())})
+			}
+			pnlExpByAccount := map[string]*big.Int{}
+			pnlExp := big.NewInt(0)
+			for _, e := range v.Expenses {
+				if isVoided(e) {
+					continue
+				}
+				ct := createdOf(e)
+				if ct.IsZero() || ct.Before(pnlFrom) || !ct.Before(pnlToExcl) {
+					continue
+				}
+				amt := parseIRRBig(e.Field("price"))
+				pnlExp.Add(pnlExp, amt)
+				_, accName := finExpenseAccount(e.Field("category"))
+				if pnlExpByAccount[accName] == nil {
+					pnlExpByAccount[accName] = big.NewInt(0)
+				}
+				pnlExpByAccount[accName].Add(pnlExpByAccount[accName], amt)
+			}
+			for _, ch := range expenseChart {
+				if bal := pnlExpByAccount[ch.name]; bal != nil && bal.Sign() > 0 {
+					v.FinPnlExpLines = append(v.FinPnlExpLines, FinPnlLine{Label: ch.name, AmountFa: num(bal.String())})
+				}
+			}
+			pnlGross := new(big.Int).Sub(pnlRev, pnlCOGS)
+			pnlNet := new(big.Int).Sub(pnlGross, pnlExp)
+			v.FinPnlRevFa = num(pnlRev.String())
+			v.FinPnlCOGSFa = num(pnlCOGS.String())
+			v.FinPnlExpFa = num(pnlExp.String())
+			v.FinPnlGrossFa = num(pnlGross.String())
+			v.FinPnlNetFa = num(pnlNet.String())
 		}
 	case "reports":
 		v.Entities, _ = a.store.Entities(ctx, "order")
@@ -4031,11 +5747,40 @@ func (a *Application) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	message := "Sync cycle finished. همگام‌سازی به پایان رسید."
-	if err := a.client.Refresh(ctx, a.store); err != nil {
-		message = "Sync did not finish: " + err.Error() + ". داده‌های محلی شما کاملاً امن و در دسترس هستند."
+	message := "همگام‌سازی به پایان رسید؛ داده‌های دستگاه و سرور به‌روز شدند."
+	err := error(nil)
+	if a.engine != nil {
+		err = a.engine.SyncNow(ctx)
+	} else {
+		err = a.client.Refresh(ctx, a.store)
+	}
+	if err != nil {
+		message = "همگام‌سازی کامل نشد (" + err.Error() + ") — نگران نباشید: همهٔ سفارش‌ها و پرداخت‌ها روی همین دستگاه ذخیره‌اند و با برگشتن اینترنت خودکار ارسال می‌شوند."
 	}
 	a.render(w, r, message)
+}
+
+// SyncStatus اسنپ‌شات وضعیت سینک برای چیپ هدر (پول HTMX هر چند ثانیه).
+// در حالت مستقل، «آفلاین آماده» برمی‌گرداند تا UI تفاوت «ذخیرهٔ محلی
+// موفق» و «همگام با سرور» را صادقانه نشان بدهد.
+func (a *Application) SyncStatus(ctx context.Context) syncengine.Status {
+	if a.engine == nil {
+		return syncengine.Status{State: "standalone"}
+	}
+	return a.engine.Status(ctx)
+}
+
+// syncStatusFragment فقط همان چیپ کوچک هدر را رندر می‌کند تا پول دوره‌ای
+// مجبور نباشد کل صفحه را دوباره بکشد.
+func (a *Application) syncStatusFragment(w http.ResponseWriter, r *http.Request) {
+	st := a.SyncStatus(r.Context())
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var buf bytes.Buffer
+	if err := a.templates.ExecuteTemplate(&buf, "syncChip", st); err != nil {
+		http.Error(w, "template render failed", 500)
+		return
+	}
+	_, _ = w.Write(buf.Bytes())
 }
 
 func (a *Application) queueCatalog(w http.ResponseWriter, r *http.Request) {
@@ -4115,14 +5860,19 @@ func (a *Application) showOutbox(w http.ResponseWriter, r *http.Request, message
 }
 
 func (a *Application) navigatePage(w http.ResponseWriter, r *http.Request, page, message string) {
-	if r.Header.Get("HX-Request") != "true" {
-		http.Redirect(w, r, "/?page="+page, http.StatusSeeOther)
-		return
-	}
+	// return_tab فرم (مثلاً تب‌های «حساب و گزارش») بعد از ذخیره حفظ می‌شود تا
+	// کاربر روی همان تب بماند، نه اینکه به نمای کلی برگردد.
 	q := r.URL.Query()
+	if tab := strings.TrimSpace(r.FormValue("return_tab")); tab != "" {
+		q.Set("tab", tab)
+	}
 	q.Set("page", page)
 	r.URL.RawQuery = q.Encode()
-	w.Header().Set("HX-Push-Url", "/?page="+page)
+	if r.Header.Get("HX-Request") != "true" {
+		http.Redirect(w, r, "/?"+q.Encode(), http.StatusSeeOther)
+		return
+	}
+	w.Header().Set("HX-Push-Url", "/?"+q.Encode())
 	a.render(w, r, message)
 }
 
@@ -4146,7 +5896,7 @@ func kindToPage(kind string) string {
 		return "customers"
 	case "debtor":
 		return "debtors"
-	case "expense", "accounting_entry", "shift_close":
+	case "expense", "accounting_entry", "shift_close", "ledger_account":
 		return "finance"
 	case "staff", "job_posting":
 		return "staff"
@@ -4157,14 +5907,6 @@ func kindToPage(kind string) string {
 	default:
 		return "home"
 	}
-}
-
-func (a *Application) handleSeedDemo(w http.ResponseWriter, r *http.Request) {
-	if err := a.store.SeedIranianCafeData(r.Context()); err != nil {
-		a.navigatePage(w, r, "home", "خطا در بارگذاری داده‌های نمونه: "+err.Error())
-		return
-	}
-	a.navigatePage(w, r, "home", "داده‌های نمونه منوی کافه (منو، انبار، رسپی، میزها، مشتریان، پرسنل و سفارش‌ها) با موفقیت بارگذاری شد.")
 }
 
 // handleTablesBulk: ساخت گروهی میزها — همان ورودی‌های bulk-create-dialog وب
@@ -4216,7 +5958,7 @@ func (a *Application) handleLocalSave(w http.ResponseWriter, r *http.Request) {
 	}
 	fields := map[string]any{}
 	for k, vals := range r.Form {
-		if k == "csrf" || k == "kind" || k == "id" || k == "return_page" {
+		if k == "csrf" || k == "kind" || k == "id" || k == "return_page" || k == "return_tab" {
 			continue
 		}
 		// ردیف‌های پویای تنوع/دستور تهیهٔ فرم محصول جداگانه پردازش می‌شوند.
@@ -4303,11 +6045,14 @@ func (a *Application) handleLocalSave(w http.ResponseWriter, r *http.Request) {
 			if iid == "" || i >= len(qtys) {
 				continue
 			}
-			qtyStr := strings.ReplaceAll(normalizeNumInput(qtys[i]), ",", "")
+			qtyStr := strings.NewReplacer(",", "", "٬", "", " ", "").Replace(normalizeNumInput(qtys[i]))
 			qty, qErr := strconv.ParseFloat(qtyStr, 64)
 			if qErr != nil || qty <= 0 {
 				continue
 			}
+			// مقدار مصرف همیشه به شکل عددی تمیز ذخیره می‌شود (نه متن ورودی
+			// با جداکنندهٔ هزارگان/ارقام فارسی) تا کسر خودکار انبار درست کار کند.
+			qtyStored := strconv.FormatFloat(qty, 'f', -1, 64)
 			ingEnt, iErr := a.store.Entity(r.Context(), "ingredient", iid)
 			if iErr != nil {
 				continue
@@ -4315,7 +6060,7 @@ func (a *Application) handleLocalSave(w http.ResponseWriter, r *http.Request) {
 			productRecipeItems = append(productRecipeItems, map[string]any{
 				"ingredient_id":   iid,
 				"ingredient_name": ingEnt.Label(),
-				"quantity":        strings.TrimSpace(qtys[i]),
+				"quantity":        qtyStored,
 				"unit":            ingEnt.Field("base_unit"),
 			})
 		}
@@ -4853,12 +6598,12 @@ func (a *Application) handleClubGroup(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.Form.Get("group_id"))
 	name := strings.TrimSpace(r.Form.Get("name"))
 	if len([]rune(name)) < 2 {
-		a.navigatePage(w, r, "club-group-form", "نام گروه باید حداقل ۲ نویسه باشد.")
+		a.clubGroupFormError(w, r, "نام گروه باید حداقل ۲ نویسه باشد.")
 		return
 	}
 	if day := strings.TrimSpace(r.Form.Get("billing_day")); day != "" {
 		if n, nErr := strconv.Atoi(normalizeDigits(day)); nErr != nil || n < 1 || n > 31 {
-			a.navigatePage(w, r, "club-group-form", "روز صورتحساب باید بین ۱ تا ۳۱ باشد.")
+			a.clubGroupFormError(w, r, "روز صورتحساب باید بین ۱ تا ۳۱ باشد.")
 			return
 		}
 	}
@@ -4872,21 +6617,46 @@ func (a *Application) handleClubGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	savedID, err := a.store.SaveLocalRecord(ctx, "customer_group", id, fields)
 	if err != nil {
-		a.navigatePage(w, r, "club-group-form", err.Error())
+		a.clubGroupFormError(w, r, err.Error())
 		return
 	}
 	msg := "گروه مشتریان ساخته شد."
 	if id != "" {
 		msg = "گروه مشتریان ویرایش شد."
 	}
+	// بعد از ذخیره در همان صفحه‌ای می‌مانیم که دیالوگ از آن باز شده است
+	// (فهرست گروه‌ها یا جزئیات گروه یا فهرست مشتریان)؛ دیگر پرش اجباری به
+	// صفحهٔ جزئیات نداریم.
+	target := "club-groups"
+	switch strings.TrimSpace(r.Form.Get("return_page")) {
+	case "customers":
+		target = "customers"
+	case "club-group":
+		target = "club-group"
+	}
+	query := url.Values{}
+	if target == "club-group" {
+		query.Set("id", savedID)
+	}
+	if extra, pErr := url.ParseQuery(strings.TrimSpace(r.Form.Get("return_query"))); pErr == nil {
+		for k, vals := range extra {
+			if k == "page" || k == "id" || k == "dlg" || len(vals) == 0 {
+				continue
+			}
+			query.Set(k, vals[0])
+		}
+	}
 	if r.Header.Get("HX-Request") == "true" {
-		q := r.URL.Query()
-		q.Set("id", savedID)
-		r.URL.RawQuery = q.Encode()
-		a.navigatePage(w, r, "club-group", msg)
+		// navigatePage خودش page را ست می‌کند؛ فقط فیلترها/شناسه را نگه می‌داریم.
+		r.URL.RawQuery = query.Encode()
+		a.navigatePage(w, r, target, msg)
 		return
 	}
-	http.Redirect(w, r, "/?page=club-group&id="+savedID, http.StatusSeeOther)
+	dest := "/?page=" + target
+	if encoded := query.Encode(); encoded != "" {
+		dest += "&" + encoded
+	}
+	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
 // handleClubGroupToggle فعال/توقف قرارداد گروه.
@@ -5174,10 +6944,17 @@ func (a *Application) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		if iErr != nil {
 			continue
 		}
+		// مقدار مصرف همیشه عددی تمیز ذخیره می‌شود تا کسر خودکار انبار
+		// (که parseFloat روی همین رشته انجام می‌شود) درست کار کند.
+		qtyStr := strings.NewReplacer(",", "", "٬", "", " ", "").Replace(normalizeNumInput(qtys[i]))
+		qty, qErr := strconv.ParseFloat(qtyStr, 64)
+		if qErr != nil || qty <= 0 {
+			continue
+		}
 		items = append(items, map[string]any{
 			"ingredient_id":   iid,
 			"ingredient_name": ingEnt.Label(),
-			"quantity":        strings.TrimSpace(qtys[i]),
+			"quantity":        strconv.FormatFloat(qty, 'f', -1, 64),
 			"unit":            ingEnt.Field("base_unit"),
 		})
 	}
@@ -5533,12 +7310,230 @@ func (a *Application) handlePrintTest(w http.ResponseWriter, r *http.Request) {
 	a.navigatePage(w, r, retPage, message)
 }
 
+// handleDebtorPay ثبت پرداخت (کامل یا اقساطی) روی حساب دفتری؛ همان دکمه‌های
+// «تسویه کامل» و «ثبت پرداخت» نسخه وب. مبلغ تومانی فرم به ریال تبدیل می‌شود و
+// پرداخت در دفتر وصولی ثبت می‌گردد.
 func (a *Application) handleDebtorPay(w http.ResponseWriter, r *http.Request) {
-	if err := a.store.SettleDebtorPayment(r.Context(), r.Form.Get("debtor_id"), r.Form.Get("amount_irr")); err != nil {
+	debtorID := strings.TrimSpace(r.Form.Get("debtor_id"))
+	amount := strings.TrimSpace(r.Form.Get("amount_irr"))
+	full := r.Form.Get("pay_mode") == "full" || r.Form.Get("full") == "1"
+	if full && debtorID != "" {
+		if ent, err := a.store.Entity(r.Context(), "debtor", debtorID); err == nil {
+			amount = strings.TrimSpace(ent.Field("remaining"))
+		}
+	}
+	if amount == "" {
+		if irr, ok := tomanFormToIRR(r.Form.Get("amount_toman")); ok {
+			amount = irr
+		}
+	}
+	if amount == "" || parseIRRBig(amount).Sign() <= 0 {
+		a.navigatePage(w, r, "debtors", "مبلغ پرداخت باید بزرگ‌تر از صفر باشد.")
+		return
+	}
+	if err := a.store.SettleDebtorPaymentWithNote(r.Context(), debtorID, amount, r.Form.Get("note")); err != nil {
 		a.navigatePage(w, r, "debtors", err.Error())
 		return
 	}
 	a.navigatePage(w, r, "debtors", "مبلغ پرداختی با موفقیت از مانده بدهی کسر گردید.")
+}
+
+// handleDebtorCreate ثبت حساب دفتری جدید (دکمه «ثبت بدهی دستی (جدید)»):
+// یا با اقلام محصول انتخاب‌شده از فهرست محصولات، یا با مبلغ کل بدهی.
+func (a *Application) handleDebtorCreate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	accountKind := strings.TrimSpace(r.Form.Get("account_kind"))
+	if accountKind != "company" {
+		accountKind = "personal"
+	}
+	name := strings.TrimSpace(r.Form.Get("full_name"))
+	groupID := strings.TrimSpace(r.Form.Get("group_id"))
+	if accountKind == "company" {
+		if groupID == "" {
+			a.navigatePage(w, r, "debtors", "برای حساب شرکتی، گروه یا شرکت را انتخاب کنید.")
+			return
+		}
+		g, gErr := a.store.Entity(ctx, "customer_group", groupID)
+		if gErr != nil {
+			a.navigatePage(w, r, "debtors", "گروه انتخاب‌شده یافت نشد.")
+			return
+		}
+		if name == "" {
+			name = g.Label()
+		}
+	} else {
+		groupID = ""
+	}
+	if len([]rune(name)) < 2 {
+		a.navigatePage(w, r, "debtors", "نام مشتری باید حداقل ۲ نویسه باشد.")
+		return
+	}
+	phone := normalizeDigits(strings.TrimSpace(r.Form.Get("phone")))
+	if phone != "" && (len(phone) < 10 || len(phone) > 15) {
+		a.navigatePage(w, r, "debtors", "شماره موبایل معتبر نیست.")
+		return
+	}
+	if accountKind == "personal" && phone == "" {
+		a.navigatePage(w, r, "debtors", "شماره موبایل مشتری الزامی است.")
+		return
+	}
+
+	mode := strings.TrimSpace(r.Form.Get("mode"))
+	if mode != "amount" {
+		mode = "items"
+	}
+	total := big.NewInt(0)
+	items := []map[string]any{}
+	if mode == "amount" {
+		irr, ok := tomanFormToIRR(r.Form.Get("total_toman"))
+		if !ok {
+			a.navigatePage(w, r, "debtors", "مبلغ کل بدهی را به تومان وارد کنید.")
+			return
+		}
+		if _, ok := total.SetString(irr, 10); !ok {
+			a.navigatePage(w, r, "debtors", "مبلغ کل بدهی معتبر نیست.")
+			return
+		}
+	} else {
+		titles := r.Form["item_title"]
+		qtys := r.Form["item_qty"]
+		prices := r.Form["item_price"]
+		ids := r.Form["item_product_id"]
+		for i, rawTitle := range titles {
+			title := strings.TrimSpace(rawTitle)
+			if title == "" {
+				continue
+			}
+			qty := 1
+			if i < len(qtys) {
+				if n, qErr := strconv.Atoi(normalizeDigits(strings.TrimSpace(qtys[i]))); qErr == nil && n > 0 && n <= 9999 {
+					qty = n
+				}
+			}
+			unit := big.NewInt(0)
+			if i < len(prices) {
+				if irr, ok := tomanFormToIRR(prices[i]); ok {
+					if _, ok := unit.SetString(irr, 10); !ok {
+						unit = big.NewInt(0)
+					}
+				}
+			}
+			if unit.Sign() <= 0 {
+				a.navigatePage(w, r, "debtors", "برای هر آیتم، قیمت واحد را وارد کنید.")
+				return
+			}
+			lineTotal := new(big.Int).Mul(unit, big.NewInt(int64(qty)))
+			productID := ""
+			if i < len(ids) {
+				productID = strings.TrimSpace(ids[i])
+			}
+			items = append(items, map[string]any{
+				"product_id":     productID,
+				"title":          title,
+				"qty":            qty,
+				"unit_price_irr": unit.String(),
+				"line_total_irr": lineTotal.String(),
+			})
+			total.Add(total, lineTotal)
+		}
+		if len(items) == 0 {
+			a.navigatePage(w, r, "debtors", "حداقل یک آیتم از فهرست محصولات اضافه کنید یا حالت «فقط مبلغ کل بدهی» را انتخاب کنید.")
+			return
+		}
+	}
+	if total.Sign() <= 0 {
+		a.navigatePage(w, r, "debtors", "مبلغ بدهی باید بزرگ‌تر از صفر باشد.")
+		return
+	}
+
+	dueISO := isoDateOrEmpty(r.Form.Get("due_at"))
+	note := strings.TrimSpace(r.Form.Get("note"))
+	fields := map[string]any{
+		"full_name":      name,
+		"phone":          phone,
+		"account_type":   accountKind,
+		"total":          total.String(),
+		"paid":           "0",
+		"remaining":      total.String(),
+		"currency":       "IRR",
+		"status":         "open",
+		"source":         "manual",
+		"entry_mode":     mode,
+		"description":    note,
+		"note":           note,
+		"order_id":       "",
+		"group_id":       groupID,
+		"due_at":         dueISO,
+		"items_count":    len(items),
+	}
+	if mode == "items" {
+		fields["items"] = items
+	}
+	if _, sErr := a.store.SaveLocalRecord(ctx, "debtor", "", fields); sErr != nil {
+		a.navigatePage(w, r, "debtors", "ثبت بدهی انجام نشد: "+sErr.Error())
+		return
+	}
+	a.navigatePage(w, r, "debtors", "حساب بدهی «"+name+"» با مبلغ "+tomanFaWeb(total.String())+" ثبت شد.")
+}
+// handleDebtorsExport خروجی CSV فهرست بدهکاران (دکمه «خروجی CSV» نسخه وب).
+// مبالغ به تومان و بدون جداکننده نوشته می‌شوند تا در اکسل عدد بمانند.
+func (a *Application) handleDebtorsExport(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	debtors, err := a.store.Entities(ctx, "debtor")
+	if err != nil {
+		http.Error(w, "cannot read debtors", http.StatusInternalServerError)
+		return
+	}
+	groupLabels := map[string]string{}
+	if groups, gErr := a.store.Entities(ctx, "customer_group"); gErr == nil {
+		for _, g := range groups {
+			groupLabels[g.ID] = g.Label()
+		}
+	}
+	now := time.Now()
+	sort.SliceStable(debtors, func(i, j int) bool { return debtors[i].Label() < debtors[j].Label() })
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=menuvex-debtors.csv")
+	w.Header().Set("Cache-Control", "no-store")
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"نام طرف حساب", "موبایل", "گروه", "نوع حساب", "منبع ثبت", "مبلغ کل (تومان)", "پرداخت‌شده (تومان)", "مانده بدهی (تومان)", "سررسید", "وضعیت", "توضیحات"})
+	for _, d := range debtors {
+		remaining := parseIRRBig(d.Field("remaining"))
+		_, dueLabel, overdue := debtorDueInfo(d.Field("due_at"), remaining, now)
+		_, statusLabel, _ := debtorStatusOf(remaining, d.Field("status"), overdue)
+		account := "مشتری شخصی"
+		if strings.EqualFold(strings.TrimSpace(d.Field("account_type")), "company") {
+			account = "حساب شرکتی / گروه"
+		}
+		source := "ثبت دستی"
+		if strings.TrimSpace(d.Field("order_id")) != "" {
+			source = "سفارش صندوق"
+		}
+		note := strings.TrimSpace(d.Field("note"))
+		if note == "" {
+			note = strings.TrimSpace(d.Field("description"))
+		}
+		totalToman := parseIRRBig(d.Field("total"))
+		totalToman.Quo(totalToman, big.NewInt(10))
+		paidToman := parseIRRBig(d.Field("paid"))
+		paidToman.Quo(paidToman, big.NewInt(10))
+		remToman := new(big.Int).Set(remaining)
+		remToman.Quo(remToman, big.NewInt(10))
+		_ = cw.Write([]string{
+			d.Label(),
+			store.ToPersianDigits(strings.TrimSpace(d.Field("phone"))),
+			groupLabels[strings.TrimSpace(d.Field("group_id"))],
+			account,
+			source,
+			totalToman.String(),
+			paidToman.String(),
+			remToman.String(),
+			dueLabel,
+			statusLabel,
+			note,
+		})
+	}
+	cw.Flush()
 }
 
 func (a *Application) handleTaskToggle(w http.ResponseWriter, r *http.Request) {
@@ -5680,6 +7675,149 @@ func (a *Application) handleProductsImport(w http.ResponseWriter, r *http.Reques
 		created++
 	}
 	a.navigatePage(w, r, "products", "افزودن گروهی انجام شد: "+store.FormatPersianNumber(strconv.Itoa(created))+" محصول ثبت و "+store.FormatPersianNumber(strconv.Itoa(failed))+" ردیف رد شد.")
+}
+
+// posStockJSON نقشهٔ موجودی قابل تهیه را برای دیالوگ «چه چیزی کم است؟» به
+// JSON تبدیل می‌کند؛ فقط محصول‌هایی که کمبود یا دلیل ناموجودی دارند.
+func posStockJSON(stock map[string]store.ProductPortion) string {
+	out := map[string]store.ProductPortion{}
+	for id, p := range stock {
+		if len(p.Shortages) == 0 && strings.TrimSpace(p.Missing) == "" {
+			continue
+		}
+		out[id] = p
+	}
+	if len(out) == 0 {
+		return "{}"
+	}
+	blob, mErr := json.Marshal(out)
+	if mErr != nil {
+		return "{}"
+	}
+	return string(blob)
+}
+
+// handleProductsBulk ویرایش گروهی محصولات را از JSON ارسالی صفحهٔ محصولات
+// اعمال می‌کند. فقط فیلدهایی که کاربر واقعاً تغییر داده در payload می‌آید،
+// بنابراین محصولی که دست نخورده باشد بازنویسی نمی‌شود.
+func (a *Application) handleProductsBulk(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		a.navigatePage(w, r, "products", "فرم نامعتبر است.")
+		return
+	}
+	raw := strings.TrimSpace(r.Form.Get("payload"))
+	if raw == "" {
+		a.navigatePage(w, r, "products", "هیچ تغییری برای ذخیره انتخاب نشده است.")
+		return
+	}
+	var items []struct {
+		ID        string  `json:"id"`
+		Price     *string `json:"price"`
+		Stock     *string `json:"stock"`
+		Available *bool   `json:"available"`
+		Featured  *bool   `json:"featured"`
+	}
+	if err := json.Unmarshal([]byte(raw), &items); err != nil {
+		a.navigatePage(w, r, "products", "دادهٔ ویرایش گروهی نامعتبر است.")
+		return
+	}
+	patches := make([]store.ProductBulkPatch, 0, len(items))
+	for _, it := range items {
+		patch := store.ProductBulkPatch{ID: it.ID, Available: it.Available, Featured: it.Featured}
+		if it.Price != nil {
+			value := strings.TrimSpace(*it.Price)
+			patch.Price = &value
+		}
+		if it.Stock != nil {
+			value := strings.TrimSpace(*it.Stock)
+			patch.Stock = &value
+		}
+		patches = append(patches, patch)
+	}
+	saved, err := a.store.BulkUpdateProducts(r.Context(), patches)
+	if err != nil {
+		a.navigatePage(w, r, "products", "ویرایش گروهی ناموفق بود: "+err.Error())
+		return
+	}
+	msg := "ویرایش گروهی انجام شد: " + store.FormatPersianNumber(strconv.Itoa(saved)) + " محصول به‌روزرسانی شد."
+	if saved == 0 {
+		msg = "تغییری برای ذخیره پیدا نشد؛ حداقل یک فیلد را عوض کنید."
+	}
+	a.navigatePage(w, r, "products", msg)
+}
+
+// handleCategoryAvailability همهٔ محصولات یک دسته را یک‌جا موجود یا ناموجود
+// می‌کند (درخواست کاربر: «یک دسته‌بندی و آیتم‌هایش را ناموجود کن»).
+func (a *Application) handleCategoryAvailability(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		a.navigatePage(w, r, "categories", "فرم نامعتبر است.")
+		return
+	}
+	categoryID := strings.TrimSpace(r.Form.Get("category_id"))
+	available := strings.TrimSpace(r.Form.Get("available")) != "false"
+	label := "این دسته"
+	if cat, catErr := a.store.Entity(r.Context(), "category", categoryID); catErr == nil {
+		label = cat.Label()
+	}
+	count, err := a.store.SetCategoryAvailability(r.Context(), categoryID, available)
+	if err != nil {
+		a.navigatePage(w, r, "categories", "تغییر وضعیت دسته ناموفق بود: "+err.Error())
+		return
+	}
+	countFa := store.FormatPersianNumber(strconv.Itoa(count))
+	var msg string
+	switch {
+	case !available && count > 0:
+		msg = "دستهٔ «" + label + "» ناموجود شد؛ " + countFa + " محصول از منوی صندوق خارج شد."
+	case !available:
+		msg = "محصول‌های دستهٔ «" + label + "» از قبل ناموجود بودند."
+	case count > 0:
+		msg = "دستهٔ «" + label + "» موجود شد؛ " + countFa + " محصول دوباره قابل فروش است."
+	default:
+		msg = "محصول‌های دستهٔ «" + label + "» از قبل موجود بودند."
+	}
+	a.navigatePage(w, r, "categories", msg)
+}
+
+// handleCategoryDiscount تخفیف درصدی را روی همهٔ محصولات یک دسته اعمال
+// می‌کند؛ درصد صفر تخفیف را برمی‌دارد و قیمت اصلی را برمی‌گرداند.
+func (a *Application) handleCategoryDiscount(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		a.navigatePage(w, r, "categories", "فرم نامعتبر است.")
+		return
+	}
+	categoryID := strings.TrimSpace(r.Form.Get("category_id"))
+	percent := 0
+	rawPercent := normalizeNumInput(r.Form.Get("percent"))
+	rawPercent = strings.NewReplacer(",", "", "٬", "", " ", "").Replace(rawPercent)
+	if strings.TrimSpace(rawPercent) != "" {
+		value, convErr := strconv.Atoi(rawPercent)
+		if convErr != nil || value < 0 || value > 90 {
+			a.navigatePage(w, r, "categories", "درصد تخفیف باید عددی بین ۰ تا ۹۰ باشد.")
+			return
+		}
+		percent = value
+	}
+	label := "این دسته"
+	if cat, catErr := a.store.Entity(r.Context(), "category", categoryID); catErr == nil {
+		label = cat.Label()
+	}
+	count, err := a.store.ApplyCategoryDiscount(r.Context(), categoryID, percent)
+	if err != nil {
+		a.navigatePage(w, r, "categories", "اعمال تخفیف ناموفق بود: "+err.Error())
+		return
+	}
+	countFa := store.FormatPersianNumber(strconv.Itoa(count))
+	var msg string
+	switch {
+	case count == 0:
+		msg = "هیچ محصول قیمت‌داری در دستهٔ «" + label + "» پیدا نشد."
+	case percent == 0:
+		msg = "تخفیف دستهٔ «" + label + "» برداشته شد؛ قیمت " + countFa + " محصول به حالت اصلی برگشت."
+	default:
+		msg = "تخفیف " + store.FormatPersianNumber(strconv.Itoa(percent)) + "٪ روی " + countFa + " محصول دستهٔ «" + label + "» اعمال شد."
+	}
+	a.navigatePage(w, r, "categories", msg)
 }
 
 // saveUploadedImage تصویر آپلودشده کاربر را با نام تصادفی امن در پوشه داده محلی ذخیره می‌کند.

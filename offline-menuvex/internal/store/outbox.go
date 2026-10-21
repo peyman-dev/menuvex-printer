@@ -25,6 +25,9 @@ type Operation struct {
 	CreatedAt   string          `json:"client_created_at"`
 	State       string          `json:"-"`
 	Result      json.RawMessage `json:"-"`
+	Attempts    int             `json:"-"`
+	NextRetryAt string          `json:"-"`
+	LastError   string          `json:"-"`
 }
 
 type Result struct {
@@ -201,6 +204,105 @@ func (s *Store) QueueCatalog(ctx context.Context, kind, id, action string, paylo
 	return id, nil
 }
 
+// retryBackoff بک‌آف پلکانی برای تلاش‌های مجدد: ۳۰ث، ۱د، ۲د، ۵د و سقف ۱۰د.
+// جیتر در سطح چرخهٔ موتور سینک اعمال می‌شود تا بازگشت هم‌زمان صدها دستگاه
+// بعد از قطعی سراسری، سرور را زیر موج درخواست نبرد.
+func retryBackoff(attempts int) time.Duration {
+	switch {
+	case attempts <= 1:
+		return 30 * time.Second
+	case attempts == 2:
+		return time.Minute
+	case attempts == 3:
+		return 2 * time.Minute
+	case attempts == 4:
+		return 5 * time.Minute
+	default:
+		return 10 * time.Minute
+	}
+}
+
+func resultErrorText(r Result) string {
+	var e struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(r.Error, &e) == nil && (e.Code != "" || e.Message != "") {
+		if e.Code != "" && e.Message != "" {
+			return e.Code + ": " + e.Message
+		}
+		return e.Code + e.Message
+	}
+	return ""
+}
+
+// NotePushFailure وقتی کل درخواست push شکست خورد (مثلاً پاسخ HTTP گم شد)
+// صدا زده می‌شود: برای عملیات‌های در صف یک تلاش و زمان پیشنهادی تلاش
+// بعدی ثبت می‌شود — هرگز حذف نمی‌شوند و با همان شناسه تکرار می‌شوند.
+// این زمان فقط متادیتاست؛ فاصله‌گذاری واقعی تلاش‌های خودکار را بک‌آف
+// سطح چرخهٔ موتور سینک انجام می‌دهد تا Refresh صریح همیشه فوری باشد.
+func (s *Store) NotePushFailure(ctx context.Context, errText string) error {
+	return s.withTxServer(ctx, func(st *persistedDB) error {
+		now := time.Now().UTC()
+		for i, op := range st.Outbox {
+			if op.State != "queued" && op.State != "retry" && op.State != "not_processed" {
+				continue
+			}
+			if op.NextRetryAt != "" {
+				if t, perr := time.Parse(time.RFC3339, op.NextRetryAt); perr == nil && t.After(now) {
+					continue
+				}
+			}
+			op.Attempts++
+			op.NextRetryAt = now.Add(retryBackoff(op.Attempts)).Format(time.RFC3339)
+			op.LastError = errText
+			st.Outbox[i] = op
+		}
+		st.Meta["last_sync_error"] = errText
+		st.Meta["last_sync_error_at"] = now.Format(time.RFC3339)
+		return nil
+	})
+}
+
+// queueOpTx یک عملیات سینک را داخل همان تراکنشِ تغییر کسب‌وکاری صف می‌کند
+// (Transactional Outbox): کرش بین «ثبت سفارش» و «ارسال به سرور» هرگز
+// عملیات را از دست نمی‌دهد. فقط وقتی دستگاه به سروری متصل شده (scope)
+// صف ساخته می‌شود؛ حالت کاملاً مستقل آفلاین صف بی‌نهایت تولید نمی‌کند.
+func queueOpTx(st *persistedDB, entityType, entityID, action string, payload any) error {
+	if strings.TrimSpace(st.Meta["scope"]) == "" {
+		return nil
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	opID, err := UUID()
+	if err != nil {
+		return err
+	}
+	st.NextOutboxSeq++
+	st.Outbox = append(st.Outbox, storedOperation{
+		ID:         opID,
+		Sequence:   st.NextOutboxSeq,
+		EntityType: entityType,
+		EntityID:   entityID,
+		Action:     action,
+		Payload:    raw,
+		CreatedAt:  time.Now().UTC().Format(time.RFC3339Nano),
+		State:      "queued",
+		Result:     json.RawMessage(`{}`),
+	})
+	return nil
+}
+
+// QueueOperation نسخهٔ عمومی صف‌کردن عملیات برای مسیرهایی است که تراکنش
+// دامنه‌ای آماده ندارند؛ ترجیح همیشه با queueOpTx داخل همان تراکنش است.
+func (s *Store) QueueOperation(ctx context.Context, entityType, entityID, action string, payload map[string]any) error {
+	return s.withTx(ctx, func(st *persistedDB) error {
+		return queueOpTx(st, entityType, entityID, action, payload)
+	})
+}
+
 func (op Operation) HasResult() bool {
 	s := strings.TrimSpace(string(op.Result))
 	return s != "" && s != "{}" && s != "null"
@@ -215,6 +317,13 @@ func (s *Store) Outbox(ctx context.Context, pending bool) ([]Operation, error) {
 	ops := []Operation{}
 	for _, op := range s.state.Outbox {
 		if pending {
+			// قرارداد مهم: «در انتظار» فقط یعنی وضعیت عملیات پایانه‌ای نشده
+			// است. استور عمداً هیچ عملیاتی را به‌خاطر پنجرهٔ زمانی از
+			// Refresh پنهان نمی‌کند — عملیاتی که پاسخش گم شده باید فوراً و
+			// با همان شناسه بازپخش شود (سرور با دفتر idempotency جلوی
+			// اعمال دوباره را می‌گیرد). فاصله‌گذاری تلاش‌های خودکار وظیفهٔ
+			// موتور سینک است (بک‌آف سطح چرخه)، نه این لایه؛ NextRetryAt
+			// اینجا فقط متادیتای ثبت‌شده برای مشاهده‌پذیری است.
 			if op.State != "queued" && op.State != "retry" && op.State != "not_processed" {
 				continue
 			}
@@ -239,6 +348,9 @@ func (s *Store) Outbox(ctx context.Context, pending bool) ([]Operation, error) {
 			CreatedAt:   op.CreatedAt,
 			State:       op.State,
 			Result:      res,
+			Attempts:    op.Attempts,
+			NextRetryAt: op.NextRetryAt,
+			LastError:   op.LastError,
 		})
 	}
 	if pending {
@@ -296,6 +408,22 @@ func (s *Store) SaveResults(ctx context.Context, sent []Operation, results []Res
 			}
 			cur.State = r.Status
 			cur.Result = raw
+			switch r.Status {
+			case "retry", "not_processed":
+				// شکست موقت: عملیات با همان شناسه در چرخهٔ بعد دوباره
+				// فرستاده می‌شود؛ تلاش و زمان پیشنهادی تلاش بعدی برای
+				// مشاهده‌پذیری ثبت می‌شود و سرور با دفتر idempotency
+				// خودش جلوی اعمال دوباره را می‌گیرد.
+				cur.Attempts++
+				cur.NextRetryAt = time.Now().UTC().Add(retryBackoff(cur.Attempts)).Format(time.RFC3339)
+				cur.LastError = resultErrorText(r)
+			case "applied":
+				cur.NextRetryAt = ""
+				cur.LastError = ""
+			default: // conflict / rejected / skipped: پایانه‌ای و قابل مشاهده
+				cur.NextRetryAt = ""
+				cur.LastError = resultErrorText(r)
+			}
 			st.Outbox[idx] = cur
 		}
 		return nil

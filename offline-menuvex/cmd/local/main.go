@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,7 +16,6 @@ func main() {
 		log.Fatal(err)
 	}
 	defer app.Close()
-	_ = app.SeedIfEmpty(context.Background())
 
 	addr := os.Getenv("COFFISH_DESKTOP_ADDR")
 	if addr == "" {

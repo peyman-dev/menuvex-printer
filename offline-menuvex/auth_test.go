@@ -2,25 +2,34 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
-// TestLicenseAndLoginGate چرخه کامل: بدون لایسنس قفل، فعال‌سازی Dummy، ورود مدیر، انقضا = قفل با شماره پشتیبانی.
+// TestLicenseAndLoginGate verifies that the old local HMAC/Dummy activation path
+// is gone and that a fresh install fails closed until a real backend response is
+// received. The test intentionally does not contact production.
 func TestLicenseAndLoginGate(t *testing.T) {
+	for _, key := range []string{"COFFISH_OFFLINE_LICENSES_ENABLED", "COFFISH_LICENSE_PUBLIC_KEYS", "COFFISH_LICENSE_API_BASE_URL", "API_BASE_URL"} {
+		t.Setenv(key, "")
+	}
 	dir := t.TempDir()
 	a, err := New(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer a.Close()
+	if _, err := os.Stat(filepath.Join(dir, ".license-secret")); !os.IsNotExist(err) {
+		t.Fatal("legacy HMAC license secret must not be created")
+	}
 	handler := a.Handler()
-	do := func(method, path string, form url.Values, cookie string) (int, string, string) {
+	do := func(method, path string, form url.Values) (int, string) {
 		var body *strings.Reader
 		if form != nil {
 			body = strings.NewReader(form.Encode())
@@ -31,114 +40,28 @@ func TestLicenseAndLoginGate(t *testing.T) {
 		if form != nil {
 			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		}
-		if cookie != "" {
-			r.Header.Set("Cookie", cookie)
-		}
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
-		return w.Code, w.Body.String(), w.Header().Get("Set-Cookie")
+		return w.Code, w.Body.String()
 	}
-	// ۱) بدون لایسنس: صفحه اصلی به فعال‌سازی می‌رود.
-	if code, _, _ := do("GET", "/", nil, ""); code != 200 && code != 303 && code != 302 {
-		t.Fatalf("no-license home -> %d", code)
-	}
-	if code, body, _ := do("GET", "/license", nil, ""); code != 200 || !strings.Contains(body, "لایسنس خریداری‌شده را وارد کنید") {
+	if code, body := do("GET", "/license", nil); code != 200 || !strings.Contains(body, "کد فعال‌سازی") {
 		t.Fatalf("license page -> %d", code)
 	}
-	if _, body, _ := do("GET", "/license", nil, ""); !strings.Contains(body, "0910") || !strings.Contains(body, "غفاری") {
-		t.Fatal("license page must show support contact (09101486607 آقای غفاری)")
+	if _, body := do("GET", "/license", nil); !strings.Contains(body, "https://menuvex.ir/pricing#plans") || !strings.Contains(body, "tel:+989101486607") {
+		t.Fatal("license page must show approved renewal/support links")
 	}
-	// ۲) فعال‌سازی با کلید Dummy: فایل رمزنگاری‌شده/امضاشده ساخته می‌شود.
-	if _, err := a.ActivateLicense("DUMMY", "کافه تست"); err != nil {
-		t.Fatal(err)
+	if code, body := do("POST", "/license/activate", url.Values{"csrf": {a.csrf}, "activation_code": {"DUMMY"}}); code != 200 || !strings.Contains(body, "سرویس فعال‌سازی") {
+		t.Fatalf("disabled activation must fail closed: %d %s", code, body)
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, "license.enc"))
-	if err != nil {
-		t.Fatalf("license.enc not created: %v", err)
+	var summary map[string]any
+	r := httptest.NewRequest("GET", "http://localhost/api/v1/license", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || json.NewDecoder(w.Body).Decode(&summary) != nil {
+		t.Fatalf("local license summary -> %d %s", w.Code, w.Body.String())
 	}
-	if strings.Contains(string(raw), "\"DUMMY\"") || !strings.Contains(string(raw), "expires_at") {
-		t.Fatal("license.enc must contain signed payload with expiry, not the raw key")
-	}
-	if st := a.LicenseState(); !st.Valid || st.Expired || st.DaysLeft < 300 {
-		t.Fatalf("license state after dummy activation: %+v", st)
-	}
-	// ۳) قبل از ثبت‌نام: ورود به ثبت‌نام هدایت می‌شود؛ ثبت‌نام یک‌باره نشست می‌سازد.
-	if code, _, _ := do("GET", "/login", nil, ""); code != 303 && code != 302 {
-		t.Fatalf("login before register must redirect to register, got %d", code)
-	}
-	if _, body, _ := do("GET", "/register", nil, ""); !strings.Contains(body, "ایجاد حساب کاربری") {
-		t.Fatal("expected register page")
-	}
-	// ورود مدیر قبل از ثبت‌نام نباید با رمز دلخواه قبول شود.
-	if _, _, sc := do("POST", "/login", url.Values{
-		"csrf": {a.csrf}, "mode": {"manager"}, "phone": {"09120001122"}, "password": {"dummy-pass"},
-	}, ""); strings.Contains(sc, "coffish_session") {
-		t.Fatal("manager login must be rejected before registration")
-	}
-	code, _, setCookie := do("POST", "/register", url.Values{
-		"csrf": {a.csrf}, "first_name": {"تست"}, "last_name": {"مدیر"},
-		"phone": {"09120001122"}, "cafe_name": {"کافه تست"},
-		"password": {"dummy-pass"}, "password_confirm": {"dummy-pass"},
-	}, "")
-	if code != 303 && code != 302 {
-		t.Fatalf("register -> %d", code)
-	}
-	if !strings.Contains(setCookie, "coffish_session") {
-		t.Fatalf("register must auto-login (session cookie), got %q", setCookie)
-	}
-	// ثبت‌نام دوم ممکن نیست: صفحه ثبت‌نام به ورود می‌رود و POST دوم حساب را عوض نمی‌کند.
-	if code, _, _ := do("GET", "/register", nil, ""); code != 303 && code != 302 {
-		t.Fatalf("second register page must redirect, got %d", code)
-	}
-	if _, _, sc := do("POST", "/register", url.Values{
-		"csrf": {a.csrf}, "first_name": {"دوم"}, "last_name": {"نفر"},
-		"phone": {"09129998877"}, "cafe_name": {"کافه دوم"},
-		"password": {"second-pass"}, "password_confirm": {"second-pass"},
-	}, ""); strings.Contains(sc, "coffish_session") {
-		t.Fatal("second registration must not create a session")
-	}
-	// رمز اشتباه رد می‌شود؛ مشخصات ثبت‌نامی وارد می‌شود.
-	if _, _, sc := do("POST", "/login", url.Values{
-		"csrf": {a.csrf}, "mode": {"manager"}, "phone": {"09120001122"}, "password": {"wrong-pass"},
-	}, ""); strings.Contains(sc, "coffish_session") {
-		t.Fatal("wrong password must be rejected")
-	}
-	code, _, setCookie = do("POST", "/login", url.Values{
-		"csrf": {a.csrf}, "mode": {"manager"}, "phone": {"09120001122"}, "password": {"dummy-pass"},
-	}, "")
-	if code != 303 && code != 302 && code != 200 {
-		t.Fatalf("manager login -> %d", code)
-	}
-	if !strings.Contains(setCookie, "coffish_session") {
-		t.Fatalf("login must set session cookie, got %q", setCookie)
-	}
-	cookie := strings.Split(setCookie, ";")[0]
-	if code, body, _ := do("GET", "/", nil, cookie); code != 200 || !strings.Contains(body, "خلاصه وضعیت کافه") {
-		t.Fatalf("authed home -> %d", code)
-	}
-	// ۴) انقضای لایسنس: بازنویسی فایل با انقضای گذشته و امضای معتبر → قفل با پیام تمدید.
-	past := time.Now().AddDate(0, 0, -2).Format(time.RFC3339)
-	payload := licensePayload{KeyHash: "x", Holder: "کافه تست", Plan: "اشتراک آفلاین منووکس", IssuedAt: time.Now().AddDate(-1, 0, 0).Format(time.RFC3339), ExpiresAt: past}
-	sig, err := a.signLicense(payload)
-	if err != nil {
-		t.Fatal(err)
-	}
-	content := `{"payload":{"key_hash":"x","holder":"کافه تست","plan":"اشتراک آفلاین منووکس","issued_at":"` + payload.IssuedAt + `","expires_at":"` + past + `"},"sig":"` + sig + `"}`
-	if err := os.WriteFile(filepath.Join(dir, "license.enc"), []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if st := a.LicenseState(); !st.Expired {
-		t.Fatal("expired license must be detected")
-	}
-	if _, body, _ := do("GET", "/license?expired=1", nil, cookie); !strings.Contains(body, "اشتراک شما به پایان رسیده است") {
-		t.Fatal("expired lock screen must ask for renewal")
-	}
-	// ۵) دستکاری فایل لایسنس = نامعتبر
-	if err := os.WriteFile(filepath.Join(dir, "license.enc"), []byte(`{"payload":{"key_hash":"y","holder":"x","plan":"p","issued_at":"x","expires_at":"2999-01-01T00:00:00Z"},"sig":"deadbeef"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if st := a.LicenseState(); st.Valid {
-		t.Fatal("tampered license file must be rejected")
+	if summary["status"] != "not_activated" || summary["refresh_token"] != nil || summary["license_file"] != nil {
+		t.Fatalf("unsafe or unexpected license summary: %#v", summary)
 	}
 }
 

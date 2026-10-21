@@ -337,7 +337,7 @@ func TestPrinterRouteBulkAssign(t *testing.T) {
 	}
 	for _, rt := range routes {
 		if rt.Field("printer_id") != printerID || rt.Field("copies") != "2" {
-			t.Fatalf("bulk route fields wrong: %+v", rt.Fields)
+			t.Fatalf("bulk route fields wrong: %s", string(rt.Payload))
 		}
 	}
 	ordersPost(t, a, "/local/printer-route", url.Values{

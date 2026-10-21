@@ -13,7 +13,7 @@ import (
 
 func testApp(t *testing.T) *Application {
 	t.Helper()
-	for _, k := range []string{"COFFISH_API_URL", "COFFISH_DEVICE_ID", "COFFISH_DEVICE_TOKEN", "COFFISH_ALLOWED_HOSTS"} {
+	for _, k := range []string{"COFFISH_API_URL", "COFFISH_DEVICE_ID", "COFFISH_DEVICE_TOKEN", "COFFISH_ALLOWED_HOSTS", "COFFISH_OFFLINE_LICENSES_ENABLED", "COFFISH_LICENSE_PUBLIC_KEYS", "COFFISH_LICENSE_API_BASE_URL", "API_BASE_URL"} {
 		t.Setenv(k, "")
 	}
 	a, e := New(t.TempDir())
