@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: menuvex
+      POSTGRES_PASSWORD: menuvex
+      POSTGRES_DB: menuvex_sync
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+  sync:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg://menuvex:menuvex@db:5432/menuvex_sync
+      SYNC_JWT_SECRET: change-me-in-production
+    ports:
+      - "8000:8000"
+volumes:
+  pgdata:

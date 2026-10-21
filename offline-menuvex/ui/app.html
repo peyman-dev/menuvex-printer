@@ -1535,6 +1535,7 @@ document.addEventListener('htmx:afterSwap', function (e) {
     </h1>
     <div class="topbar-meta">
       <span class="meta-chip">{{.JalaliNow}}</span>
+      <span id="sync-chip" hx-get="/sync/status" hx-trigger="every 15s" hx-target="this" hx-swap="innerHTML">{{template "syncChip" .Sync}}</span>
     </div>
   </div>
   <div class="topbar-actions">
@@ -1737,4 +1738,21 @@ document.addEventListener('htmx:afterSwap', function (e) {
 {{else}}
   {{template "workflow" .}}
 {{end}}
+{{end}}
+
+{{define "syncChip"}}
+{{- /* چیپ وضعیت همگام‌سازی: تفاوت «روی این دستگاه ذخیره شد» و «به سرور رسید» همیشه جلوی چشم است. */ -}}
+<span class="meta-chip sync-chip" title="{{if .LastSuccess}}آخرین همگام‌سازی موفق: {{.LastSuccess}}{{end}}{{if .LastError}} — آخرین خطا: {{.LastError}}{{end}}">
+{{- if eq .State "standalone"}}💾 حالت مستقل آفلاین — همهٔ داده روی همین دستگاه
+{{- else if eq .State "syncing"}}🔄 در حال همگام‌سازی…
+{{- else if eq .State "synced"}}🟢 همگام با سرور
+{{- else if eq .State "pending"}}🟡 {{.Pending}} عملیات در انتظار ارسال به سرور
+{{- else if eq .State "offline"}}🔴 سرور در دسترس نیست — سفارش‌ها روی دستگاه امن‌اند{{if .Pending}} ({{.Pending}} در صف){{end}}
+{{- else if eq .State "conflict"}}🟠 {{.Conflicts}} تعارض نیازمند بررسی در پنل وب
+{{- else if eq .State "auth"}}🔴 دستگاه توسط سرور پذیرفته نشد — با پشتیبانی تماس بگیرید
+{{- else if eq .State "idle"}}⚪ در انتظار اولین همگام‌سازی…
+{{- else}}🟡 همگام‌سازی ناتمام ماند{{if .NextRetrySec}} — تلاش بعدی تا ~{{.NextRetrySec}} ثانیهٔ دیگر{{end}}
+{{- end}}
+{{- if and (ne .State "standalone") (not .Initialized)}} — دادهٔ اولیه هنوز کامل دریافت نشده{{end}}
+</span>
 {{end}}

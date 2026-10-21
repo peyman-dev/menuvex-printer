@@ -35,6 +35,7 @@ import (
 	"github.com/sinaqaffari/coffish/desktop/internal/printer"
 	"github.com/sinaqaffari/coffish/desktop/internal/store"
 	"github.com/sinaqaffari/coffish/desktop/internal/syncclient"
+	"github.com/sinaqaffari/coffish/desktop/internal/syncengine"
 )
 
 //go:embed ui/* ui/static/* contracts/*.json
@@ -60,6 +61,8 @@ type Application struct {
 	sessionsMu   sync.Mutex
 	authDisabled bool // فقط برای تست‌های خودکار
 	client       *syncclient.Client
+	engine       *syncengine.Engine // زمان‌بند پس‌زمینهٔ سینک (nil در حالت مستقل)
+	engineCancel context.CancelFunc
 	csrf         string
 	templates    *template.Template
 	endpoints    []Endpoint
@@ -85,6 +88,7 @@ type View struct {
 	JalaliNow                   string
 	Connected                   bool
 	PrinterEnabled              bool
+	Sync                        syncengine.Status
 	Stats                       store.SummaryStats
 	Analytics                   store.FinancialAnalytics
 	CafeProfile                 store.Entity
@@ -2512,13 +2516,28 @@ func New(dataDir string) (*Application, error) {
 			s.Close()
 			return nil, err
 		}
+		// موتور همگام‌سازی پس‌زمینه: شروع برنامه + هر ۱۰ دقیقه + بعد از
+		// هر تغییر محلی + هنگام بازگشت سرور. قبلاً سینک فقط دستی بود.
+		a.engine = syncengine.New(a.client, s, nil)
+		s.SetSyncNotify(a.engine.NotifyLocalChange)
+		var engineCtx context.Context
+		engineCtx, a.engineCancel = context.WithCancel(context.Background())
+		a.engine.Start(engineCtx)
 	} else if isDefaultUserDir {
 		_ = a.SeedIfEmpty(context.Background())
 	}
 	return a, nil
 }
 
-func (a *Application) Close() error { return a.store.Close() }
+func (a *Application) Close() error {
+	if a.engine != nil {
+		a.engine.Stop()
+	}
+	if a.engineCancel != nil {
+		a.engineCancel()
+	}
+	return a.store.Close()
+}
 
 // SeedIfEmpty populates authentic Iranian café initial data when launching the standalone desktop executable.
 func (a *Application) SeedIfEmpty(ctx context.Context) error {
@@ -2542,6 +2561,7 @@ func (a *Application) Handler() http.Handler {
 	})
 	mux.HandleFunc("GET /backup.json", a.downloadBackup)
 	mux.HandleFunc("POST /sync", a.refresh)
+	mux.HandleFunc("GET /sync/status", a.syncStatusFragment)
 	mux.HandleFunc("POST /catalog", a.queueCatalog)
 
 	// Full standalone desktop actions (no external server required)
@@ -2687,6 +2707,7 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		Message:         message,
 		JalaliNow:       FormatJalaliFull(time.Now()),
 		Connected:       a.client != nil,
+		Sync:            a.SyncStatus(ctx),
 		Stats:           a.store.Stats(ctx),
 		Analytics:       a.store.Analytics(ctx),
 		Query:           r.URL.Query().Get("q"),
@@ -5717,11 +5738,40 @@ func (a *Application) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	message := "Sync cycle finished. همگام‌سازی به پایان رسید."
-	if err := a.client.Refresh(ctx, a.store); err != nil {
-		message = "Sync did not finish: " + err.Error() + ". داده‌های محلی شما کاملاً امن و در دسترس هستند."
+	message := "همگام‌سازی به پایان رسید؛ داده‌های دستگاه و سرور به‌روز شدند."
+	err := error(nil)
+	if a.engine != nil {
+		err = a.engine.SyncNow(ctx)
+	} else {
+		err = a.client.Refresh(ctx, a.store)
+	}
+	if err != nil {
+		message = "همگام‌سازی کامل نشد (" + err.Error() + ") — نگران نباشید: همهٔ سفارش‌ها و پرداخت‌ها روی همین دستگاه ذخیره‌اند و با برگشتن اینترنت خودکار ارسال می‌شوند."
 	}
 	a.render(w, r, message)
+}
+
+// SyncStatus اسنپ‌شات وضعیت سینک برای چیپ هدر (پول HTMX هر چند ثانیه).
+// در حالت مستقل، «آفلاین آماده» برمی‌گرداند تا UI تفاوت «ذخیرهٔ محلی
+// موفق» و «همگام با سرور» را صادقانه نشان بدهد.
+func (a *Application) SyncStatus(ctx context.Context) syncengine.Status {
+	if a.engine == nil {
+		return syncengine.Status{State: "standalone"}
+	}
+	return a.engine.Status(ctx)
+}
+
+// syncStatusFragment فقط همان چیپ کوچک هدر را رندر می‌کند تا پول دوره‌ای
+// مجبور نباشد کل صفحه را دوباره بکشد.
+func (a *Application) syncStatusFragment(w http.ResponseWriter, r *http.Request) {
+	st := a.SyncStatus(r.Context())
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var buf bytes.Buffer
+	if err := a.templates.ExecuteTemplate(&buf, "syncChip", st); err != nil {
+		http.Error(w, "template render failed", 500)
+		return
+	}
+	_, _ = w.Write(buf.Bytes())
 }
 
 func (a *Application) queueCatalog(w http.ResponseWriter, r *http.Request) {

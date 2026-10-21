@@ -113,7 +113,9 @@ func (c *Client) bootstrap(ctx context.Context, s *store.Store) error {
 		Data    map[string][]json.RawMessage `json:"data"`
 		HasMore bool                         `json:"has_more"`
 	}
-	sections := []string{"categories", "products", "ingredients", "banners", "recipes", "orders"}
+	// میزها، مشتری‌ها و بدهکاران هم بخشی از تصویر اولیه‌اند؛ دستگاه تازه
+	// نباید میزها و حساب‌های دفتری موجود را از قلم بیندازد.
+	sections := []string{"categories", "products", "ingredients", "banners", "recipes", "orders", "tables", "customers", "debtors"}
 	if err := c.request(ctx, "POST", "/bootstrap", map[string]any{"include": sections}, &response); err != nil {
 		return err
 	}
@@ -124,6 +126,26 @@ func (c *Client) bootstrap(ctx context.Context, s *store.Store) error {
 		return errors.New("bootstrap missing data; local data not replaced")
 	}
 	return s.Bootstrap(ctx, response.Data, response.Cursor)
+}
+
+// Ping بررسی سبک در دسترس بودن سرور است تا موتور سینک «بازگشت اتصال»
+// را زودتر از تایمر ده دقیقه‌ای بفهمد. نبودن /healthz روی سرورهای قدیمی
+// فقط یعنی این شتاب‌دهنده کار نمی‌کند؛ چرخه‌های زمان‌بندی‌شده سر جایشان‌اند.
+func (c *Client) Ping(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/healthz", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("health check status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // Refresh serializes all device sync. Commit data and cursor BEFORE acknowledging.
@@ -172,6 +194,10 @@ func (c *Client) Refresh(ctx context.Context, s *store.Store) error {
 			Results []store.Result `json:"results"`
 		}
 		if err = c.request(ctx, "POST", "/push", map[string]any{"operations": ops}, &response); err != nil {
+			// پاسخ گم شده است؛ عملیات‌ها با همان شناسه می‌مانند و در چرخهٔ
+			// بعد دوباره می‌روند — دفتر idempotent سرور از اعمال دوباره
+			// جلوگیری می‌کند. فقط متادیتای بک‌آف اینجا ثبت می‌شود.
+			_ = s.NotePushFailure(ctx, "push request failed")
 			return err
 		}
 		if err = s.SaveResults(ctx, ops, response.Results); err != nil {

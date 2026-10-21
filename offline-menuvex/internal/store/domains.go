@@ -397,6 +397,11 @@ func (s *Store) SaveLocalRecord(ctx context.Context, kind, id string, fields map
 			Deleted: false,
 			Payload: raw,
 		}
+		// حساب دفتری تازه باید قبل از پرداخت‌هایش به سرور برسد وگرنه
+		// عملیات پرداخت بدهکار روی سرور همیشه «وابستگی ناموجود» می‌خورد.
+		if kind == "debtor" && isNew {
+			return queueOpTx(st, "debtor", id, "create", json.RawMessage(raw))
+		}
 		return nil
 	})
 	if err != nil {
@@ -633,6 +638,11 @@ func (s *Store) CreatePOSOrder(ctx context.Context, req POSOrderInput) (string, 
 				Version: 1,
 				Payload: debtPayload,
 			}
+			// ساخت بدهکار روی سرور به وجود سفارش وابسته نیست (order_id
+			// فقط مرجع است)؛ ترتیب نسبی این دو عملیات مهم نیست.
+			if qErr := queueOpTx(st, "debtor", debtID, "create", json.RawMessage(debtPayload)); qErr != nil {
+				return qErr
+			}
 		}
 
 		orderPayload, err := json.Marshal(map[string]any{
@@ -668,7 +678,10 @@ func (s *Store) CreatePOSOrder(ctx context.Context, req POSOrderInput) (string, 
 			Version: 1,
 			Payload: orderPayload,
 		}
-		return nil
+		// Transactional Outbox: عملیات ارسال همین سفارش در همان تراکنش
+		// صف می‌شود؛ قطع برق بعد از ثبت سفارش و قبل از دسترسی به اینترنت
+		// هرگز آن را از دست نمی‌دهد.
+		return queueOpTx(st, "order", orderID, "create", json.RawMessage(orderPayload))
 	})
 	if err != nil {
 		return "", err
@@ -793,7 +806,7 @@ func (s *Store) UpdateOrderItemsFull(ctx context.Context, orderID string, upd Or
 		oEnt.Version++
 		oEnt.Payload = b
 		st.Entities[key] = oEnt
-		return nil
+		return queueOpTx(st, "order", orderID, "update", json.RawMessage(b))
 	})
 }
 
@@ -1055,7 +1068,14 @@ func (s *Store) RecordSplitPayment(ctx context.Context, orderID string, picks ma
 		oEnt.Payload = b
 		st.Entities[key] = oEnt
 		paid, remaining = paidSum, rem
-		return nil
+		// پرداخت محلی فقط «رکورد پرداخت» است، نه اثبات تسویهٔ درگاه؛
+		// سرور هم همین تمایز را در gateway_status نگه می‌دارد.
+		return queueOpTx(st, "payment", pid, "record", map[string]any{
+			"order_id":   orderID,
+			"amount_irr": strconv.FormatInt(amount, 10),
+			"method":     method,
+			"kind":       "split",
+		})
 	})
 	return paid, remaining, err
 }
@@ -1269,6 +1289,9 @@ func (s *Store) DeferOrderToDebtor(ctx context.Context, orderID, name, phone, du
 			return mErr
 		}
 		st.Entities[entityKey("debtor", debtID)] = storedEntity{ID: debtID, Type: "debtor", Version: 1, Payload: debtPayload}
+		if qErr := queueOpTx(st, "debtor", debtID, "create", json.RawMessage(debtPayload)); qErr != nil {
+			return qErr
+		}
 		om["payment_method"] = "credit_debtor"
 		om["customer_name"] = name
 		if strings.TrimSpace(phone) != "" {
@@ -1470,7 +1493,11 @@ func (s *Store) UpdateLocalOrderStatusReason(ctx context.Context, orderID, newSt
 		oEnt.Version++
 		oEnt.Payload = b
 		st.Entities[key] = oEnt
-		return nil
+		return queueOpTx(st, "order", orderID, "transition", map[string]any{
+			"from_status": strings.ToLower(strings.TrimSpace(prevStatus)),
+			"to_status":   strings.ToLower(strings.TrimSpace(newStatus)),
+			"reason":      strings.TrimSpace(reason),
+		})
 	})
 }
 
@@ -1577,6 +1604,17 @@ func (s *Store) RecordStockMovement(ctx context.Context, ingredientID, txType, q
 			Type:    "inventory_movement",
 			Version: 1,
 			Payload: movPayload,
+		}
+		// گردش انبار یک واقعیت append-only است؛ موجودی مطلق هرگز به سرور
+		// تحمیل نمی‌شود تا حرکت‌های دستگاه‌های دیگر گم نشوند.
+		if qErr := queueOpTx(st, "inventory_movement", movID, "record", map[string]any{
+			"ingredient_id":    ingredientID,
+			"transaction_type": txType,
+			"quantity":         strconv.FormatFloat(signedDelta, 'f', 2, 64),
+			"unit_cost":        strings.TrimSpace(unitCostStr),
+			"note":             strings.TrimSpace(note),
+		}); qErr != nil {
+			return qErr
 		}
 
 		if txType == "waste" {
@@ -1726,7 +1764,11 @@ func (s *Store) SettleDebtorPaymentWithNote(ctx context.Context, debtorID, amoun
 			return mErr
 		}
 		st.Entities[entityKey("debtor_payment", payID)] = storedEntity{ID: payID, Type: "debtor_payment", Version: 1, Payload: payPayload}
-		return nil
+		return queueOpTx(st, "debtor", debtorID, "payment", map[string]any{
+			"payment_id": payID,
+			"amount_irr": applied.String(),
+			"note":       strings.TrimSpace(note),
+		})
 	})
 }
 

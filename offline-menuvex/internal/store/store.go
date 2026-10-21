@@ -27,6 +27,9 @@ type Store struct {
 	path   string
 	closed bool
 	state  persistedDB
+	// notify بعد از هر تراکنشی که عملیات سینک تازه‌ای صف کرده صدا زده
+	// می‌شود تا موتور همگام‌سازی بدون بلاک‌کردن درخواست HTMX بیدار شود.
+	notify func()
 }
 
 type persistedDB struct {
@@ -47,6 +50,11 @@ type storedEntity struct {
 	Version int64           `json:"version"`
 	Deleted bool            `json:"deleted"`
 	Payload json.RawMessage `json:"payload"`
+	// Origin مشخص می‌کند رکورد از کجا آمده: "local" یعنی روی همین دستگاه
+	// ساخته/ویرایش شده و ممکن است هنوز به سرور نرسیده باشد؛ "server" یعنی
+	// از اسنپ‌شات یا pull سرور آمده. فایل‌های قدیمی مقدار "" دارند که برای
+	// امنیت داده «محلی» فرض می‌شود و هرگز در Bootstrap حذف نمی‌شود.
+	Origin string `json:"origin,omitempty"`
 }
 
 type storedOperation struct {
@@ -61,6 +69,11 @@ type storedOperation struct {
 	CreatedAt   string          `json:"client_created_at"`
 	State       string          `json:"state"`
 	Result      json.RawMessage `json:"result"`
+	// متادیتای تلاش مجدد: عملیات ناموفق هرگز دور ریخته نمی‌شود؛ با بک‌آف
+	// پلکانی دوباره فرستاده می‌شود و دلیل آخرین خطا قابل مشاهده است.
+	Attempts    int    `json:"attempts,omitempty"`
+	NextRetryAt string `json:"next_retry_at,omitempty"`
+	LastError   string `json:"last_error,omitempty"`
 }
 
 type ConnectionConfig struct {
@@ -195,6 +208,17 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	// بازیابی از قطع برق وسط جایگزینی فایل: اگر فایل اصلی خالی یا خراب
+	// است ولی نسخهٔ پشتیبان آخرین تراکنش سالم مانده، همان بارگذاری می‌شود
+	// تا هیچ سفارش یا عملیات صف‌شده‌ای به‌خاطر کرش از دست نرود.
+	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) {
+		if bak, bErr := os.ReadFile(path + ".bak"); bErr == nil {
+			bt := bytes.TrimSpace(bak)
+			if len(bt) > 0 && bt[0] == '{' && json.Valid(bt) {
+				raw = bak
+			}
+		}
+	}
 	st := newEmptyDB()
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) > 0 && trimmed[0] == '{' {
@@ -214,6 +238,14 @@ func Open(path string) (*Store, error) {
 			st.LegacyStockCounts = []LegacyStockCount{}
 		}
 	}
+	if st.Meta == nil {
+		st.Meta = map[string]string{}
+	}
+	if st.Meta["schema_version"] == "" {
+		// نسخهٔ ۱: فرمت فعلی فایل. مهاجرت‌های آینده باید افزایشی باشند و
+		// هرگز سفارش‌ها یا عملیات صف‌شده را پاک نکنند.
+		st.Meta["schema_version"] = "1"
+	}
 	return &Store{path: path, state: st}, nil
 }
 
@@ -225,6 +257,16 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) withTx(ctx context.Context, fn func(st *persistedDB) error) error {
+	return s.withTxMode(ctx, true, fn)
+}
+
+// withTxServer برای اعمال دادهٔ آمده از سرور (Bootstrap/Pull) است؛ رکوردهای
+// این مسیر منشأ "server" می‌گیرند و در Bootstrap بعدی قابل جایگزینی‌اند.
+func (s *Store) withTxServer(ctx context.Context, fn func(st *persistedDB) error) error {
+	return s.withTxMode(ctx, false, fn)
+}
+
+func (s *Store) withTxMode(ctx context.Context, localWrite bool, fn func(st *persistedDB) error) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -234,8 +276,20 @@ func (s *Store) withTx(ctx context.Context, fn func(st *persistedDB) error) erro
 		return errors.New("store is closed")
 	}
 	tx := cloneDB(s.state)
+	prevOutbox := len(s.state.Outbox)
 	if err := fn(&tx); err != nil {
 		return err
+	}
+	if localWrite {
+		// هر رکوردی که در این تراکنش محلی ساخته یا تغییر کرده «محلی» است:
+		// Bootstrap و Pull سرور هرگز نباید آن را بی‌صدا جایگزین کند.
+		for key, e := range tx.Entities {
+			old, ok := s.state.Entities[key]
+			if !ok || old.Version != e.Version || old.Deleted != e.Deleted || !bytes.Equal(old.Payload, e.Payload) {
+				e.Origin = "local"
+				tx.Entities[key] = e
+			}
+		}
 	}
 	encoded, err := json.Marshal(tx)
 	if err != nil {
@@ -261,15 +315,44 @@ func (s *Store) withTx(ctx context.Context, fn func(st *persistedDB) error) erro
 		return err
 	}
 	if err = os.Rename(tmpPath, s.path); err != nil {
-		// Fallback on Windows if target path cannot be replaced via rename directly.
-		if wErr := os.WriteFile(s.path, encoded, 0600); wErr != nil {
+		// ویندوز گاهی rename روی فایل موجود را رد می‌کند (آنتی‌ویروس/هندل
+		// باز). به‌جای بازنویسی غیراتمیک با WriteFile — که قطع برق وسط آن
+		// کل دیتابیس را خراب می‌کرد — اول فایل سالم فعلی کنار گذاشته
+		// می‌شود (.bak)، بعد فایل جدید جایش می‌نشیند؛ اگر قدم دوم شکست
+		// خورد بک‌آپ برگردانده می‌شود و Open هم از .bak بازیابی می‌کند.
+		bakPath := s.path + ".bak"
+		_ = os.Remove(bakPath)
+		if rErr := os.Rename(s.path, bakPath); rErr != nil {
 			os.Remove(tmpPath)
 			return err
 		}
-		os.Remove(tmpPath)
+		if rErr := os.Rename(tmpPath, s.path); rErr != nil {
+			_ = os.Rename(bakPath, s.path)
+			os.Remove(tmpPath)
+			return err
+		}
+	}
+	// fsync پوشهٔ والد تا خودِ rename هم در برابر قطع برق بادوام باشد
+	// (روی ویندوز ممکن است پشتیبانی نشود؛ آنجا خطا نادیده گرفته می‌شود).
+	if dir, dErr := os.Open(filepath.Dir(s.path)); dErr == nil {
+		_ = dir.Sync()
+		_ = dir.Close()
 	}
 	s.state = tx
+	if s.notify != nil && len(s.state.Outbox) > prevOutbox {
+		// کپی از هوک زیر قفل گرفته می‌شود ولی خود صدا زدن بعد از آزاد شدن
+		// قفل انجام می‌شود تا موتور سینک هرگز مسیر نوشتن را بلاک نکند.
+		notify := s.notify
+		defer func() { go notify() }()
+	}
 	return nil
+}
+
+// SetSyncNotify هوک بیدارباش موتور همگام‌سازی را ثبت می‌کند؛ nil یعنی خاموش.
+func (s *Store) SetSyncNotify(fn func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.notify = fn
 }
 
 func (s *Store) Cursor(ctx context.Context) (string, error) {
@@ -279,6 +362,68 @@ func (s *Store) Cursor(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.state.Meta["cursor"], nil
+}
+
+// SyncMeta آخرین وضعیت شناخته‌شدهٔ همگام‌سازی است که در همان فایل داده
+// نگه داشته می‌شود تا بعد از ری‌استارت هم «آخرین سینک موفق» گم نشود.
+type SyncMeta struct {
+	LastSuccessAt string
+	LastError     string
+	LastErrorAt   string
+	Initialized   bool // حداقل یک Bootstrap موفق انجام شده است
+}
+
+// NoteSyncSuccess پایان موفق یک چرخهٔ کامل (push+pull) را ثبت می‌کند.
+func (s *Store) NoteSyncSuccess(ctx context.Context) error {
+	return s.withTxServer(ctx, func(st *persistedDB) error {
+		st.Meta["last_sync_success_at"] = time.Now().UTC().Format(time.RFC3339)
+		st.Meta["last_sync_error"] = ""
+		st.Meta["sync_initialized"] = "1"
+		return nil
+	})
+}
+
+// NoteSyncFailure خطای چرخه را بدون دست‌کاری هیچ دادهٔ کسب‌وکاری ثبت می‌کند.
+func (s *Store) NoteSyncFailure(ctx context.Context, errText string) error {
+	return s.withTxServer(ctx, func(st *persistedDB) error {
+		st.Meta["last_sync_error"] = errText
+		st.Meta["last_sync_error_at"] = time.Now().UTC().Format(time.RFC3339)
+		return nil
+	})
+}
+
+func (s *Store) SyncMeta(ctx context.Context) SyncMeta {
+	if ctx.Err() != nil {
+		return SyncMeta{}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return SyncMeta{
+		LastSuccessAt: s.state.Meta["last_sync_success_at"],
+		LastError:     s.state.Meta["last_sync_error"],
+		LastErrorAt:   s.state.Meta["last_sync_error_at"],
+		Initialized:   s.state.Meta["sync_initialized"] == "1" || s.state.Meta["cursor"] != "",
+	}
+}
+
+// OutboxCounts شمارنده‌های صف برای نمایش وضعیت سینک در رابط کاربری است.
+func (s *Store) OutboxCounts(ctx context.Context) (pending, conflicts, rejected int) {
+	if ctx.Err() != nil {
+		return 0, 0, 0
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, op := range s.state.Outbox {
+		switch op.State {
+		case "queued", "retry", "not_processed":
+			pending++
+		case "conflict":
+			conflicts++
+		case "rejected", "skipped":
+			rejected++
+		}
+	}
+	return pending, conflicts, rejected
 }
 
 func (s *Store) Bind(ctx context.Context, scope string) error {
@@ -404,6 +549,7 @@ func applyChange(st *persistedDB, c Change) error {
 			Version: c.Version,
 			Deleted: deleted,
 			Payload: raw,
+			Origin:  "server",
 		}
 	}
 	return nil
@@ -413,7 +559,7 @@ func (s *Store) ApplyPage(ctx context.Context, changes []Change, cursor string) 
 	if cursor == "" {
 		return errors.New("server returned empty cursor")
 	}
-	return s.withTx(ctx, func(st *persistedDB) error {
+	return s.withTxServer(ctx, func(st *persistedDB) error {
 		for _, c := range changes {
 			if err := applyChange(st, c); err != nil {
 				return err
@@ -446,8 +592,18 @@ func (s *Store) Bootstrap(ctx context.Context, sections map[string][]json.RawMes
 	if cursor == "" {
 		return errors.New("bootstrap missing snapshot cursor")
 	}
-	return s.withTx(ctx, func(st *persistedDB) error {
-		st.Entities = map[string]storedEntity{}
+	return s.withTxServer(ctx, func(st *persistedDB) error {
+		// فقط رکوردهای با منشأ سرور با اسنپ‌شات جایگزین می‌شوند. رکوردهای
+		// محلی (سفارش‌ها، پرداخت‌ها و ویرایش‌های همگام‌نشدهٔ همین دستگاه)
+		// دست‌نخورده می‌مانند؛ پاک‌کردن آن‌ها در Bootstrap یعنی از دست
+		// رفتن بی‌صدای کسب‌وکار هنگام انقضای کرسر یا اتصال مجدد.
+		kept := make(map[string]storedEntity, len(st.Entities))
+		for key, e := range st.Entities {
+			if e.Origin != "server" {
+				kept[key] = e
+			}
+		}
+		st.Entities = kept
 		for section, rows := range sections {
 			kind, ok := bootstrapSectionTypes[section]
 			if !ok {
