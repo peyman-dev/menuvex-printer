@@ -183,6 +183,49 @@ type View struct {
 	FinMonthCOGSFa   string
 	FinMonthExpFa    string
 	FinMonthProfitFa string
+	// صفحه «حساب و گزارش» عین accounting وب: فیلترها، ردیف‌های دفتر روزنامه،
+	// کدینگ حساب‌ها، سود و زیان بازه‌ای و ارزش موجودی انبار.
+	FinMonthLabel     string
+	FinMonthHasRev    bool
+	FinNetPct         int
+	FinEntryCount     int
+	FinExpenseCount   int
+	FinAccountCount   int
+	FinExpFromISO     string
+	FinExpToISO       string
+	FinExpFromShamsi  string
+	FinExpToShamsi    string
+	FinExpCategory    string
+	FinExpStatus      string
+	FinExpCategories  []string
+	FinExpenseRows    []FinExpenseRow
+	FinJFromISO       string
+	FinJToISO         string
+	FinJFromShamsi    string
+	FinJToShamsi      string
+	FinJSource        string
+	FinJStatus        string
+	FinJournalRows    []FinJournalRow
+	FinMovements      []FinMovementRow
+	FinMovementsJSON  template.JS
+	FinAccountGroups  []FinAccountGroup
+	FinShowInactive   bool
+	FinPnlFromISO     string
+	FinPnlToISO       string
+	FinPnlFromShamsi  string
+	FinPnlToShamsi    string
+	FinPnlRangeLabel  string
+	FinPnlRevFa       string
+	FinPnlCOGSFa      string
+	FinPnlExpFa       string
+	FinPnlGrossFa     string
+	FinPnlNetFa       string
+	FinPnlRevLines    []FinPnlLine
+	FinPnlCOGSLines   []FinPnlLine
+	FinPnlExpLines    []FinPnlLine
+	FinInvRows        []FinInvRow
+	FinInvTotalFa     string
+	FinInvCount       int
 	DebtorRows       []DebtorRow
 	// صفحه «بدهکاران و تسویه» هم‌طراز وب: تب فعال، کارت‌های خلاصه، فیلترها،
 	// گزارش گروه‌ها و کاتالوگ محصولات برای انتخاب آیتم‌های بدهی دستی.
@@ -2040,6 +2083,82 @@ type ProductRow struct {
 func (r ProductRow) HasDiscount() bool { return r.DiscountPercent > 0 && r.BasePriceToman != "" }
 
 // InvRow ردیف لیست موجودی هم‌تراز با جدول انبار داشبورد وب.
+// ردیف‌های صفحه «حساب و گزارش» (accounting وب): همه مبالغ از پیش به تومانِ
+// فارسی تبدیل شده‌اند تا قالب فقط نمایش بدهد.
+type FinExpenseRow struct {
+	Entity      store.Entity
+	DateFa      string
+	AmountFa    string
+	Category    string
+	Note        string
+	PayLabel    string
+	AccountCode string
+	AccountName string
+	StatusKey   string // posted | voided
+	StatusText  string
+}
+
+type FinJournalRow struct {
+	ID            string
+	Kind          string // accounting_entry | expense
+	Number        string
+	DateFa        string
+	Title         string
+	LinesText     string
+	SourceKey     string // manual | expense | inventory
+	SourceText    string
+	AmountFa      string
+	StatusKey     string // posted | voided
+	StatusText    string
+	DebitAccount  string
+	CreditAccount string
+	Note          string
+	CreatedISO    string
+}
+
+type FinMovementRow struct {
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	MetaFa        string `json:"meta"`
+	AmountIRR     string `json:"amount_irr"`
+	DebitAccount  string `json:"debit_account"`
+	CreditAccount string `json:"credit_account"`
+	EntryTitle    string `json:"entry_title"`
+}
+
+type FinAccountRow struct {
+	ID        string
+	Code      string
+	Name      string
+	Linked    string
+	BalanceFa string
+	System    bool
+	Negative  bool
+	Active    bool
+}
+
+type FinAccountGroup struct {
+	TypeKey   string
+	TypeLabel string
+	Desc      string
+	TotalFa   string
+	Count     int
+	Accounts  []FinAccountRow
+}
+
+type FinPnlLine struct {
+	Label    string
+	AmountFa string
+}
+
+type FinInvRow struct {
+	Name       string
+	SKU        string
+	QtyFa      string
+	UnitCostFa string
+	ValueFa    string
+}
+
 type InvRow struct {
 	Entity       store.Entity
 	StatusKey    string // in | low | out | negative
@@ -2147,6 +2266,102 @@ func shortUnitLabel(label string) string {
 
 // jalaliDayMonth تاریخ ISO را به شکل «۲۴ مهر ۱۴۰۵ — ۱۳:۳۹» برمی‌گرداند؛
 // ستون «به‌روزرسانی» جدول انبار از همین استفاده می‌کند.
+// finTomanNum مبلغ ریالی را به عدد تومانی فارسی بدون پسوند «تومان» برمی‌گرداند
+// تا قالبِ حسابداری خودش واحد را کنار عدد بگذارد (عین نسخه وب).
+func finTomanNum(irr string) string {
+	out := store.FormatIRRToToman(strings.TrimSpace(irr))
+	out = strings.TrimSuffix(out, " تومان")
+	return out
+}
+
+// finExpenseAccount دسته هزینه را به حساب کدینگ متناظرش در نسخه وب وصل می‌کند.
+func finExpenseAccount(category string) (string, string) {
+	c := strings.TrimSpace(category)
+	switch {
+	case strings.Contains(c, "اجاره"):
+		return "۵۲۰۰", "اجاره"
+	case strings.Contains(c, "حقوق") || strings.Contains(c, "دستمزد"):
+		return "۵۱۰۰", "حقوق و دستمزد"
+	case strings.Contains(c, "قبوض") || strings.Contains(c, "آب") || strings.Contains(c, "برق") || strings.Contains(c, "گاز") || strings.Contains(c, "انرژی"):
+		return "۵۳۰۰", "قبوض و انرژی"
+	case strings.Contains(c, "خرید مواد") || strings.Contains(c, "مواد اولیه") || strings.Contains(c, "مواد"):
+		return "۵۴۰۰", "خرید مواد"
+	case strings.Contains(c, "تعمیر") || strings.Contains(c, "نگهداری"):
+		return "۵۵۰۰", "تعمیر و نگهداری"
+	case strings.Contains(c, "بازاریابی") || strings.Contains(c, "تبلیغات"):
+		return "۵۶۰۰", "بازاریابی"
+	default:
+		return "۵۹۰۰", "سایر هزینه‌ها"
+	}
+}
+
+// finPayLabel روش پرداخت هزینه را به برچسب وب («نقدی» / «کارت‌خوان») تبدیل می‌کند.
+func finPayLabel(method string) string {
+	m := strings.ToLower(strings.TrimSpace(method))
+	if m == "cash" || strings.Contains(method, "نقد") {
+		return "نقدی"
+	}
+	return "کارت‌خوان"
+}
+
+func finIsCashMethod(method string) bool {
+	return finPayLabel(method) == "نقدی"
+}
+
+// jalaliMonthYearLabel برچسب ماه شمسی جاری مثل «مهر ۱۴۰۵» می‌سازد.
+func jalaliMonthYearLabel(t time.Time) string {
+	loc := t.In(tehranZone())
+	jy, jm, _ := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	name := ""
+	if jm >= 1 && jm <= 12 {
+		name = jalaliMonthNames[jm]
+	}
+	return name + " " + store.ToPersianDigits(strconv.Itoa(jy))
+}
+
+// jalaliMonthRange بازه میلادی ماه شمسی جاری را برمی‌گرداند: [from, to).
+func jalaliMonthRange(t time.Time) (time.Time, time.Time) {
+	loc := t.In(tehranZone())
+	jy, jm, _ := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	gy, gm, gd := JalaliToGregorian(jy, jm, 1)
+	from := time.Date(gy, time.Month(gm), gd, 0, 0, 0, 0, tehranZone())
+	ny, nm := jy, jm+1
+	if nm > 12 {
+		nm = 1
+		ny++
+	}
+	gy2, gm2, gd2 := JalaliToGregorian(ny, nm, 1)
+	to := time.Date(gy2, time.Month(gm2), gd2, 0, 0, 0, 0, tehranZone())
+	return from, to
+}
+
+// finEntryNumber شماره سند وب را می‌سازد: ACC-20261003-001.
+func finEntryNumber(createdISO string, seq int) string {
+	datePart := ""
+	if t, ok := JalaliTimeOf(createdISO); ok {
+		datePart = t.Format("20060102")
+	}
+	if datePart == "" {
+		datePart = time.Now().Format("20060102")
+	}
+	return store.ToPersianDigits(fmt.Sprintf("ACC-%s-%03d", datePart, seq))
+}
+
+// jalaliDayMonthOnly مثل jalaliDayMonth ولی بدون ساعت: «۱ مهر ۱۴۰۵».
+func jalaliDayMonthOnly(iso string) string {
+	t, ok := JalaliTimeOf(iso)
+	if !ok {
+		return "—"
+	}
+	loc := t.In(tehranZone())
+	jy, jm, jd := GregorianToJalali(loc.Year(), int(loc.Month()), loc.Day())
+	name := ""
+	if jm >= 1 && jm <= 12 {
+		name = jalaliMonthNames[jm]
+	}
+	return store.ToPersianDigits(fmt.Sprintf("%d %s %d", jd, name, jy))
+}
+
 func jalaliDayMonth(iso string) string {
 	t, ok := JalaliTimeOf(iso)
 	if !ok {
@@ -4366,43 +4581,43 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 		v.Debtors, _ = a.store.Entities(ctx, "debtor")
 		v.Entities = v.Expenses
 		{
-			// «حساب و گزارش» عین accounting وب: تب‌ها از ?tab= خوانده می‌شوند و
-			// ارقام نمای کلی از داده واقعی محلی (فروش نقد/کارت، ارزش انبار با
-			// بهای میانگین، مطالبات) و عملکرد ماه جاری با COGS رسپی ساخته می‌شود.
-			v.FinTab = strings.TrimSpace(r.URL.Query().Get("tab"))
+			// «حساب و گزارش» عین accounting وب: پنج تب نمای کلی/هزینه‌ها/اسناد
+			// حسابداری/حساب‌ها/سود و زیان. همه ارقام از داده واقعی محلی ساخته
+			// می‌شوند: مانده صندوق و بانک = فروش منهای هزینه همان کانال، دفتر
+			// روزنامه = اسناد دستی + سند خودکار هر هزینه + اسناد صادرشده از
+			// انبار، و سود و زیان با COGS رسپی در بازه انتخابی کاربر.
+			q := r.URL.Query()
+			v.FinTab = strings.TrimSpace(q.Get("tab"))
 			switch v.FinTab {
 			case "expenses", "journal", "accounts", "pnl":
 			default:
 				v.FinTab = "overview"
 			}
-			now := time.Now()
-			monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-			month := a.store.AnalyticsSince(ctx, monthStart)
-			toman := func(irr string) string { return store.FormatIRRToToman(irr) }
-			// موجودی صندوق = فروش نقدی کل؛ موجودی بانک = فروش کارتخوان کل.
-			v.FinCashFa = toman(v.Analytics.CashSalesIRR)
-			v.FinBankFa = toman(v.Analytics.CardSalesIRR)
-			v.FinReceivablesFa = toman(v.Analytics.TotalReceivablesIRR)
-			invValue := big.NewInt(0)
-			if ings, iErr := a.store.Entities(ctx, "ingredient"); iErr == nil {
-				for _, ing := range ings {
-					stock, _ := strconv.ParseFloat(strings.TrimSpace(ing.Field("current_stock")), 64)
-					avg := parseIRRBig(ing.Field("average_cost"))
-					val := new(big.Float).Mul(big.NewFloat(stock), new(big.Float).SetInt(avg))
-					vi, _ := val.Int(nil)
-					invValue.Add(invValue, vi)
-				}
+			num := finTomanNum
+			isVoided := func(e store.Entity) bool {
+				st := strings.ToLower(strings.TrimSpace(e.Field("status")))
+				return st == "voided" || st == "void" || st == "cancelled" || st == "canceled"
 			}
-			v.FinInvValueFa = toman(invValue.String())
-			// COGS ماه: مجموع بهای رسپی اقلام سفارش‌های تکمیل‌شده ماه جاری.
-			cogs := big.NewInt(0)
+			createdOf := func(e store.Entity) time.Time {
+				t, _ := time.Parse(time.RFC3339, strings.TrimSpace(e.Field("created_at")))
+				return t
+			}
+			sortByCreatedDesc := func(list []store.Entity) {
+				sort.SliceStable(list, func(x, y int) bool {
+					return createdOf(list[x]).After(createdOf(list[y]))
+				})
+			}
+			orders, _ := a.store.Entities(ctx, "order")
+			// COGS بازه [from,to): مجموع بهای رسپی اقلام سفارش‌های تکمیل‌شده.
 			costCache := map[string]*big.Int{}
-			if orders, oErr := a.store.Entities(ctx, "order"); oErr == nil {
+			cogsInRange := func(from, to time.Time) *big.Int {
+				cogs := big.NewInt(0)
 				for _, o := range orders {
 					if strings.ToLower(strings.TrimSpace(o.Field("status"))) != "completed" {
 						continue
 					}
-					if ct, pErr := time.Parse(time.RFC3339, o.Field("created_at")); pErr != nil || ct.Before(monthStart) {
+					ct := createdOf(o)
+					if ct.IsZero() || ct.Before(from) || !ct.Before(to) {
 						continue
 					}
 					for _, it := range o.OrderItems() {
@@ -4417,14 +4632,432 @@ func (a *Application) render(w http.ResponseWriter, r *http.Request, message str
 						cogs.Add(cogs, new(big.Int).Mul(unit, big.NewInt(int64(it.Quantity))))
 					}
 				}
+				return cogs
+			}
+			// ارزش موجودی انبار با بهای میانگین + ردیف‌های جدول سود و زیان.
+			invValue := big.NewInt(0)
+			if ings, iErr := a.store.Entities(ctx, "ingredient"); iErr == nil {
+				for _, ing := range ings {
+					stock, _ := strconv.ParseFloat(strings.TrimSpace(ing.Field("current_stock")), 64)
+					avg := parseIRRBig(ing.Field("average_cost"))
+					val := new(big.Float).Mul(big.NewFloat(stock), new(big.Float).SetInt(avg))
+					vi, _ := val.Int(nil)
+					invValue.Add(invValue, vi)
+					v.FinInvRows = append(v.FinInvRows, FinInvRow{
+						Name:       ing.Label(),
+						SKU:        strings.TrimSpace(ing.Field("sku")),
+						QtyFa:      store.FormatPersianNumber(strconv.FormatFloat(stock, 'f', -1, 64)) + " " + shortUnitLabel(ing.UnitLabel()),
+						UnitCostFa: num(avg.String()),
+						ValueFa:    num(vi.String()),
+					})
+				}
+			}
+			v.FinInvValueFa = num(invValue.String())
+			v.FinInvTotalFa = num(invValue.String())
+			v.FinInvCount = len(v.FinInvRows)
+			// مانده واقعی صندوق/بانک: فروش همان کانال منهای هزینه‌های پرداخت‌شده از آن.
+			cashExp, cardExp := big.NewInt(0), big.NewInt(0)
+			expByAccount := map[string]*big.Int{}
+			for _, e := range v.Expenses {
+				if isVoided(e) {
+					continue
+				}
+				amt := parseIRRBig(e.Field("price"))
+				if finIsCashMethod(e.Field("payment_method")) {
+					cashExp.Add(cashExp, amt)
+				} else {
+					cardExp.Add(cardExp, amt)
+				}
+				_, accName := finExpenseAccount(e.Field("category"))
+				if expByAccount[accName] == nil {
+					expByAccount[accName] = big.NewInt(0)
+				}
+				expByAccount[accName].Add(expByAccount[accName], amt)
+			}
+			cashBal := new(big.Int).Sub(parseIRRBig(v.Analytics.CashSalesIRR), cashExp)
+			bankBal := new(big.Int).Sub(parseIRRBig(v.Analytics.CardSalesIRR), cardExp)
+			v.FinCashFa = num(cashBal.String())
+			v.FinBankFa = num(bankBal.String())
+			v.FinReceivablesFa = num(v.Analytics.TotalReceivablesIRR)
+			// عملکرد ماه شمسی جاری (نمای کلی).
+			now := time.Now()
+			monthFrom, monthTo := jalaliMonthRange(now)
+			v.FinMonthLabel = jalaliMonthYearLabel(now)
+			month := a.store.AnalyticsSince(ctx, monthFrom)
+			monthExp := big.NewInt(0)
+			for _, e := range v.Expenses {
+				if isVoided(e) {
+					continue
+				}
+				ct := createdOf(e)
+				if !ct.IsZero() && !ct.Before(monthFrom) && ct.Before(monthTo) {
+					monthExp.Add(monthExp, parseIRRBig(e.Field("price")))
+				}
 			}
 			rev := parseIRRBig(month.TotalSalesIRR)
-			exp := parseIRRBig(month.TotalExpensesIRR)
-			profit := new(big.Int).Sub(new(big.Int).Sub(rev, cogs), exp)
-			v.FinMonthRevFa = toman(rev.String())
-			v.FinMonthCOGSFa = toman(cogs.String())
-			v.FinMonthExpFa = toman(exp.String())
-			v.FinMonthProfitFa = toman(profit.String())
+			monthCOGS := cogsInRange(monthFrom, monthTo)
+			profit := new(big.Int).Sub(new(big.Int).Sub(rev, monthCOGS), monthExp)
+			v.FinMonthRevFa = num(rev.String())
+			v.FinMonthCOGSFa = num(monthCOGS.String())
+			v.FinMonthExpFa = num(monthExp.String())
+			v.FinMonthProfitFa = num(profit.String())
+			v.FinMonthHasRev = rev.Sign() > 0
+			if rev.Sign() > 0 {
+				pct := new(big.Float).Quo(new(big.Float).SetInt(profit), new(big.Float).SetInt(rev))
+				f, _ := pct.Float64()
+				v.FinNetPct = int(f * 100)
+				if v.FinNetPct < 0 {
+					v.FinNetPct = 0
+				}
+				if v.FinNetPct > 100 {
+					v.FinNetPct = 100
+				}
+			}
+			// ── دفتر روزنامه: اسناد دستی/انبار + سند خودکار هر هزینه ──
+			var journalAll []FinJournalRow
+			for _, e := range v.AccountingEntries {
+				src := strings.TrimSpace(e.Field("source"))
+				srcText := "دستی"
+				switch src {
+				case "inventory":
+					srcText = "انبار"
+				case "expense":
+					srcText = "هزینه"
+				default:
+					src = "manual"
+				}
+				row := FinJournalRow{
+					ID: e.ID, Kind: "accounting_entry",
+					DateFa: jalaliDayMonth(e.Field("created_at")), Title: e.Label(),
+					LinesText: "۲ آرتیکل", SourceKey: src, SourceText: srcText,
+					AmountFa: num(e.Field("price")), StatusKey: "posted", StatusText: "ثبت‌شده",
+					DebitAccount: e.Field("debit_account"), CreditAccount: e.Field("credit_account"),
+					Note: e.Field("note"), CreatedISO: e.Field("created_at"),
+				}
+				if isVoided(e) {
+					row.StatusKey, row.StatusText = "voided", "ابطال‌شده"
+				}
+				journalAll = append(journalAll, row)
+			}
+			for _, e := range v.Expenses {
+				_, accName := finExpenseAccount(e.Field("category"))
+				credit := "بانک (۱۱۰۰)"
+				if finIsCashMethod(e.Field("payment_method")) {
+					credit = "صندوق (۱۰۰۰)"
+				}
+				row := FinJournalRow{
+					ID: e.ID, Kind: "expense",
+					DateFa: jalaliDayMonth(e.Field("created_at")), Title: e.Label(),
+					LinesText: "۲ آرتیکل", SourceKey: "expense", SourceText: "هزینه",
+					AmountFa: num(e.Field("price")), StatusKey: "posted", StatusText: "ثبت‌شده",
+					DebitAccount: accName, CreditAccount: credit,
+					Note: e.Field("note"), CreatedISO: e.Field("created_at"),
+				}
+				if isVoided(e) {
+					row.StatusKey, row.StatusText = "voided", "ابطال‌شده"
+				}
+				journalAll = append(journalAll, row)
+			}
+			sort.SliceStable(journalAll, func(x, y int) bool { return journalAll[x].CreatedISO < journalAll[y].CreatedISO })
+			for i := range journalAll {
+				journalAll[i].Number = finEntryNumber(journalAll[i].CreatedISO, i+1)
+				if journalAll[i].StatusKey == "posted" {
+					v.FinEntryCount++
+				}
+			}
+			sort.SliceStable(journalAll, func(x, y int) bool { return journalAll[x].CreatedISO > journalAll[y].CreatedISO })
+			// فیلترهای دفتر روزنامه
+			v.FinJFromISO = isoDateOrEmpty(q.Get("jfrom"))
+			v.FinJToISO = isoDateOrEmpty(q.Get("jto"))
+			v.FinJFromShamsi = ShamsiFromISO(v.FinJFromISO)
+			v.FinJToShamsi = ShamsiFromISO(v.FinJToISO)
+			v.FinJSource = strings.TrimSpace(q.Get("jsource"))
+			v.FinJStatus = strings.TrimSpace(q.Get("jstatus"))
+			for _, row := range journalAll {
+				day := ""
+				if t, ok := JalaliTimeOf(row.CreatedISO); ok {
+					day = t.Format("2006-01-02")
+				}
+				if v.FinJFromISO != "" && (day == "" || day < v.FinJFromISO) {
+					continue
+				}
+				if v.FinJToISO != "" && (day == "" || day > v.FinJToISO) {
+					continue
+				}
+				if v.FinJSource != "" && row.SourceKey != v.FinJSource {
+					continue
+				}
+				if v.FinJStatus != "" && row.StatusKey != v.FinJStatus {
+					continue
+				}
+				v.FinJournalRows = append(v.FinJournalRows, row)
+			}
+			// ── هزینه‌ها: ردیف‌ها + فیلتر تاریخ/دسته/وضعیت ──
+			v.FinExpFromISO = isoDateOrEmpty(q.Get("efrom"))
+			v.FinExpToISO = isoDateOrEmpty(q.Get("eto"))
+			v.FinExpFromShamsi = ShamsiFromISO(v.FinExpFromISO)
+			v.FinExpToShamsi = ShamsiFromISO(v.FinExpToISO)
+			v.FinExpCategory = strings.TrimSpace(q.Get("ecat"))
+			v.FinExpStatus = strings.TrimSpace(q.Get("estatus"))
+			sortedExpenses := append([]store.Entity(nil), v.Expenses...)
+			sortByCreatedDesc(sortedExpenses)
+			catSeen := map[string]bool{}
+			for _, e := range sortedExpenses {
+				cat := strings.TrimSpace(e.Field("category"))
+				if cat != "" && !catSeen[cat] {
+					catSeen[cat] = true
+					v.FinExpCategories = append(v.FinExpCategories, cat)
+				}
+				if !isVoided(e) {
+					v.FinExpenseCount++
+				}
+				code, accName := finExpenseAccount(cat)
+				row := FinExpenseRow{
+					Entity: e, DateFa: jalaliDayMonth(e.Field("created_at")),
+					AmountFa: num(e.Field("price")), Category: cat, Note: strings.TrimSpace(e.Field("note")),
+					PayLabel: finPayLabel(e.Field("payment_method")), AccountCode: code, AccountName: accName,
+					StatusKey: "posted", StatusText: "ثبت‌شده",
+				}
+				if isVoided(e) {
+					row.StatusKey, row.StatusText = "voided", "ابطال‌شده"
+				}
+				day := ""
+				if t, ok := JalaliTimeOf(e.Field("created_at")); ok {
+					day = t.Format("2006-01-02")
+				}
+				if v.FinExpFromISO != "" && (day == "" || day < v.FinExpFromISO) {
+					continue
+				}
+				if v.FinExpToISO != "" && (day == "" || day > v.FinExpToISO) {
+					continue
+				}
+				if v.FinExpCategory != "" && cat != v.FinExpCategory {
+					continue
+				}
+				if v.FinExpStatus != "" && row.StatusKey != v.FinExpStatus {
+					continue
+				}
+				v.FinExpenseRows = append(v.FinExpenseRows, row)
+			}
+			// ── صدور سند از انبار: حرکت‌هایی که هنوز سند نخورده‌اند ──
+			postedRefs := map[string]bool{}
+			for _, e := range v.AccountingEntries {
+				if ref := strings.TrimSpace(e.Field("source_ref")); ref != "" {
+					postedRefs[ref] = true
+				}
+			}
+			txLabels := map[string]string{
+				"opening_balance": "موجودی اولیه", "purchase": "خرید مواد", "incoming": "رسید انبار",
+				"consumption": "مصرف", "waste": "ضایعات", "adjustment": "اصلاح", "adjustment_target": "اصلاح",
+				"outgoing": "خروج از انبار", "return_to_supplier": "برگشت به تأمین‌کننده", "transfer_in": "انتقال ورودی", "transfer_out": "انتقال خروجی",
+			}
+			movements, _ := a.store.Entities(ctx, "inventory_movement")
+			sortByCreatedDesc(movements)
+			var allMovements []FinMovementRow
+			for _, mv := range movements {
+				if postedRefs[mv.ID] {
+					continue
+				}
+				qty, _ := strconv.ParseFloat(strings.TrimSpace(mv.Field("quantity")), 64)
+				unitCost := parseIRRBig(mv.Field("unit_cost"))
+				amtF := new(big.Float).Mul(big.NewFloat(math.Abs(qty)), new(big.Float).SetInt(unitCost))
+				amt, _ := amtF.Int(nil)
+				tx := strings.TrimSpace(mv.Field("transaction_type"))
+				txLabel := txLabels[tx]
+				if txLabel == "" {
+					txLabel = "حرکت انبار"
+				}
+				title := strings.TrimSpace(mv.Field("description"))
+				if title == "" {
+					title = txLabel
+				}
+				debit, credit := "بهای تمام‌شده (۵۰۰۰)", "موجودی انبار (۱۳۰۰)"
+				if qty >= 0 {
+					debit, credit = "موجودی انبار (۱۳۰۰)", "حساب‌های پرداختنی (۲۰۰۰)"
+				}
+				qtyFa := store.FormatPersianNumber(strconv.FormatFloat(math.Abs(qty), 'f', -1, 64))
+				unitFa := shortUnitLabel(strings.TrimSpace(mv.Field("unit")))
+				allMovements = append(allMovements, FinMovementRow{
+					ID: mv.ID, Title: title,
+					MetaFa: txLabel + " · " + qtyFa + " " + unitFa + " · " + jalaliDayMonth(mv.Field("created_at")),
+					AmountIRR: amt.String(), DebitAccount: debit, CreditAccount: credit,
+					EntryTitle: "سند انبار — " + mv.Field("ingredient_name"),
+				})
+			}
+			v.FinMovements = allMovements
+			if len(v.FinMovements) > 5 {
+				v.FinMovements = v.FinMovements[:5]
+			}
+			if raw, mErr := json.Marshal(allMovements); mErr == nil {
+				v.FinMovementsJSON = template.JS(raw)
+			} else {
+				v.FinMovementsJSON = template.JS("[]")
+			}
+			// ── کدینگ حساب‌ها ──
+			payables := big.NewInt(0)
+			if purchases, pErr := a.store.Entities(ctx, "purchase"); pErr == nil {
+				for _, pu := range purchases {
+					if !strings.Contains(pu.Field("status"), "تسویه") {
+						payables.Add(payables, parseIRRBig(pu.Field("price")))
+					}
+				}
+			}
+			capital := big.NewInt(0)
+			for _, e := range v.AccountingEntries {
+				if isVoided(e) {
+					continue
+				}
+				if strings.Contains(e.Field("credit_account"), "سرمایه") {
+					capital.Add(capital, parseIRRBig(e.Field("price")))
+				}
+				if strings.Contains(e.Field("debit_account"), "سرمایه") {
+					capital.Sub(capital, parseIRRBig(e.Field("price")))
+				}
+			}
+			v.FinShowInactive = q.Get("show_inactive") == "1"
+			customAccounts, _ := a.store.Entities(ctx, "ledger_account")
+			mkRow := func(code, name string, bal *big.Int, linked string) FinAccountRow {
+				return FinAccountRow{Code: store.ToPersianDigits(code), Name: name, BalanceFa: num(bal.String()), System: true, Negative: bal.Sign() < 0, Active: true, Linked: linked}
+			}
+			expenseChart := []struct{ code, name string }{
+				{"5100", "حقوق و دستمزد"}, {"5200", "اجاره"}, {"5300", "قبوض و انرژی"},
+				{"5400", "خرید مواد"}, {"5500", "تعمیر و نگهداری"}, {"5600", "بازاریابی"}, {"5900", "سایر هزینه‌ها"},
+			}
+			var expenseRows []FinAccountRow
+			expenseTotal := big.NewInt(0)
+			for _, ch := range expenseChart {
+				bal := expByAccount[ch.name]
+				if bal == nil {
+					bal = big.NewInt(0)
+				}
+				expenseTotal.Add(expenseTotal, bal)
+				expenseRows = append(expenseRows, mkRow(ch.code, ch.name, bal, ""))
+			}
+			assetTotal := new(big.Int).Add(new(big.Int).Add(cashBal, bankBal), new(big.Int).Add(parseIRRBig(v.Analytics.TotalReceivablesIRR), invValue))
+			v.FinAccountGroups = []FinAccountGroup{
+				{TypeKey: "asset", TypeLabel: "دارایی", Desc: "آنچه کافه دارد: صندوق، بانک، موجودی انبار و طلب‌ها", TotalFa: num(assetTotal.String()), Accounts: []FinAccountRow{
+					mkRow("1000", "صندوق", cashBal, ""), mkRow("1100", "بانک", bankBal, ""),
+					mkRow("1200", "حساب‌های دریافتنی", parseIRRBig(v.Analytics.TotalReceivablesIRR), ""),
+					mkRow("1300", "موجودی انبار", invValue, "متصل به انبار"),
+				}},
+				{TypeKey: "liability", TypeLabel: "بدهی", Desc: "آنچه کافه بدهکار است: وام، بدهی به تأمین‌کننده", TotalFa: num(payables.String()), Accounts: []FinAccountRow{
+					mkRow("2000", "حساب‌های پرداختنی", payables, ""),
+				}},
+				{TypeKey: "equity", TypeLabel: "سرمایه", Desc: "سرمایه‌ی مالک و سود انباشته", TotalFa: num(capital.String()), Accounts: []FinAccountRow{
+					mkRow("3000", "سرمایه", capital, ""),
+				}},
+				{TypeKey: "income", TypeLabel: "درآمد", Desc: "درآمد فروش و سایر درآمدها", TotalFa: num(v.Analytics.TotalSalesIRR), Accounts: []FinAccountRow{
+					mkRow("4000", "درآمد فروش", parseIRRBig(v.Analytics.TotalSalesIRR), ""),
+				}},
+				{TypeKey: "expense", TypeLabel: "هزینه", Desc: "هزینه‌های جاری و بهای تمام‌شده", TotalFa: num(expenseTotal.String()), Accounts: expenseRows},
+			}
+			for _, ca := range customAccounts {
+				active := ca.Field("is_active") != "false"
+				if !active && !v.FinShowInactive {
+					continue
+				}
+				row := FinAccountRow{
+					ID: ca.ID, Code: store.ToPersianDigits(strings.TrimSpace(ca.Field("code"))),
+					Name: ca.Label(), BalanceFa: num("0"), System: false, Active: active,
+				}
+				if mod := strings.TrimSpace(ca.Field("module")); mod == "inventory" {
+					row.Linked = "متصل به انبار"
+				}
+				for gi := range v.FinAccountGroups {
+					if v.FinAccountGroups[gi].TypeKey == strings.TrimSpace(ca.Field("type")) {
+						v.FinAccountGroups[gi].Accounts = append(v.FinAccountGroups[gi].Accounts, row)
+					}
+				}
+			}
+			for gi := range v.FinAccountGroups {
+				v.FinAccountGroups[gi].Count = len(v.FinAccountGroups[gi].Accounts)
+				for _, acc := range v.FinAccountGroups[gi].Accounts {
+					if acc.Active {
+						v.FinAccountCount++
+					}
+				}
+			}
+			// ── سود و زیان بازه‌ای (پیش‌فرض: ماه شمسی جاری) ──
+			v.FinPnlFromISO = isoDateOrEmpty(q.Get("pfrom"))
+			v.FinPnlToISO = isoDateOrEmpty(q.Get("pto"))
+			pnlFrom, pnlToExcl := monthFrom, monthTo
+			if v.FinPnlFromISO == "" {
+				v.FinPnlFromISO = monthFrom.Format("2006-01-02")
+			} else if t, pErr := time.ParseInLocation("2006-01-02", v.FinPnlFromISO, tehranZone()); pErr == nil {
+				pnlFrom = t
+			}
+			if v.FinPnlToISO == "" {
+				v.FinPnlToISO = monthTo.AddDate(0, 0, -1).Format("2006-01-02")
+			}
+			if t, pErr := time.ParseInLocation("2006-01-02", v.FinPnlToISO, tehranZone()); pErr == nil {
+				pnlToExcl = t.AddDate(0, 0, 1)
+			}
+			v.FinPnlFromShamsi = ShamsiFromISO(v.FinPnlFromISO)
+			v.FinPnlToShamsi = ShamsiFromISO(v.FinPnlToISO)
+			v.FinPnlRangeLabel = "از " + jalaliDayMonthOnly(v.FinPnlFromISO) + " تا " + jalaliDayMonthOnly(v.FinPnlToISO)
+			revCash, revCard, revCredit := big.NewInt(0), big.NewInt(0), big.NewInt(0)
+			for _, o := range orders {
+				if strings.ToLower(strings.TrimSpace(o.Field("status"))) != "completed" {
+					continue
+				}
+				ct := createdOf(o)
+				if ct.IsZero() || ct.Before(pnlFrom) || !ct.Before(pnlToExcl) {
+					continue
+				}
+				amt := parseIRRBig(o.PriceIRR())
+				switch o.Field("payment_method") {
+				case "cash":
+					revCash.Add(revCash, amt)
+				case "credit_debtor":
+					revCredit.Add(revCredit, amt)
+				default:
+					revCard.Add(revCard, amt)
+				}
+			}
+			pnlRev := new(big.Int).Add(new(big.Int).Add(revCash, revCard), revCredit)
+			if revCash.Sign() > 0 {
+				v.FinPnlRevLines = append(v.FinPnlRevLines, FinPnlLine{Label: "فروش نقدی", AmountFa: num(revCash.String())})
+			}
+			if revCard.Sign() > 0 {
+				v.FinPnlRevLines = append(v.FinPnlRevLines, FinPnlLine{Label: "فروش کارت‌خوان", AmountFa: num(revCard.String())})
+			}
+			if revCredit.Sign() > 0 {
+				v.FinPnlRevLines = append(v.FinPnlRevLines, FinPnlLine{Label: "فروش نسیه", AmountFa: num(revCredit.String())})
+			}
+			pnlCOGS := cogsInRange(pnlFrom, pnlToExcl)
+			if pnlCOGS.Sign() > 0 {
+				v.FinPnlCOGSLines = append(v.FinPnlCOGSLines, FinPnlLine{Label: "بهای تمام‌شده‌ی مواد مصرفی", AmountFa: num(pnlCOGS.String())})
+			}
+			pnlExpByAccount := map[string]*big.Int{}
+			pnlExp := big.NewInt(0)
+			for _, e := range v.Expenses {
+				if isVoided(e) {
+					continue
+				}
+				ct := createdOf(e)
+				if ct.IsZero() || ct.Before(pnlFrom) || !ct.Before(pnlToExcl) {
+					continue
+				}
+				amt := parseIRRBig(e.Field("price"))
+				pnlExp.Add(pnlExp, amt)
+				_, accName := finExpenseAccount(e.Field("category"))
+				if pnlExpByAccount[accName] == nil {
+					pnlExpByAccount[accName] = big.NewInt(0)
+				}
+				pnlExpByAccount[accName].Add(pnlExpByAccount[accName], amt)
+			}
+			for _, ch := range expenseChart {
+				if bal := pnlExpByAccount[ch.name]; bal != nil && bal.Sign() > 0 {
+					v.FinPnlExpLines = append(v.FinPnlExpLines, FinPnlLine{Label: ch.name, AmountFa: num(bal.String())})
+				}
+			}
+			pnlGross := new(big.Int).Sub(pnlRev, pnlCOGS)
+			pnlNet := new(big.Int).Sub(pnlGross, pnlExp)
+			v.FinPnlRevFa = num(pnlRev.String())
+			v.FinPnlCOGSFa = num(pnlCOGS.String())
+			v.FinPnlExpFa = num(pnlExp.String())
+			v.FinPnlGrossFa = num(pnlGross.String())
+			v.FinPnlNetFa = num(pnlNet.String())
 		}
 	case "reports":
 		v.Entities, _ = a.store.Entities(ctx, "order")
@@ -5168,14 +5801,19 @@ func (a *Application) showOutbox(w http.ResponseWriter, r *http.Request, message
 }
 
 func (a *Application) navigatePage(w http.ResponseWriter, r *http.Request, page, message string) {
-	if r.Header.Get("HX-Request") != "true" {
-		http.Redirect(w, r, "/?page="+page, http.StatusSeeOther)
-		return
-	}
+	// return_tab فرم (مثلاً تب‌های «حساب و گزارش») بعد از ذخیره حفظ می‌شود تا
+	// کاربر روی همان تب بماند، نه اینکه به نمای کلی برگردد.
 	q := r.URL.Query()
+	if tab := strings.TrimSpace(r.FormValue("return_tab")); tab != "" {
+		q.Set("tab", tab)
+	}
 	q.Set("page", page)
 	r.URL.RawQuery = q.Encode()
-	w.Header().Set("HX-Push-Url", "/?page="+page)
+	if r.Header.Get("HX-Request") != "true" {
+		http.Redirect(w, r, "/?"+q.Encode(), http.StatusSeeOther)
+		return
+	}
+	w.Header().Set("HX-Push-Url", "/?"+q.Encode())
 	a.render(w, r, message)
 }
 
@@ -5199,7 +5837,7 @@ func kindToPage(kind string) string {
 		return "customers"
 	case "debtor":
 		return "debtors"
-	case "expense", "accounting_entry", "shift_close":
+	case "expense", "accounting_entry", "shift_close", "ledger_account":
 		return "finance"
 	case "staff", "job_posting":
 		return "staff"
@@ -5269,7 +5907,7 @@ func (a *Application) handleLocalSave(w http.ResponseWriter, r *http.Request) {
 	}
 	fields := map[string]any{}
 	for k, vals := range r.Form {
-		if k == "csrf" || k == "kind" || k == "id" || k == "return_page" {
+		if k == "csrf" || k == "kind" || k == "id" || k == "return_page" || k == "return_tab" {
 			continue
 		}
 		// ردیف‌های پویای تنوع/دستور تهیهٔ فرم محصول جداگانه پردازش می‌شوند.

@@ -5153,196 +5153,853 @@
   })();
   </script>
 {{else if eq .Page "finance"}}
-  <!-- حساب و گزارش — ساختار accounting وب: تب‌های نمای کلی/هزینه‌ها/اسناد حسابداری/حساب‌ها/سود و زیان -->
-  <div class="waste-head">
-    <div class="waste-head-main">
-      <span class="waste-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21v-8m5 8V9m5 12v-10m4 10V6M3 9l9-6 9 6z"/></svg></span>
-      <div>
-        <h2 class="waste-title">حساب و گزارش</h2>
-        <p class="waste-sub">نمای کلی مالی، هزینه‌ها، اسناد حسابداری و سود و زیان — همه از داده‌های واقعی همین سیستم</p>
-      </div>
-    </div>
-  </div>
+  <!-- حساب و گزارش — عین accounting وب: نمای کلی/هزینه‌ها/اسناد حسابداری/حساب‌ها/سود و زیان -->
+  <nav class="acc-crumb" aria-label="مسیر صفحه">
+    <a href="/?page=home" hx-get="/?page=home" hx-target="#main-view" hx-push-url="true">داشبورد</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+    <a href="/?page=finance" hx-get="/?page=finance" hx-target="#main-view" hx-push-url="true">حسابداری</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+    <span>{{if eq .FinTab "expenses"}}هزینه‌ها{{else if eq .FinTab "journal"}}اسناد حسابداری{{else if eq .FinTab "accounts"}}کدینگ حساب‌ها{{else if eq .FinTab "pnl"}}گزارش‌ها{{else}}نمای کلی{{end}}</span>
+  </nav>
 
-  <nav class="fin-tabs" aria-label="بخش‌های حسابداری">
-    <a href="/?page=finance" hx-get="/?page=finance" hx-target="#main-view" hx-push-url="true" class="fin-tab {{if eq .FinTab "overview"}}active{{end}}">نمای کلی</a>
-    <a href="/?page=finance&tab=expenses" hx-get="/?page=finance&tab=expenses" hx-target="#main-view" hx-push-url="true" class="fin-tab {{if eq .FinTab "expenses"}}active{{end}}">هزینه‌ها</a>
-    <a href="/?page=finance&tab=journal" hx-get="/?page=finance&tab=journal" hx-target="#main-view" hx-push-url="true" class="fin-tab {{if eq .FinTab "journal"}}active{{end}}">اسناد حسابداری</a>
-    <a href="/?page=finance&tab=accounts" hx-get="/?page=finance&tab=accounts" hx-target="#main-view" hx-push-url="true" class="fin-tab {{if eq .FinTab "accounts"}}active{{end}}">حساب‌ها</a>
-    <a href="/?page=finance&tab=pnl" hx-get="/?page=finance&tab=pnl" hx-target="#main-view" hx-push-url="true" class="fin-tab {{if eq .FinTab "pnl"}}active{{end}}">سود و زیان</a>
+  <nav class="acc-tabs" aria-label="بخش‌های حسابداری">
+    <a href="/?page=finance" hx-get="/?page=finance" hx-target="#main-view" hx-push-url="true" class="acc-tab {{if eq .FinTab "overview"}}active{{end}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>نمای کلی</a>
+    <a href="/?page=finance&tab=expenses" hx-get="/?page=finance&tab=expenses" hx-target="#main-view" hx-push-url="true" class="acc-tab {{if eq .FinTab "expenses"}}active{{end}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4L10 20.5 8 19.1l-2 1.4z"/><path d="M9 8h6M9 12h6"/></svg>هزینه‌ها</a>
+    <a href="/?page=finance&tab=journal" hx-get="/?page=finance&tab=journal" hx-target="#main-view" hx-push-url="true" class="acc-tab {{if eq .FinTab "journal"}}active{{end}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H19v3H6.5A1.5 1.5 0 0 1 5 19.5z"/></svg>اسناد حسابداری</a>
+    <a href="/?page=finance&tab=accounts" hx-get="/?page=finance&tab=accounts" hx-target="#main-view" hx-push-url="true" class="acc-tab {{if eq .FinTab "accounts"}}active{{end}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.1" fill="currentColor" stroke="none"/></svg>حساب‌ها</a>
+    <a href="/?page=finance&tab=pnl" hx-get="/?page=finance&tab=pnl" hx-target="#main-view" hx-push-url="true" class="acc-tab {{if eq .FinTab "pnl"}}active{{end}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16v-5m4.5 5V8M17 16v-8"/></svg>سود و زیان</a>
   </nav>
 
   {{if eq .FinTab "overview"}}
-  <div class="fin-stats">
-    <article class="fin-stat"><p>موجودی صندوق</p><strong>{{.FinCashFa}} تومان</strong><small>فروش نقدی ثبت‌شده</small></article>
-    <article class="fin-stat"><p>موجودی بانک</p><strong>{{.FinBankFa}} تومان</strong><small>کارت‌خوان و انتقال بانکی</small></article>
-    <article class="fin-stat"><p>ارزش موجودی انبار</p><strong>{{.FinInvValueFa}} تومان</strong><small>بر اساس بهای میانگین</small></article>
-    <article class="fin-stat"><p>طلب از مشتریان</p><strong>{{.FinReceivablesFa}} تومان</strong><small>نسیه‌های تسویه‌نشده</small></article>
+  <div class="acc-actions">
+    <button type="button" class="acc-action is-primary" onclick="openDlg('dlg-fin-expense')">
+      <span class="acc-action-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span><strong>ثبت هزینه</strong><small>اجاره، خرید مواد، حقوق...</small></span>
+    </button>
+    <button type="button" class="acc-action" onclick="finJournalNew()">
+      <span class="acc-action-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H19v3H6.5A1.5 1.5 0 0 1 5 19.5z"/></svg></span>
+      <span><strong>سند دستی</strong><small>ثبت آرتیکل بدهکار/بستانکار</small></span>
+    </button>
+    <a href="/?page=finance&tab=pnl" hx-get="/?page=finance&tab=pnl" hx-target="#main-view" hx-push-url="true" class="acc-action">
+      <span class="acc-action-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16v-5m4.5 5V8M17 16v-8"/></svg></span>
+      <span><strong>گزارش سود و زیان</strong><small>درآمد، بهای تمام‌شده، هزینه</small></span>
+    </a>
+    <a href="/?page=finance&tab=accounts" hx-get="/?page=finance&tab=accounts" hx-target="#main-view" hx-push-url="true" class="acc-action">
+      <span class="acc-action-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21v-8m5 8V9m5 12v-10m4 10V6M3 9l9-6 9 6z"/></svg></span>
+      <span><strong>حساب‌ها</strong><small>کدینگ و مانده‌ی حساب‌ها</small></span>
+    </a>
   </div>
 
-  <div class="fin-grid">
-    <section class="panel-card">
-      <div class="panel-header">
-        <div><h3>عملکرد ماه جاری</h3><p>درآمد، بهای تمام‌شده و هزینه‌های ثبت‌شده در ماه جاری</p></div>
-        <a href="/?page=finance&tab=pnl" hx-get="/?page=finance&tab=pnl" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm">گزارش کامل</a>
+  <div class="acc-kpis">
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="12" cy="14.5" r="1.6"/></svg></span>
+      <div><p>موجودی صندوق</p><strong>{{.FinCashFa}} <span>تومان</span></strong><small>حساب ۱۰۰۰</small></div>
+    </article>
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21v-8m5 8V9m5 12v-10m4 10V6M3 9l9-6 9 6z"/></svg></span>
+      <div><p>موجودی بانک</p><strong>{{.FinBankFa}} <span>تومان</span></strong><small>کارت‌خوان و انتقال بانکی</small></div>
+    </article>
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+      <div><p>ارزش موجودی انبار</p><strong>{{.FinInvValueFa}} <span>تومان</span></strong><small>بر اساس بهای میانگین</small></div>
+    </article>
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+      <div><p>طلب از مشتریان</p><strong>{{.FinReceivablesFa}} <span>تومان</span></strong><small>نسیه‌های تسویه‌نشده</small></div>
+    </article>
+  </div>
+
+  <div class="acc-grid">
+    <section class="acc-panel">
+      <header class="acc-panel-head">
+        <div>
+          <h3>عملکرد {{.FinMonthLabel}}</h3>
+          <p>درآمد، بهای تمام‌شده و هزینه‌های ثبت‌شده در ماه جاری</p>
+        </div>
+        <a href="/?page=finance&tab=pnl" hx-get="/?page=finance&tab=pnl" hx-target="#main-view" hx-push-url="true" class="acc-full-link">گزارش کامل<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg></a>
+      </header>
+      <div class="acc-perf">
+        <div class="acc-perf-row">
+          <span class="acc-perf-lb"><span class="acc-perf-ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l5-6 4 3 7-8"/><path d="M15 6h5v5"/></svg></span>درآمد</span>
+          <strong>{{.FinMonthRevFa}} <span>تومان</span></strong>
+        </div>
+        <div class="acc-perf-row">
+          <span class="acc-perf-lb"><span class="acc-perf-ic rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>بهای تمام‌شده (COGS)</span>
+          <strong>{{.FinMonthCOGSFa}} <span>تومان</span></strong>
+        </div>
+        <div class="acc-perf-row">
+          <span class="acc-perf-lb"><span class="acc-perf-ic rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7l5 6 4-3 7 8"/><path d="M15 18h5v-5"/></svg></span>هزینه‌ها</span>
+          <strong>{{.FinMonthExpFa}} <span>تومان</span></strong>
+        </div>
       </div>
-      <dl class="fin-rows">
-        <div><dt>درآمد</dt><dd>{{.FinMonthRevFa}} تومان</dd></div>
-        <div><dt>بهای تمام‌شده (COGS)</dt><dd>{{.FinMonthCOGSFa}} تومان</dd></div>
-        <div><dt>هزینه‌ها</dt><dd>{{.FinMonthExpFa}} تومان</dd></div>
-        <div class="fin-net"><dt>سود خالص ماه</dt><dd>{{.FinMonthProfitFa}} تومان</dd></div>
-      </dl>
+      <div class="acc-net">
+        <div class="acc-net-row"><span>سود خالص ماه</span><strong>{{.FinMonthProfitFa}} تومان</strong></div>
+        <div class="acc-net-bar"><i style="width:{{.FinNetPct}}%"></i></div>
+        {{if not .FinMonthHasRev}}<p class="acc-net-note">هنوز درآمدی برای این ماه ثبت نشده است.</p>{{end}}
+      </div>
     </section>
-    <section class="panel-card">
-      <div class="panel-header"><div><h3>فعالیت ثبت‌شده</h3><p>تعداد رکوردهای معتبر (بدون ابطال‌شده‌ها)</p></div></div>
-      <div class="fin-activity">
-        <div class="fin-act"><strong>{{faInt (len .AccountingEntries)}}</strong><span>سند حسابداری</span></div>
-        <div class="fin-act"><strong>{{faInt (len .Expenses)}}</strong><span>هزینه ثبت‌شده</span></div>
+
+    <section class="acc-panel">
+      <header class="acc-panel-head">
+        <div>
+          <h3>فعالیت ثبت‌شده</h3>
+          <p>تعداد رکوردهای معتبر (بدون ابطال‌شده‌ها)</p>
+        </div>
+      </header>
+      <div class="acc-activity">
+        <a href="/?page=finance&tab=journal" hx-get="/?page=finance&tab=journal" hx-target="#main-view" hx-push-url="true" class="acc-act">
+          <span class="acc-act-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H19v3H6.5A1.5 1.5 0 0 1 5 19.5z"/></svg></span>
+          <strong>{{faInt .FinEntryCount}}</strong><span>سند حسابداری</span>
+        </a>
+        <a href="/?page=finance&tab=expenses" hx-get="/?page=finance&tab=expenses" hx-target="#main-view" hx-push-url="true" class="acc-act">
+          <span class="acc-act-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4L10 20.5 8 19.1l-2 1.4z"/><path d="M9 8h6M9 12h6"/></svg></span>
+          <strong>{{faInt .FinExpenseCount}}</strong><span>هزینه‌ی ثبت‌شده</span>
+        </a>
       </div>
     </section>
   </div>
-  <p class="fin-footnote">همه مبالغ به تومان و بر اساس اسناد ثبت‌شده محاسبه می‌شوند.</p>
+  <p class="acc-footnote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5m0-8.5v.01"/></svg>همه‌ی مبالغ به تومان و بر اساس اسناد ثبت‌شده محاسبه می‌شوند.</p>
 
   {{else if eq .FinTab "expenses"}}
-  <section class="panel-card">
-    <div class="panel-header"><div><h3>ثبت هزینه</h3><p>اجاره، خرید مواد، حقوق، قبوض و تعمیرات</p></div></div>
-    <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="form-grid">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <input type="hidden" name="kind" value="expense">
-      <input type="hidden" name="return_page" value="finance">
-      <label>عنوان هزینه<input name="title" placeholder="خرید ۲۰ بطری شیر تازه" required></label>
-      <label>دسته هزینه
-        <select name="category">
-          <option value="اجاره">اجاره</option>
-          <option value="حقوق">حقوق</option>
-          <option value="خرید مواد">خرید مواد</option>
-          <option value="آب و برق">آب و برق</option>
-          <option value="تعمیرات">تعمیرات</option>
-          <option value="بازاریابی">بازاریابی</option>
-          <option value="سایر">سایر</option>
-        </select>
-      </label>
-      <div class="form-row-2">
-        <label>مبلغ هزینه (ریال)<input name="price" placeholder="6800000" inputmode="numeric" required></label>
-        <label>روش پرداخت
-          <select name="payment_method">
-            <option value="cash">نقد (صندوق)</option>
-            <option value="card">کارت/بانک</option>
-          </select>
-        </label>
+  <section class="acc-panel acc-table-panel">
+    <header class="acc-panel-head">
+      <div class="acc-panel-title">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4L10 20.5 8 19.1l-2 1.4z"/><path d="M9 8h6M9 12h6"/></svg></span>
+        <div><h3>هزینه‌ها</h3><p>هر هزینه با یک سند متوازن در دفتر روزنامه ثبت می‌شود</p></div>
       </div>
-      <label>توضیحات / شماره رسید<input name="note" placeholder="فاکتور شماره ۴۱۲"></label>
-      <button type="submit" class="btn btn-primary">+ ثبت هزینه</button>
+      <button type="button" class="btn btn-primary" onclick="openDlg('dlg-fin-expense')">+ ثبت هزینه</button>
+    </header>
+
+    <form method="get" action="/" hx-get="/" hx-target="#main-view" hx-push-url="true" class="acc-filters">
+      <input type="hidden" name="page" value="finance">
+      <input type="hidden" name="tab" value="expenses">
+      <div class="acc-filter">
+        <span class="acc-filter-lb">از تاریخ</span>
+        <div class="acc-date" data-jdp data-jdp-auto>
+          <button type="button" class="acc-date-trigger {{if .FinExpFromISO}}has-value{{end}}" data-jdp-trigger aria-label="از تاریخ">
+            <span data-jdp-label>{{if .FinExpFromShamsi}}{{.FinExpFromShamsi}}{{else}}انتخاب از تاریخ{{end}}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+          </button>
+          <input type="hidden" name="efrom" value="{{.FinExpFromISO}}" data-jdp-value>
+          <div class="jdp-pop" data-jdp-pop hidden></div>
+        </div>
+      </div>
+      <div class="acc-filter">
+        <span class="acc-filter-lb">تا تاریخ</span>
+        <div class="acc-date" data-jdp data-jdp-auto>
+          <button type="button" class="acc-date-trigger {{if .FinExpToISO}}has-value{{end}}" data-jdp-trigger aria-label="تا تاریخ">
+            <span data-jdp-label>{{if .FinExpToShamsi}}{{.FinExpToShamsi}}{{else}}انتخاب تا تاریخ{{end}}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+          </button>
+          <input type="hidden" name="eto" value="{{.FinExpToISO}}" data-jdp-value>
+          <div class="jdp-pop" data-jdp-pop hidden></div>
+        </div>
+      </div>
+      <div class="acc-filter">
+        <span class="acc-filter-lb">دسته</span>
+        <select name="ecat" aria-label="دسته هزینه" onchange="this.form.requestSubmit()">
+          <option value="">همه دسته‌ها</option>
+          {{range .FinExpCategories}}<option value="{{.}}" {{if eq $.FinExpCategory .}}selected{{end}}>{{.}}</option>{{end}}
+        </select>
+      </div>
+      <div class="acc-filter">
+        <span class="acc-filter-lb">وضعیت</span>
+        <select name="estatus" aria-label="وضعیت" onchange="this.form.requestSubmit()">
+          <option value="">همه وضعیت‌ها</option>
+          <option value="posted" {{if eq .FinExpStatus "posted"}}selected{{end}}>ثبت‌شده</option>
+          <option value="voided" {{if eq .FinExpStatus "voided"}}selected{{end}}>ابطال‌شده</option>
+        </select>
+      </div>
+      <a href="/?page=finance&tab=expenses" hx-get="/?page=finance&tab=expenses" hx-target="#main-view" hx-push-url="true" class="acc-clear">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16l-6.5 8v5.5L10 20v-6.5z"/></svg>
+        پاک‌کردن فیلترها
+      </a>
     </form>
-  </section>
-  <section class="panel-card">
-    <div class="panel-header"><div><h3>هزینه‌های ثبت‌شده (جمع: {{toman .Analytics.TotalExpensesIRR}})</h3></div></div>
-    {{if .Expenses}}
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>عنوان هزینه</th><th>دسته</th><th>روش پرداخت</th><th>مبلغ (تومان)</th><th>تاریخ</th><th>عملیات</th></tr></thead>
+
+    {{if .FinExpenseRows}}
+    <div class="acc-table-wrap">
+      <table class="acc-table">
+        <thead><tr><th>تاریخ</th><th>عنوان</th><th>دسته</th><th>پرداخت</th><th>حساب</th><th>مبلغ (تومان)</th><th>وضعیت</th><th class="acc-th-ops">عملیات</th></tr></thead>
         <tbody>
-          {{range .Expenses}}
+          {{range .FinExpenseRows}}
           <tr>
-            <td><strong>{{.Label}}</strong></td>
-            <td><span class="badge status-muted">{{.Field "category"}}</span></td>
-            <td>{{.Field "payment_method"}}</td>
-            <td><strong class="price-tag">{{.PriceToman}}</strong></td>
-            <td>{{jalaliISO (.Field "created_at")}}</td>
-            <td>
-              <form method="post" action="/local/delete" hx-post="/local/delete" hx-target="#main-view" class="inline-form">
+            <td class="acc-td-date">{{.DateFa}}</td>
+            <td><strong class="acc-td-title">{{.Entity.Label}}</strong>{{if .Note}}<small class="acc-td-sub">{{.Note}}</small>{{end}}</td>
+            <td>{{.Category}}</td>
+            <td>{{.PayLabel}}</td>
+            <td><span class="acc-acc-cell">{{.AccountName}}<span class="acc-code">{{.AccountCode}}</span></span></td>
+            <td><strong class="acc-td-amount">{{.AmountFa}}</strong></td>
+            <td><span class="acc-pill {{if eq .StatusKey "voided"}}is-void{{else}}is-posted{{end}}">{{.StatusText}}</span></td>
+            <td class="acc-td-ops">
+              <button type="button" class="acc-icon-btn" title="مشاهده هزینه" aria-label="مشاهده هزینه" onclick="finExpenseView(this)"
+                data-title="{{.Entity.Label}}" data-date="{{.DateFa}}" data-category="{{.Category}}" data-pay="{{.PayLabel}}" data-account="{{.AccountName}} ({{.AccountCode}})" data-amount="{{.AmountFa}}" data-status="{{.StatusText}}" data-note="{{.Note}}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              {{if eq .StatusKey "posted"}}
+              <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این هزینه ابطال شود؟ سند آن در دفتر روزنامه هم ابطال‌شده نمایش داده می‌شود.')">
                 <input type="hidden" name="csrf" value="{{$.CSRF}}">
                 <input type="hidden" name="kind" value="expense">
-                <input type="hidden" name="id" value="{{.ID}}">
+                <input type="hidden" name="id" value="{{.Entity.ID}}">
+                <input type="hidden" name="status" value="voided">
                 <input type="hidden" name="return_page" value="finance">
-                <button type="submit" class="btn btn-subtle btn-sm danger">حذف</button>
+                <input type="hidden" name="return_tab" value="expenses">
+                <button type="submit" class="acc-icon-btn is-danger" title="ابطال هزینه" aria-label="ابطال هزینه"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg></button>
               </form>
+              {{end}}
             </td>
           </tr>
           {{end}}
         </tbody>
       </table>
     </div>
-    {{else}}<p class="empty-text">هزینه‌ای ثبت نشده است.</p>{{end}}
+    {{else}}<p class="acc-empty">هزینه‌ای با این فیلترها ثبت نشده است.</p>{{end}}
   </section>
 
   {{else if eq .FinTab "journal"}}
-  <div class="dlg-overlay" id="dlg-journal-new">
-    <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="dlg dlg-md" role="dialog" aria-modal="true">
-      <button type="button" class="dlg-x" onclick="closeDlg(this)" aria-label="بستن">×</button>
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <input type="hidden" name="kind" value="accounting_entry">
-      <input type="hidden" name="return_page" value="finance">
-      <h3>ثبت سند دستی</h3>
-      <p class="row-sub">ثبت از/به حساب بدهکار و بستانکار (حسابداری دوبل)</p>
-      <label>شرح سند<input name="title" placeholder="ثبت اجاره ماهانه" required></label>
-      <div class="form-row-2">
-        <label>حساب بدهکار<input name="debit_account" placeholder="هزینه اجاره" required></label>
-        <label>حساب بستانکار<input name="credit_account" placeholder="بانک" required></label>
+  <section class="acc-panel acc-table-panel">
+    <header class="acc-panel-head">
+      <div class="acc-panel-title">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H19v3H6.5A1.5 1.5 0 0 1 5 19.5z"/></svg></span>
+        <div><h3>دفتر روزنامه</h3><p>همه‌ی اسناد دوبل؛ خودکار (هزینه، انبار) و دستی</p></div>
       </div>
-      <label>مبلغ سند (ریال)<input name="price" inputmode="numeric" placeholder="50000000" required></label>
-      <div class="dlg-actions">
-        <button type="button" class="btn btn-outline" onclick="closeDlg(this)">انصراف</button>
-        <button type="submit" class="btn btn-primary">+ ثبت سند</button>
+      <button type="button" class="btn btn-primary" onclick="finJournalNew()">+ سند دستی</button>
+    </header>
+
+    <form method="get" action="/" hx-get="/" hx-target="#main-view" hx-push-url="true" class="acc-filters">
+      <input type="hidden" name="page" value="finance">
+      <input type="hidden" name="tab" value="journal">
+      <div class="acc-filter">
+        <span class="acc-filter-lb">از تاریخ</span>
+        <div class="acc-date" data-jdp data-jdp-auto>
+          <button type="button" class="acc-date-trigger {{if .FinJFromISO}}has-value{{end}}" data-jdp-trigger aria-label="از تاریخ">
+            <span data-jdp-label>{{if .FinJFromShamsi}}{{.FinJFromShamsi}}{{else}}انتخاب از تاریخ{{end}}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+          </button>
+          <input type="hidden" name="jfrom" value="{{.FinJFromISO}}" data-jdp-value>
+          <div class="jdp-pop" data-jdp-pop hidden></div>
+        </div>
       </div>
+      <div class="acc-filter">
+        <span class="acc-filter-lb">تا تاریخ</span>
+        <div class="acc-date" data-jdp data-jdp-auto>
+          <button type="button" class="acc-date-trigger {{if .FinJToISO}}has-value{{end}}" data-jdp-trigger aria-label="تا تاریخ">
+            <span data-jdp-label>{{if .FinJToShamsi}}{{.FinJToShamsi}}{{else}}انتخاب تا تاریخ{{end}}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+          </button>
+          <input type="hidden" name="jto" value="{{.FinJToISO}}" data-jdp-value>
+          <div class="jdp-pop" data-jdp-pop hidden></div>
+        </div>
+      </div>
+      <div class="acc-filter">
+        <span class="acc-filter-lb">منبع سند</span>
+        <select name="jsource" aria-label="منبع سند" onchange="this.form.requestSubmit()">
+          <option value="">همه منابع</option>
+          <option value="manual" {{if eq .FinJSource "manual"}}selected{{end}}>دستی</option>
+          <option value="expense" {{if eq .FinJSource "expense"}}selected{{end}}>هزینه</option>
+          <option value="inventory" {{if eq .FinJSource "inventory"}}selected{{end}}>انبار</option>
+        </select>
+      </div>
+      <div class="acc-filter">
+        <span class="acc-filter-lb">وضعیت</span>
+        <select name="jstatus" aria-label="وضعیت" onchange="this.form.requestSubmit()">
+          <option value="">همه وضعیت‌ها</option>
+          <option value="posted" {{if eq .FinJStatus "posted"}}selected{{end}}>ثبت‌شده</option>
+          <option value="voided" {{if eq .FinJStatus "voided"}}selected{{end}}>ابطال‌شده</option>
+        </select>
+      </div>
+      <a href="/?page=finance&tab=journal" hx-get="/?page=finance&tab=journal" hx-target="#main-view" hx-push-url="true" class="acc-clear">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16l-6.5 8v5.5L10 20v-6.5z"/></svg>
+        پاک‌کردن فیلترها
+      </a>
     </form>
-  </div>
-  <section class="panel-card">
-    <div class="panel-header">
-      <div><h3>اسناد حسابداری</h3><p>برای ساخت سند جدید از دکمه «سند جدید» استفاده کنید؛ جدول اسناد جداست.</p></div>
-      <button type="button" class="btn btn-primary" onclick="openDlg('dlg-journal-new')">+ سند جدید</button>
-    </div>
-    <div class="panel-header"><div><h3>اسناد روزنامه حسابداری</h3></div></div>
-    {{if .AccountingEntries}}
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>شرح سند</th><th>حساب بدهکار</th><th>حساب بستانکار</th><th>مبلغ</th><th>تاریخ</th></tr></thead>
+
+    {{if .FinJournalRows}}
+    <div class="acc-table-wrap">
+      <table class="acc-table">
+        <thead><tr><th>شماره</th><th>تاریخ</th><th>شرح</th><th>منبع</th><th>مبلغ (تومان)</th><th>وضعیت</th><th class="acc-th-ops">عملیات</th></tr></thead>
         <tbody>
-          {{range .AccountingEntries}}
+          {{range .FinJournalRows}}
           <tr>
-            <td><strong>{{.Label}}</strong></td>
-            <td>{{.Field "debit_account"}}</td>
-            <td>{{.Field "credit_account"}}</td>
-            <td><strong class="price-tag">{{.PriceToman}}</strong></td>
-            <td>{{jalaliISO (.Field "created_at")}}</td>
+            <td class="acc-td-num" dir="ltr">{{.Number}}</td>
+            <td class="acc-td-date">{{.DateFa}}</td>
+            <td><strong class="acc-td-title">{{.Title}}</strong><small class="acc-td-sub">{{.LinesText}}</small></td>
+            <td><span class="acc-src src-{{.SourceKey}}">{{.SourceText}}</span></td>
+            <td><strong class="acc-td-amount">{{.AmountFa}}</strong></td>
+            <td><span class="acc-pill {{if eq .StatusKey "voided"}}is-void{{else}}is-posted{{end}}">{{.StatusText}}</span></td>
+            <td class="acc-td-ops">
+              <button type="button" class="acc-icon-btn" title="مشاهده سند" aria-label="مشاهده سند" onclick="finEntryView(this)"
+                data-number="{{.Number}}" data-title="{{.Title}}" data-date="{{.DateFa}}" data-source="{{.SourceText}}" data-status="{{.StatusText}}" data-debit="{{.DebitAccount}}" data-credit="{{.CreditAccount}}" data-amount="{{.AmountFa}}" data-note="{{.Note}}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              {{if eq .StatusKey "posted"}}
+              <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="inline-form" onsubmit="return confirm('این سند ابطال شود؟')">
+                <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="kind" value="{{.Kind}}">
+                <input type="hidden" name="id" value="{{.ID}}">
+                <input type="hidden" name="status" value="voided">
+                <input type="hidden" name="return_page" value="finance">
+                <input type="hidden" name="return_tab" value="journal">
+                <button type="submit" class="acc-icon-btn is-danger" title="ابطال سند" aria-label="ابطال سند"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg></button>
+              </form>
+              {{end}}
+            </td>
           </tr>
           {{end}}
         </tbody>
       </table>
     </div>
-    {{else}}<p class="empty-text">سند حسابداری ثبت نشده است.</p>{{end}}
+    {{else}}<p class="acc-empty">سندی با این فیلترها ثبت نشده است.</p>{{end}}
   </section>
 
-  {{else if eq .FinTab "accounts"}}
-  <section class="panel-card">
-    <div class="panel-header"><div><h3>حساب‌ها و مانده‌ها</h3><p>مانده هر حساب از اسناد و فروش‌های واقعی سیستم ساخته می‌شود</p></div></div>
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>حساب</th><th>شرح</th><th>مانده (تومان)</th></tr></thead>
-        <tbody>
-          <tr><td><strong>صندوق</strong></td><td>فروش‌های نقدی تکمیل‌شده</td><td><strong class="price-tag">{{.FinCashFa}} تومان</strong></td></tr>
-          <tr><td><strong>بانک / کارت‌خوان</strong></td><td>فروش‌های کارتی تکمیل‌شده</td><td><strong class="price-tag">{{.FinBankFa}} تومان</strong></td></tr>
-          <tr><td><strong>طلب از مشتریان</strong></td><td>نسیه‌های تسویه‌نشده بدهکاران</td><td><strong class="price-tag">{{.FinReceivablesFa}} تومان</strong></td></tr>
-          <tr><td><strong>موجودی انبار</strong></td><td>ارزش اقلام انبار بر اساس بهای میانگین</td><td><strong class="price-tag">{{.FinInvValueFa}} تومان</strong></td></tr>
-          <tr><td><strong>درآمد فروش (کل)</strong></td><td>همه فروش‌های تکمیل‌شده</td><td><strong class="price-tag">{{toman .Analytics.TotalSalesIRR}} تومان</strong></td></tr>
-          <tr><td><strong>هزینه‌ها (کل)</strong></td><td>همه هزینه‌های ثبت‌شده</td><td><strong class="price-tag">{{toman .Analytics.TotalExpensesIRR}} تومان</strong></td></tr>
-        </tbody>
-      </table>
+  <section class="acc-panel">
+    <header class="acc-panel-head">
+      <div class="acc-panel-title">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+        <div><h3>صدور سند از انبار</h3><p>حرکت‌های انبار را به سند حسابداری (خرید مواد / مصرف) تبدیل کنید</p></div>
+      </div>
+    </header>
+    <div class="acc-post-grid">
+      <div>
+        <p class="acc-post-lb">آخرین حرکت‌های انبار</p>
+        {{if .FinMovements}}
+        <div class="acc-mov-list">
+          {{range .FinMovements}}
+          <div class="acc-mov">
+            <span class="acc-mov-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
+            <span class="acc-mov-txt"><strong>{{.Title}}</strong><small>{{.MetaFa}}</small></span>
+            <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="inline-form">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="kind" value="accounting_entry">
+              <input type="hidden" name="title" value="{{.EntryTitle}}">
+              <input type="hidden" name="debit_account" value="{{.DebitAccount}}">
+              <input type="hidden" name="credit_account" value="{{.CreditAccount}}">
+              <input type="hidden" name="price" value="{{.AmountIRR}}">
+              <input type="hidden" name="source" value="inventory">
+              <input type="hidden" name="source_ref" value="{{.ID}}">
+              <input type="hidden" name="return_page" value="finance">
+              <input type="hidden" name="return_tab" value="journal">
+              <button type="submit" class="btn btn-outline btn-sm">صدور سند</button>
+            </form>
+          </div>
+          {{end}}
+        </div>
+        {{else}}<p class="acc-empty">حرکت سند‌نخورده‌ای در انبار نیست.</p>{{end}}
+      </div>
+      <div class="acc-uuid">
+        <p class="acc-post-lb">شناسه‌ی تراکنش انبار</p>
+        <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" id="fin-mov-uuid-form" onsubmit="return finMovementUUID(this)">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="kind" value="accounting_entry">
+          <input type="hidden" name="title" data-mv="title">
+          <input type="hidden" name="debit_account" data-mv="debit">
+          <input type="hidden" name="credit_account" data-mv="credit">
+          <input type="hidden" name="price" data-mv="price">
+          <input type="hidden" name="source" value="inventory">
+          <input type="hidden" name="source_ref" data-mv="ref">
+          <input type="hidden" name="return_page" value="finance">
+          <input type="hidden" name="return_tab" value="journal">
+          <input type="text" id="fin-mov-uuid" placeholder="تراکنش UUID" dir="ltr" autocomplete="off">
+          <p class="acc-uuid-hint" id="fin-mov-uuid-hint">برای تراکنش‌های قدیمی‌تر که در فهرست نیستند، شناسه را از صفحه‌ی انبار کپی کنید.</p>
+          <button type="submit" class="btn btn-primary btn-sm">صدور سند</button>
+        </form>
+      </div>
     </div>
   </section>
 
+  {{else if eq .FinTab "accounts"}}
+  <section class="acc-panel">
+    <header class="acc-panel-head">
+      <div class="acc-panel-title">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21v-8m5 8V9m5 12v-10m4 10V6M3 9l9-6 9 6z"/></svg></span>
+        <div><h3>کدینگ حساب‌ها</h3><p>حساب‌های سیستمی آماده‌اند؛ برای نیازهای خاص کافه سرفصل جدید بسازید</p></div>
+      </div>
+      <div class="acc-head-acts">
+        <a href="/?page=finance&tab=accounts{{if not .FinShowInactive}}&show_inactive=1{{end}}" hx-get="/?page=finance&tab=accounts{{if not .FinShowInactive}}&show_inactive=1{{end}}" hx-target="#main-view" hx-push-url="true" class="acc-show-inactive">
+          نمایش غیرفعال‌ها
+          <span class="acc-switch {{if .FinShowInactive}}on{{end}}" aria-hidden="true"><i></i></span>
+        </a>
+        <button type="button" class="btn btn-primary" onclick="finAccountNew()">+ حساب جدید</button>
+      </div>
+    </header>
+
+    <div class="acc-type-cards">
+      {{range .FinAccountGroups}}
+      <div class="acc-type-card"><strong>{{.TypeLabel}}</strong><span>{{.Desc}}</span></div>
+      {{end}}
+    </div>
+
+    {{range .FinAccountGroups}}
+    <div class="acc-group">
+      <header class="acc-group-head">
+        <span class="acc-type-chip type-{{.TypeKey}}">{{.TypeLabel}}</span>
+        <span class="acc-group-desc">{{.Desc}}</span>
+        <span class="acc-group-total">{{faInt .Count}} حساب، جمع مانده: {{.TotalFa}} تومان</span>
+      </header>
+      <div class="acc-rows">
+        {{range .Accounts}}
+        <div class="acc-row {{if not .Active}}is-inactive{{end}}">
+          <span class="acc-row-code">{{.Code}}</span>
+          <strong class="acc-row-name">{{.Name}}</strong>
+          {{if .System}}<span class="acc-sys-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>سیستمی</span>{{end}}
+          {{if .Linked}}<span class="acc-link-chip">{{.Linked}}</span>{{end}}
+          <span class="acc-row-end">
+            <strong class="acc-row-bal {{if .Negative}}neg{{end}}">{{.BalanceFa}} <span>تومان</span></strong>
+            {{if not .System}}
+            <button type="button" class="acc-icon-btn" title="ویرایش حساب" aria-label="ویرایش حساب" onclick="finAccountEdit(this)" data-id="{{.ID}}" data-code="{{.Code}}" data-name="{{.Name}}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            </button>
+            <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="inline-form">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="kind" value="ledger_account">
+              <input type="hidden" name="id" value="{{.ID}}">
+              <input type="hidden" name="is_active" value="{{if .Active}}false{{else}}true{{end}}">
+              <input type="hidden" name="return_page" value="finance">
+              <input type="hidden" name="return_tab" value="accounts">
+              <button type="submit" class="acc-switch-btn" title="{{if .Active}}غیرفعال کردن حساب{{else}}فعال کردن حساب{{end}}" aria-label="{{if .Active}}غیرفعال کردن حساب{{else}}فعال کردن حساب{{end}}"><span class="acc-switch {{if .Active}}on{{end}}"><i></i></span></button>
+            </form>
+            {{else}}
+            <span class="acc-switch on is-locked" title="حساب سیستمی همیشه فعال است"><i></i></span>
+            {{end}}
+          </span>
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+  </section>
+
   {{else if eq .FinTab "pnl"}}
-  <section class="panel-card">
-    <div class="panel-header"><div><h3>گزارش سود و زیان — ماه جاری</h3><p>درآمد، بهای تمام‌شده، هزینه و سود خالص</p></div></div>
-    <dl class="fin-rows">
-      <div><dt>درآمد فروش</dt><dd>{{.FinMonthRevFa}} تومان</dd></div>
-      <div><dt>بهای تمام‌شده کالای فروش‌رفته (COGS)</dt><dd>{{.FinMonthCOGSFa}} تومان</dd></div>
-      <div><dt>هزینه‌های عملیاتی</dt><dd>{{.FinMonthExpFa}} تومان</dd></div>
-      <div class="fin-net"><dt>سود خالص ماه</dt><dd>{{.FinMonthProfitFa}} تومان</dd></div>
-    </dl>
-    <p class="fin-footnote">بهای تمام‌شده از روی رسپی (BOM) هر محصول و بهای میانگین مواد اولیه محاسبه می‌شود؛ محصول بدون رسپی در COGS صفر در نظر گرفته می‌شود.</p>
+  <form method="get" action="/" hx-get="/" hx-target="#main-view" hx-push-url="true" class="acc-panel acc-pnl-range">
+    <input type="hidden" name="page" value="finance">
+    <input type="hidden" name="tab" value="pnl">
+    <div class="acc-filter grow">
+      <span class="acc-filter-lb">از تاریخ</span>
+      <div class="acc-date" data-jdp data-jdp-auto>
+        <button type="button" class="acc-date-trigger has-value" data-jdp-trigger aria-label="از تاریخ">
+          <span data-jdp-label>{{.FinPnlFromShamsi}}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+        </button>
+        <input type="hidden" name="pfrom" value="{{.FinPnlFromISO}}" data-jdp-value>
+        <div class="jdp-pop" data-jdp-pop hidden></div>
+      </div>
+    </div>
+    <div class="acc-filter grow">
+      <span class="acc-filter-lb">تا تاریخ</span>
+      <div class="acc-date" data-jdp data-jdp-auto>
+        <button type="button" class="acc-date-trigger has-value" data-jdp-trigger aria-label="تا تاریخ">
+          <span data-jdp-label>{{.FinPnlToShamsi}}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>
+        </button>
+        <input type="hidden" name="pto" value="{{.FinPnlToISO}}" data-jdp-value>
+        <div class="jdp-pop" data-jdp-pop hidden></div>
+      </div>
+    </div>
+    <a href="/?page=finance&tab=pnl" hx-get="/?page=finance&tab=pnl" hx-target="#main-view" hx-push-url="true" class="btn btn-outline btn-sm acc-month-btn">ماه جاری</a>
+  </form>
+
+  <div class="acc-kpis acc-pnl-kpis">
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l5-6 4 3 7-8"/><path d="M15 6h5v5"/></svg></span>
+      <div><p>درآمد</p><strong><i class="acc-dot green"></i>{{.FinPnlRevFa}} <span>تومان</span></strong></div>
+    </article>
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+      <div><p>بهای تمام‌شده</p><strong><i class="acc-dot rose"></i>{{.FinPnlCOGSFa}} <span>تومان</span></strong></div>
+    </article>
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7l5 6 4-3 7 8"/><path d="M15 18h5v-5"/></svg></span>
+      <div><p>هزینه‌ها</p><strong><i class="acc-dot rose"></i>{{.FinPnlExpFa}} <span>تومان</span></strong></div>
+    </article>
+    <article class="acc-kpi">
+      <span class="acc-kpi-ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></span>
+      <div><p>سود خالص</p><strong class="acc-net-val"><i class="acc-dot green"></i>{{.FinPnlNetFa}} <span>تومان</span></strong>{{if not .FinPnlRevLines}}<small>بدون درآمد در این بازه</small>{{end}}</div>
+    </article>
+  </div>
+
+  <section class="acc-panel">
+    <header class="acc-panel-head">
+      <div class="acc-panel-title">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16v-5m4.5 5V8M17 16v-8"/></svg></span>
+        <div><h3>صورت سود و زیان</h3><p>{{.FinPnlRangeLabel}}</p></div>
+      </div>
+    </header>
+    <div class="acc-pnl-cols">
+      <div class="acc-pnl-col">
+        <header><strong>درآمدها</strong><span class="acc-pnl-total"><i class="acc-dot green"></i>{{.FinPnlRevFa}} تومان</span></header>
+        {{if .FinPnlRevLines}}
+        <ul class="acc-pnl-lines">{{range .FinPnlRevLines}}<li><span>{{.Label}}</span><strong>{{.AmountFa}}</strong></li>{{end}}</ul>
+        {{else}}<p class="acc-pnl-empty">موردی در این بازه ثبت نشده است.</p>{{end}}
+      </div>
+      <div class="acc-pnl-col">
+        <header><strong>بهای تمام‌شده‌ی کالای فروش‌رفته</strong><span class="acc-pnl-total"><i class="acc-dot rose"></i>{{.FinPnlCOGSFa}} تومان</span></header>
+        {{if .FinPnlCOGSLines}}
+        <ul class="acc-pnl-lines">{{range .FinPnlCOGSLines}}<li><span>{{.Label}}</span><strong>{{.AmountFa}}</strong></li>{{end}}</ul>
+        {{else}}<p class="acc-pnl-empty">موردی در این بازه ثبت نشده است.</p>{{end}}
+      </div>
+      <div class="acc-pnl-col">
+        <header><strong>هزینه‌های عملیاتی</strong><span class="acc-pnl-total"><i class="acc-dot rose"></i>{{.FinPnlExpFa}} تومان</span></header>
+        {{if .FinPnlExpLines}}
+        <ul class="acc-pnl-lines">{{range .FinPnlExpLines}}<li><span>{{.Label}}</span><strong>{{.AmountFa}}</strong></li>{{end}}</ul>
+        {{else}}<p class="acc-pnl-empty">موردی در این بازه ثبت نشده است.</p>{{end}}
+      </div>
+    </div>
+    <div class="acc-pnl-summary">
+      <span class="acc-pnl-sum"><span>سود ناخالص (درآمد − بهای تمام‌شده)</span><strong>{{.FinPnlGrossFa}} تومان</strong></span>
+      <span class="acc-pnl-sum"><span>سود خالص (سود ناخالص − هزینه‌ها)</span><strong class="acc-net-val">{{.FinPnlNetFa}} تومان</strong></span>
+    </div>
+  </section>
+
+  <section class="acc-panel acc-table-panel">
+    <header class="acc-panel-head">
+      <div class="acc-panel-title">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+        <div><h3>ارزش موجودی انبار</h3><p>دارایی انبار بر اساس بهای واحد هر قلم — مبنای حساب ۱۳۰۰</p></div>
+      </div>
+      <div class="acc-inv-total"><small>{{faInt .FinInvCount}} قلم</small><strong>{{.FinInvTotalFa}} <span>تومان</span></strong></div>
+    </header>
+    {{if .FinInvRows}}
+    <div class="acc-table-wrap">
+      <table class="acc-table">
+        <thead><tr><th>قلم</th><th>موجودی</th><th>بهای واحد (تومان)</th><th>ارزش (تومان)</th></tr></thead>
+        <tbody>
+          {{range .FinInvRows}}
+          <tr>
+            <td><strong class="acc-td-title">{{.Name}}</strong>{{if .SKU}}<small class="acc-td-sub" dir="ltr">{{.SKU}}</small>{{end}}</td>
+            <td>{{.QtyFa}}</td>
+            <td>{{.UnitCostFa}}</td>
+            <td><strong class="acc-td-amount">{{.ValueFa}}</strong></td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}<p class="acc-empty">قلمی در انبار ثبت نشده است.</p>{{end}}
   </section>
   {{end}}
+
+  <!-- دیالوگ ثبت هزینه -->
+  <div class="dlg-overlay" id="dlg-fin-expense">
+    <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="dlg acc-dlg" role="dialog" aria-modal="true" onsubmit="return finMoneySubmit(this)">
+      <button type="button" class="dlg-x" onclick="closeDlg(this)" aria-label="بستن">×</button>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="kind" value="expense">
+      <input type="hidden" name="price" data-money-irr>
+      <input type="hidden" name="return_page" value="finance">
+      <input type="hidden" name="return_tab" value="expenses">
+      <header class="acc-dlg-head">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4L10 20.5 8 19.1l-2 1.4z"/><path d="M9 8h6M9 12h6"/></svg></span>
+        <div><h3>ثبت هزینه</h3><p>هر هزینه با یک سند متوازن در دفتر روزنامه ثبت می‌شود.</p></div>
+      </header>
+      <label class="acc-field"><span>عنوان هزینه <b>*</b></span><input name="title" placeholder="مثلاً: اجاره‌ی {{.FinMonthLabel}}" required></label>
+      <div class="acc-field-row">
+        <label class="acc-field"><span>دسته <b>*</b></span>
+          <select name="category">
+            <option value="اجاره">اجاره</option>
+            <option value="حقوق">حقوق</option>
+            <option value="خرید مواد">خرید مواد</option>
+            <option value="آب، برق و گاز">آب، برق و گاز</option>
+            <option value="تعمیرات">تعمیرات</option>
+            <option value="بازاریابی">بازاریابی</option>
+            <option value="سایر">سایر</option>
+          </select>
+        </label>
+        <label class="acc-field"><span>پرداخت <b>*</b></span>
+          <select name="payment_method">
+            <option value="cash">نقدی (صندوق)</option>
+            <option value="card">کارت‌خوان (بانک)</option>
+          </select>
+        </label>
+      </div>
+      <label class="acc-field"><span>مبلغ (تومان) <b>*</b></span><input data-money-toman inputmode="numeric" placeholder="۵٬۰۰۰٬۰۰۰" required></label>
+      <label class="acc-field"><span>یادداشت</span><input name="note" placeholder="برای بیمه‌ی کارمندان"></label>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-outline" onclick="closeDlg(this)">انصراف</button>
+        <button type="submit" class="btn btn-primary">ثبت هزینه</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- دیالوگ سند دستی -->
+  <div class="dlg-overlay" id="dlg-fin-journal">
+    <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="dlg acc-dlg acc-dlg-wide" role="dialog" aria-modal="true" id="fin-journal-form" onsubmit="return finJournalSubmit(this)">
+      <button type="button" class="dlg-x" onclick="closeDlg(this)" aria-label="بستن">×</button>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="kind" value="accounting_entry">
+      <input type="hidden" name="debit_account" id="fin-j-debit-acc">
+      <input type="hidden" name="credit_account" id="fin-j-credit-acc">
+      <input type="hidden" name="price" id="fin-j-price">
+      <input type="hidden" name="note" id="fin-j-note">
+      <input type="hidden" name="source" value="manual">
+      <input type="hidden" name="return_page" value="finance">
+      <input type="hidden" name="return_tab" value="journal">
+      <header class="acc-dlg-head">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H19v3H6.5A1.5 1.5 0 0 1 5 19.5z"/></svg></span>
+        <div><h3>سند دستی</h3><p>برای هر آرتیکل یک حساب و فقط یکی از مبالغ بدهکار یا بستانکار را وارد کنید.</p></div>
+      </header>
+      <label class="acc-field"><span>شرح سند <b>*</b></span><input name="title" id="fin-j-title" placeholder="مثلاً: واریز سرمایه‌ی اولیه به صندوق" required></label>
+      <div class="acc-art-head"><span>آرتیکل‌ها <b>*</b></span><small>{{faInt .FinAccountCount}} حساب فعال</small></div>
+      <div id="fin-j-lines"></div>
+      <button type="button" class="acc-add-line" onclick="finJournalAddLine()">+ افزودن آرتیکل</button>
+      <div class="acc-balance" id="fin-j-balance">
+        <span class="acc-balance-msg" id="fin-j-balance-msg">مبالغ را وارد کنید</span>
+        <span class="acc-balance-nums">بدهکار: <strong id="fin-j-sum-debit">۰</strong> · بستانکار: <strong id="fin-j-sum-credit">۰</strong></span>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-outline" onclick="closeDlg(this)">انصراف</button>
+        <button type="submit" class="btn btn-primary" id="fin-j-submit" disabled>ثبت سند</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- قالب یک آرتیکل سند دستی -->
+  <template id="fin-j-line-tpl">
+    <div class="acc-art">
+      <div class="acc-art-top"><span class="acc-art-no"></span><button type="button" class="acc-art-x" onclick="finJournalRemoveLine(this)" aria-label="حذف آرتیکل">×</button></div>
+      <div class="acc-art-grid">
+        <select class="fin-j-acc" aria-label="انتخاب حساب" onchange="finJournalRecalc()">
+          <option value="">انتخاب حساب</option>
+          {{range .FinAccountGroups}}<optgroup label="{{.TypeLabel}}">{{range .Accounts}}{{if .Active}}<option value="{{.Name}} ({{.Code}})">{{.Name}} ({{.Code}})</option>{{end}}{{end}}</optgroup>{{end}}
+        </select>
+        <input class="fin-j-debit" inputmode="numeric" placeholder="بدهکار" aria-label="بدهکار (تومان)" oninput="finJournalRecalc()">
+        <input class="fin-j-credit" inputmode="numeric" placeholder="بستانکار" aria-label="بستانکار (تومان)" oninput="finJournalRecalc()">
+      </div>
+      <input class="fin-j-desc" placeholder="شرح آرتیکل (اختیاری)" aria-label="شرح آرتیکل">
+    </div>
+  </template>
+
+  <!-- دیالوگ حساب جدید / ویرایش -->
+  <div class="dlg-overlay" id="dlg-fin-account">
+    <form method="post" action="/local/save" hx-post="/local/save" hx-target="#main-view" class="dlg acc-dlg" role="dialog" aria-modal="true">
+      <button type="button" class="dlg-x" onclick="closeDlg(this)" aria-label="بستن">×</button>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="kind" value="ledger_account">
+      <input type="hidden" name="id" id="fin-acc-id">
+      <input type="hidden" name="return_page" value="finance">
+      <input type="hidden" name="return_tab" value="accounts">
+      <header class="acc-dlg-head">
+        <span class="acc-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21v-8m5 8V9m5 12v-10m4 10V6M3 9l9-6 9 6z"/></svg></span>
+        <div><h3 id="fin-acc-title">حساب جدید</h3><p>برای هزینه‌ها یا درآمدهای خاص کافه می‌توانید سرفصل اختصاصی بسازید.</p></div>
+      </header>
+      <div class="acc-field-row is-code">
+        <label class="acc-field"><span>کد حساب <b>*</b></span><input name="code" id="fin-acc-code" inputmode="numeric" placeholder="۶۵۰۰" required></label>
+        <label class="acc-field"><span>نام حساب <b>*</b></span><input name="title" id="fin-acc-name" placeholder="مثلاً: هزینه‌ی تبلیغات" required></label>
+      </div>
+      <label class="acc-field"><span>نوع حساب <b>*</b></span>
+        <select name="type" id="fin-acc-type" required>
+          <option value="" selected>انتخاب نوع</option>
+          <option value="asset">دارایی</option>
+          <option value="liability">بدهی</option>
+          <option value="equity">سرمایه</option>
+          <option value="income">درآمد</option>
+          <option value="expense">هزینه</option>
+        </select>
+      </label>
+      <label class="acc-field"><span>اتصال به ماژول</span>
+        <select name="module" id="fin-acc-module">
+          <option value="" selected>بدون اتصال</option>
+          <option value="inventory">انبار</option>
+        </select>
+      </label>
+      <p class="acc-dlg-hint">حساب‌های متصل به انبار در سندهای خودکار خرید/مصرف مواد استفاده می‌شوند.</p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-outline" onclick="closeDlg(this)">انصراف</button>
+        <button type="submit" class="btn btn-primary" id="fin-acc-submit">ایجاد حساب</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- دیالوگ مشاهده هزینه -->
+  <div class="dlg-overlay" id="dlg-fin-expense-view">
+    <div class="dlg dlg-detail" role="dialog" aria-modal="true">
+      <button type="button" class="dx-close" onclick="closeDlg(this)" aria-label="بستن">×</button>
+      <div class="dx-scroll">
+        <div class="dx-head"><h3 class="dx-title">جزئیات هزینه</h3><p class="dx-sub" id="fev-date"></p></div>
+        <div class="dx-hero">
+          <div class="dx-hero-main"><strong class="dx-hero-name" id="fev-title"></strong><span class="dx-hero-sub" id="fev-category"></span></div>
+          <span class="dx-chip" id="fev-status"></span>
+        </div>
+        <div class="dx-amount"><span>مبلغ هزینه</span><strong id="fev-amount"></strong></div>
+        <div class="dx-cols">
+          <section class="dx-panel"><h4 class="dx-panel-title">اطلاعات هزینه</h4>
+            <dl class="dx-list">
+              <div><dt>حساب هزینه</dt><dd id="fev-account"></dd></div>
+              <div><dt>روش پرداخت</dt><dd id="fev-pay"></dd></div>
+              <div><dt>یادداشت</dt><dd id="fev-note"></dd></div>
+            </dl>
+          </section>
+        </div>
+      </div>
+      <div class="dx-actions is-end"><button type="button" class="dx-btn" onclick="closeDlg(this)">بستن</button></div>
+    </div>
+  </div>
+
+  <!-- دیالوگ مشاهده سند -->
+  <div class="dlg-overlay" id="dlg-fin-entry-view">
+    <div class="dlg dlg-detail" role="dialog" aria-modal="true">
+      <button type="button" class="dx-close" onclick="closeDlg(this)" aria-label="بستن">×</button>
+      <div class="dx-scroll">
+        <div class="dx-head"><h3 class="dx-title">جزئیات سند حسابداری</h3><p class="dx-sub" id="fjv-date"></p></div>
+        <div class="dx-hero">
+          <div class="dx-hero-main"><strong class="dx-hero-name" id="fjv-title"></strong><span class="dx-hero-sub" dir="ltr" id="fjv-number"></span></div>
+          <span class="dx-chip" id="fjv-status"></span>
+        </div>
+        <div class="dx-amount"><span>مبلغ سند</span><strong id="fjv-amount"></strong></div>
+        <div class="dx-cols">
+          <section class="dx-panel"><h4 class="dx-panel-title">آرتیکل‌های سند</h4>
+            <dl class="dx-list">
+              <div><dt>حساب بدهکار</dt><dd id="fjv-debit"></dd></div>
+              <div><dt>حساب بستانکار</dt><dd id="fjv-credit"></dd></div>
+              <div><dt>منبع سند</dt><dd id="fjv-source"></dd></div>
+              <div><dt>یادداشت</dt><dd id="fjv-note"></dd></div>
+            </dl>
+          </section>
+        </div>
+      </div>
+      <div class="dx-actions is-end"><button type="button" class="dx-btn" onclick="closeDlg(this)">بستن</button></div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var FA = '۰۱۲۳۴۵۶۷۸۹';
+    function faNum(n) { return String(n).replace(/[0-9]/g, function (d) { return FA[Number(d)]; }); }
+    function parseToman(v) {
+      var s = String(v || '').replace(/[۰-۹]/g, function (d) { return FA.indexOf(d); }).replace(/[^0-9]/g, '');
+      return s ? parseInt(s, 10) : 0;
+    }
+    function setText(id, v) { var el = document.getElementById(id); if (el) el.textContent = v || '—'; }
+
+    // مبلغ تومانِ دیالوگ هزینه را هنگام ثبت به ریال تبدیل می‌کند.
+    window.finMoneySubmit = function (form) {
+      var t = form.querySelector('[data-money-toman]');
+      var irr = form.querySelector('[data-money-irr]');
+      var amount = parseToman(t && t.value);
+      if (!amount) { alert('مبلغ هزینه را وارد کنید.'); return false; }
+      if (irr) irr.value = String(amount * 10);
+      return true;
+    };
+
+    // ── سند دستی: آرتیکل‌های بدهکار/بستانکار با کنترل تراز ──
+    function linesBox() { return document.getElementById('fin-j-lines'); }
+    function renumber() {
+      var box = linesBox(); if (!box) return;
+      box.querySelectorAll('.acc-art').forEach(function (art, i) {
+        var no = art.querySelector('.acc-art-no');
+        if (no) no.textContent = 'آرتیکل ' + faNum(i + 1);
+        var x = art.querySelector('.acc-art-x');
+        if (x) x.style.display = box.children.length > 2 ? '' : 'none';
+      });
+    }
+    window.finJournalAddLine = function () {
+      var tpl = document.getElementById('fin-j-line-tpl');
+      var box = linesBox(); if (!tpl || !box) return;
+      box.appendChild(tpl.content.cloneNode(true));
+      renumber(); window.finJournalRecalc();
+    };
+    window.finJournalRemoveLine = function (btn) {
+      var art = btn.closest('.acc-art'); if (art) art.remove();
+      renumber(); window.finJournalRecalc();
+    };
+    window.finJournalRecalc = function () {
+      var box = linesBox(); if (!box) return;
+      var sd = 0, sc = 0, valid = true;
+      box.querySelectorAll('.acc-art').forEach(function (art) {
+        var acc = art.querySelector('.fin-j-acc');
+        var d = parseToman(art.querySelector('.fin-j-debit').value);
+        var c = parseToman(art.querySelector('.fin-j-credit').value);
+        sd += d; sc += c;
+        if ((d > 0 && c > 0) || ((d > 0 || c > 0) && !(acc && acc.value))) valid = false;
+      });
+      setText('fin-j-sum-debit', faNum(sd.toLocaleString('en-US')));
+      setText('fin-j-sum-credit', faNum(sc.toLocaleString('en-US')));
+      var balanced = valid && sd > 0 && sd === sc;
+      var msg = document.getElementById('fin-j-balance-msg');
+      var bar = document.getElementById('fin-j-balance');
+      if (msg) msg.textContent = !valid ? 'برای هر آرتیکل فقط بدهکار یا بستانکار و یک حساب لازم است' : (sd === 0 ? 'مبالغ را وارد کنید' : (balanced ? 'سند تراز است' : 'سند تراز نیست؛ جمع بدهکار و بستانکار باید برابر شود'));
+      if (bar) bar.classList.toggle('is-balanced', balanced);
+      var submit = document.getElementById('fin-j-submit');
+      if (submit) submit.disabled = !balanced;
+    };
+    window.finJournalNew = function () {
+      var box = linesBox(); if (!box) return;
+      box.innerHTML = '';
+      var title = document.getElementById('fin-j-title'); if (title) title.value = '';
+      window.finJournalAddLine(); window.finJournalAddLine();
+      openDlg('dlg-fin-journal');
+    };
+    window.finJournalSubmit = function (form) {
+      var box = linesBox(); if (!box) return false;
+      var debits = [], credits = [], notes = [], total = 0;
+      box.querySelectorAll('.acc-art').forEach(function (art) {
+        var acc = art.querySelector('.fin-j-acc').value;
+        var d = parseToman(art.querySelector('.fin-j-debit').value);
+        var c = parseToman(art.querySelector('.fin-j-credit').value);
+        var desc = art.querySelector('.fin-j-desc').value.trim();
+        if (d > 0) { debits.push(acc); total += d; }
+        if (c > 0) credits.push(acc);
+        if (desc) notes.push(desc);
+      });
+      if (!debits.length || !credits.length || !total) return false;
+      document.getElementById('fin-j-debit-acc').value = debits.join(' + ');
+      document.getElementById('fin-j-credit-acc').value = credits.join(' + ');
+      document.getElementById('fin-j-price').value = String(total * 10);
+      document.getElementById('fin-j-note').value = notes.join('؛ ');
+      return true;
+    };
+
+    // ── حساب جدید / ویرایش ──
+    window.finAccountNew = function () {
+      setText('fin-acc-title', 'حساب جدید'); setText('fin-acc-submit', 'ایجاد حساب');
+      ['fin-acc-id', 'fin-acc-code', 'fin-acc-name'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+      var type = document.getElementById('fin-acc-type'); if (type) type.value = '';
+      var mod = document.getElementById('fin-acc-module'); if (mod) mod.value = '';
+      openDlg('dlg-fin-account');
+    };
+    window.finAccountEdit = function (btn) {
+      setText('fin-acc-title', 'ویرایش حساب'); setText('fin-acc-submit', 'ذخیره تغییرات');
+      var id = document.getElementById('fin-acc-id'); if (id) id.value = btn.dataset.id || '';
+      var code = document.getElementById('fin-acc-code'); if (code) code.value = btn.dataset.code || '';
+      var name = document.getElementById('fin-acc-name'); if (name) name.value = btn.dataset.name || '';
+      openDlg('dlg-fin-account');
+    };
+
+    // ── صدور سند از انبار با شناسه تراکنش ──
+    window.FIN_MOVEMENTS = {{.FinMovementsJSON}};
+    window.finMovementUUID = function (form) {
+      var input = document.getElementById('fin-mov-uuid');
+      var hint = document.getElementById('fin-mov-uuid-hint');
+      var id = (input && input.value || '').trim();
+      var mv = (window.FIN_MOVEMENTS || []).filter(function (m) { return m.id === id; })[0];
+      if (!mv) {
+        if (hint) { hint.textContent = 'حرکتی با این شناسه پیدا نشد یا قبلاً برای آن سند صادر شده است.'; hint.classList.add('is-error'); }
+        return false;
+      }
+      form.querySelector('[data-mv="title"]').value = mv.entry_title;
+      form.querySelector('[data-mv="debit"]').value = mv.debit_account;
+      form.querySelector('[data-mv="credit"]').value = mv.credit_account;
+      form.querySelector('[data-mv="price"]').value = mv.amount_irr;
+      form.querySelector('[data-mv="ref"]').value = mv.id;
+      return true;
+    };
+
+    // ── مشاهده جزئیات ──
+    window.finExpenseView = function (btn) {
+      var d = btn.dataset;
+      setText('fev-title', d.title); setText('fev-date', d.date); setText('fev-category', d.category);
+      setText('fev-status', d.status); setText('fev-amount', (d.amount || '۰') + ' تومان');
+      setText('fev-account', d.account); setText('fev-pay', d.pay); setText('fev-note', d.note || 'ندارد');
+      openDlg('dlg-fin-expense-view');
+    };
+    window.finEntryView = function (btn) {
+      var d = btn.dataset;
+      setText('fjv-title', d.title); setText('fjv-date', d.date); setText('fjv-number', d.number);
+      setText('fjv-status', d.status); setText('fjv-amount', (d.amount || '۰') + ' تومان');
+      setText('fjv-debit', d.debit); setText('fjv-credit', d.credit); setText('fjv-source', d.source);
+      setText('fjv-note', d.note || 'ندارد');
+      openDlg('dlg-fin-entry-view');
+    };
+  })();
+  </script>
 
 {{else if eq .Page "staff"}}
   <nav class="staff-subnav" aria-label="بخش‌های پرسنل">
