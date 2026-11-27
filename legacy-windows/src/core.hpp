@@ -18,6 +18,15 @@ struct Error : std::runtime_error {
     Json json() const;
 };
 Error unknown();
+/// Progress of the isolated spooler child, as reported in its `payload-*.status` file.
+struct SpoolReport {
+    int stage = 0;
+    int win32 = 0;
+};
+SpoolReport spool_report_parse(const std::string &text);
+/// Classify a spooler child result. `stage` is the last progress marker the child wrote, so a
+/// failure before the first WritePrinter is retryable and never claims an unknown outcome.
+Error spool_failure(int exit_code, const SpoolReport &report, bool timed_out = false);
 bool valid_id(const std::string &s);
 void fields(const Json &j, std::initializer_list<const char *> required,
             std::initializer_list<const char *> optional = {});

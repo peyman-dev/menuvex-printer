@@ -38,6 +38,15 @@ pub fn send(queue: &str, bytes: &[u8]) -> Result<()> {
     platform::send(queue, bytes)
 }
 
+/// Size of the next `WritePrinter` call.
+///
+/// Some drivers (notably on Windows 7) fail or stall when one call carries a whole receipt
+/// raster, while the short local test print succeeds: the handoff is therefore chunked, exactly
+/// like the Legacy Windows agent.
+pub fn next_chunk(total: usize, offset: usize) -> usize {
+    total.saturating_sub(offset).min(16 * 1024)
+}
+
 /// `online` when the queue is installed and the spooler answers, otherwise `offline` /
 /// `unknown`. Queue presence says nothing about paper or the device power state.
 pub fn status(queue: &str) -> String {
@@ -80,6 +89,7 @@ mod platform {
         fn EndDocPrinter(printer: Handle) -> i32;
         fn StartPagePrinter(printer: Handle) -> i32;
         fn EndPagePrinter(printer: Handle) -> i32;
+        fn AbortPrinter(printer: Handle) -> i32;
         fn WritePrinter(printer: Handle, buf: *const c_void, len: u32, written: *mut u32) -> i32;
         fn EnumPrintersW(
             flags: u32,
@@ -162,24 +172,56 @@ mod platform {
                 datatype: datatype.as_mut_ptr(),
             };
             if StartDocPrinterW(handle, 1, &mut info) == 0 {
+                // Rejected before a single byte: nothing can have reached the paper, so this is a
+                // retryable queue/driver problem, not an unknown outcome.
                 ClosePrinter(handle);
-                return Err(AgentError::retry("PRINTER_OFFLINE"));
+                return Err(
+                    AgentError::retry_with(
+                        "SPOOLER_REJECTED",
+                        "The Windows print queue rejected the RAW job before any data was sent, so nothing was printed. The installed driver usually cannot pass ESC/POS bytes unchanged (XPS/host-based), or the queue is paused/offline. Install a RAW/ESC-POS capable driver or use the LAN IP:9100 connection, then retry."
+                    )
+                );
+            }
+            // No page has been started yet, so nothing can have reached the paper: an abort here
+            // is a clean, retryable rejection rather than an ambiguous outcome.
+            if StartPagePrinter(handle) == 0 {
+                AbortPrinter(handle);
+                ClosePrinter(handle);
+                return Err(
+                    AgentError::retry_with(
+                        "SPOOLER_REJECTED",
+                        "The Windows print queue rejected the raw page before any data was sent, so nothing was printed. Check the queue state and driver, then retry."
+                    )
+                );
             }
             // From here on the spooler may already own the document: failures are ambiguous
             // and must never trigger an automatic reprint.
-            let mut ok = StartPagePrinter(handle) != 0;
-            if ok {
+            let mut ok = true;
+            let mut offset = 0usize;
+            while offset < bytes.len() {
+                let chunk = super::next_chunk(bytes.len(), offset);
                 let mut written = 0u32;
-                ok =
-                    WritePrinter(
-                        handle,
-                        bytes.as_ptr() as *const c_void,
-                        bytes.len() as u32,
-                        &mut written
-                    ) != 0 && (written as usize) == bytes.len();
-                ok = (EndPagePrinter(handle) != 0) && ok;
+                let sent = WritePrinter(
+                    handle,
+                    bytes[offset..].as_ptr() as *const c_void,
+                    chunk as u32,
+                    &mut written
+                ) != 0 && (written as usize) == chunk;
+                if !sent {
+                    ok = false;
+                    break;
+                }
+                offset += chunk;
             }
-            ok = (EndDocPrinter(handle) != 0) && ok;
+            if ok && EndPagePrinter(handle) == 0 {
+                ok = false;
+            }
+            if ok && EndDocPrinter(handle) == 0 {
+                ok = false;
+            }
+            if !ok {
+                AbortPrinter(handle);
+            }
             ClosePrinter(handle);
             if ok {
                 Ok(())
@@ -238,5 +280,30 @@ mod platform {
             Ok(_) => Err(accepted.err().unwrap_or_else(|| AgentError::retry("PRINTER_OFFLINE"))),
             Err(_) => Err(AgentError::uncertain()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::next_chunk;
+
+    #[test]
+    fn write_chunks_cover_the_document_without_a_single_huge_call() {
+        // A short test print still goes out in one call …
+        assert_eq!(next_chunk(900, 0), 900);
+        // … while a real invoice is split, so a Windows 7 driver never sees one oversized
+        // WritePrinter call (the local test print is much smaller than an order receipt).
+        let total = 160_000usize;
+        let mut offset = 0usize;
+        let mut calls = 0usize;
+        while offset < total {
+            let chunk = next_chunk(total, offset);
+            assert!(chunk > 0 && chunk <= 16 * 1024);
+            offset += chunk;
+            calls += 1;
+        }
+        assert_eq!(offset, total);
+        assert!(calls > 1);
+        assert_eq!(next_chunk(10, 10), 0);
     }
 }

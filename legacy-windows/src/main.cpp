@@ -47,6 +47,33 @@ enum {
     SecretBox,
     Status
 };
+// The queue row can only show a code. On a cashier PC that code is not actionable, so the last
+// terminal failure is also explained in Persian in the status line, once per job.
+std::wstring failure_hint(const std::string &code) {
+    auto base = code.substr(0, code.find('/'));
+    if (base == "SPOOLER_REJECTED")
+        return L"صف چاپ ویندوز کار خام (RAW) را رد کرد و هیچ چیز چاپ نشد. درایور باید ESC/POS را "
+               L"بدون تغییر رد کند (درایور XPS/host-based مناسب نیست)؛ درایور مناسب نصب کنید یا "
+               L"پرینتر را با اتصال شبکه (IP و پورت ۹۱۰۰) اضافه کنید.";
+    if (base == "SPOOLER_TIMEOUT")
+        return L"ویندوز کار را در زمان مقرر نپذیرفت و هنوز چیزی ارسال نشده است؛ تلاش خودکار انجام "
+               L"می‌شود. وضعیت پرینتر و صف چاپ ویندوز را ببینید.";
+    if (base == "PRINTER_OFFLINE")
+        return L"صف چاپ ویندوز باز نشد. نام دقیق صف، روشن بودن پرینتر و سرویس Print Spooler را "
+               L"بررسی کنید.";
+    if (base == "SPOOLER_ERROR" || base == "SPOOLER_UNAVAILABLE")
+        return L"موتور چاپ ویندوز خطا داد و چیزی ارسال نشد. پرینتر را خاموش/روشن کنید و برنامه "
+               L"را دوباره اجرا کنید.";
+    if (base == "PRINT_OUTCOME_UNKNOWN")
+        return L"نتیجهٔ چاپ نامشخص است: کاغذ و صف چاپ ویندوز را ببینید و فقط در صورت نبود فیش، "
+               L"دستی دوباره چاپ کنید.";
+    if (base == "INVALID_JOB" || base == "ESC_POS_ERROR")
+        return L"سند برای چاپ مناسب نیست (طول/عرض/قلم). سفارش را به بخش‌های کوچک‌تر تقسیم کنید "
+               L"یا عرض چاپ و اندازهٔ قلم را بررسی کنید.";
+    if (base == "FONT_UNAVAILABLE")
+        return L"قلم فارسی بارگذاری نشد. برنامه را دوباره نصب/اجرا کنید.";
+    return L"";
+}
 struct App {
     HWND window = nullptr;
     HFONT ui_font = nullptr;
@@ -318,8 +345,21 @@ struct App {
                     L"سرویس اتصال سایت متوقف شد (SERVER_STOPPED). برنامه را ببندید و دوباره "
                     L"اجرا کنید.");
         }
+        for (const auto &j : jobs) {
+            if (j["status"] != "failed" || j["error"].is_null())
+                continue;
+            auto code = j["error"]["code"].get<std::string>();
+            if (j["jobId"] == shown_failure)
+                break;
+            shown_failure = j["jobId"];
+            auto text = failure_hint(code);
+            if (!text.empty() && !worker_failed)
+                set(Status, L"چاپ انجام نشد (" + wide(code) + L") — " + text);
+            break;
+        }
     }
     Json last_jobs = Json::array();
+    std::string shown_failure;
     void clear() {
         selected.clear();
         set(Name, L"");

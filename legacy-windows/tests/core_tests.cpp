@@ -141,6 +141,30 @@ int main() {
               "raster header and cut");
         rejects([] { raster(384, 2, {}, true); });
         check(backoff(1) == 2 && backoff(100) == 60, "backoff bounds");
+        // A spooler job that never reached WritePrinter must not be reported as an unknown
+        // outcome: the operator would be told the paper may have printed when nothing was sent.
+        auto opened = spool_report_parse("stage=2\nwin32=1801\n");
+        check(opened.stage == 2 && opened.win32 == 1801, "spool report parsed");
+        auto rejected = spool_failure(20, opened);
+        check(rejected.code == "SPOOLER_REJECTED", "rejected before write is classified");
+        check(rejected.retryable && !rejected.uncertain,
+              "rejected before submission is retryable and not ambiguous");
+        check(std::string(rejected.what()).find("1801") != std::string::npos,
+              "spooler diagnosis keeps the Windows error code");
+        auto writing = spool_report_parse("stage=4\nwin32=0\n");
+        auto ambiguous = spool_failure(30, writing);
+        check(ambiguous.code == "PRINT_OUTCOME_UNKNOWN" && ambiguous.uncertain,
+              "failure after write start is ambiguous");
+        check(!ambiguous.retryable, "ambiguous outcomes never retry");
+        auto slow = spool_failure(30, opened, true);
+        check(slow.code == "SPOOLER_TIMEOUT" && slow.retryable && !slow.uncertain,
+              "timeout before write is retryable");
+        check(spool_failure(30, writing, true).uncertain,
+              "timeout after write start stays ambiguous");
+        check(spool_failure(10, opened).code == "PRINTER_OFFLINE", "cannot open is offline");
+        check(spool_failure(11, {}, false).code == "SPOOLER_ERROR", "payload failure is internal");
+        check(spool_failure(20, {}, false).code == "SPOOLER_REJECTED",
+              "missing report is still conservative");
         const std::string file = "legacy-core-test.sqlite3";
         std::remove(file.c_str());
         {
