@@ -404,7 +404,11 @@ std::vector<unsigned char> render(const Json &p, const Json &doc) {
                 while (!part.empty() && part.front() == L' ')
                     part.erase(part.begin());
                 if (wrapped.size() * static_cast<std::size_t>(step) > 4096)
-                    throw Error("INVALID_JOB", "Receipt too tall; split into stable part IDs");
+                    throw Error("INVALID_JOB",
+                                "Receipt too tall for 4096 raster rows (" +
+                                    std::to_string(wrapped.size()) + " lines at " +
+                                    std::to_string(step) +
+                                    " px); split it into stable part IDs or reduce the font size");
             }
             if (end == text.size())
                 break;
@@ -652,46 +656,112 @@ Json discover_network() {
     return found;
 }
 // Blocking driver calls are isolated in a disposable process. Killing it never permits automatic
-// replay.
+// replay. The child also writes a tiny progress file, so the parent can distinguish a queue that
+// rejected the job *before* a single byte was handed over (retryable, nothing printed) from a
+// failure after data was submitted (genuinely ambiguous).
+static constexpr int ChildCannotOpen = 10;  // queue missing / spooler unavailable
+static constexpr int ChildNoPayload = 11;   // the child could not read its own payload file
+static constexpr int ChildRejected = 20;    // rejected before the first WritePrinter
+static constexpr int ChildAfterSubmit = 30; // failed after the write started: outcome unknown
+static std::wstring spool_status_path(const std::wstring &payload) { return payload + L".status"; }
+static void write_status(const std::wstring &path, int stage, int win32_error) {
+    Handle h;
+    h.h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
+                      FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h.h == INVALID_HANDLE_VALUE)
+        return;
+    auto text = "stage=" + std::to_string(stage) + "\nwin32=" + std::to_string(win32_error) + "\n";
+    DWORD written = 0;
+    WriteFile(h, text.data(), static_cast<DWORD>(text.size()), &written, nullptr);
+    // The parent reads this file after a timeout/termination, so it must already be on disk.
+    FlushFileBuffers(h);
+}
+static SpoolReport read_status(const std::wstring &path) {
+    try {
+        return spool_report_parse(read_file(path, 4096));
+    } catch (...) {
+        return {};
+    }
+}
 int spool_child(const std::wstring &file) {
+    const auto status = spool_status_path(file);
     HANDLE printer = nullptr;
-    bool started = false;
+    bool document = false;
+    int stage = 1, win32_error = 0;
     try {
         auto j = Json::parse(read_file(file));
         auto name = wide(j.at("queueName"));
         auto bytes = unbase64(j.at("data"));
         PRINTER_DEFAULTSW defaults{};
         defaults.DesiredAccess = PRINTER_ACCESS_USE;
-        if (!OpenPrinterW(&name[0], &printer, &defaults))
-            return 10;
+        if (!OpenPrinterW(&name[0], &printer, &defaults)) {
+            write_status(status, stage, static_cast<int>(GetLastError()));
+            return ChildCannotOpen;
+        }
+        stage = 2;
+        write_status(status, stage, 0);
         DOC_INFO_1W doc{};
         doc.pDocName = const_cast<LPWSTR>(L"MenuVex receipt");
         doc.pDatatype = const_cast<LPWSTR>(L"RAW");
         if (!StartDocPrinterW(printer, 1, reinterpret_cast<LPBYTE>(&doc))) {
+            win32_error = static_cast<int>(GetLastError());
+            write_status(status, stage, win32_error);
             ClosePrinter(printer);
-            return 20;
+            return ChildRejected;
         }
-        started = true;
-        if (!StartPagePrinter(printer))
-            throw unknown();
+        document = true;
+        stage = 3;
+        write_status(status, stage, 0);
+        if (!StartPagePrinter(printer)) {
+            win32_error = static_cast<int>(GetLastError());
+            write_status(status, stage, win32_error);
+            // Nothing has been written yet: drop the empty document instead of leaving a blank
+            // page in the Windows queue.
+            AbortPrinter(printer);
+            ClosePrinter(printer);
+            return ChildRejected;
+        }
+        // Ambiguity boundary: recorded *before* the first write, so a killed or timed-out child
+        // is never misreported as "nothing was submitted".
+        stage = 4;
+        write_status(status, stage, 0);
         for (std::size_t offset = 0; offset < bytes.size();) {
             DWORD n = static_cast<DWORD>(std::min<std::size_t>(16384, bytes.size() - offset)),
                   written = 0;
-            if (!WritePrinter(printer, bytes.data() + offset, n, &written) || written != n)
-                throw unknown();
+            if (!WritePrinter(printer, bytes.data() + offset, n, &written) || written != n) {
+                win32_error = static_cast<int>(GetLastError());
+                write_status(status, stage, win32_error);
+                AbortPrinter(printer);
+                ClosePrinter(printer);
+                return ChildAfterSubmit;
+            }
             offset += written;
         }
-        if (!EndPagePrinter(printer) || !EndDocPrinter(printer))
-            throw unknown();
+        stage = 5;
+        if (!EndPagePrinter(printer)) {
+            write_status(status, stage, static_cast<int>(GetLastError()));
+            ClosePrinter(printer);
+            return ChildAfterSubmit;
+        }
+        if (!EndDocPrinter(printer)) {
+            write_status(status, stage, static_cast<int>(GetLastError()));
+            ClosePrinter(printer);
+            return ChildAfterSubmit;
+        }
+        write_status(status, 6, 0);
         ClosePrinter(printer);
         return 0;
     } catch (...) {
+        // A C++ exception carries no meaningful Win32 code; the explicit branches above record it.
+        write_status(status, stage, 0);
         if (printer) {
-            if (started)
+            if (document)
                 AbortPrinter(printer);
             ClosePrinter(printer);
         }
-        return 20;
+        if (stage >= 4)
+            return ChildAfterSubmit;
+        return stage <= 1 ? ChildNoPayload : ChildRejected;
     }
 }
 void send_spooler(const std::wstring &dir, const Json &p, const std::vector<unsigned char> &bytes) {
@@ -700,12 +770,17 @@ void send_spooler(const std::wstring &dir, const Json &p, const std::vector<unsi
                                 [](char c) { return c == '/' || c == '+' || c == '='; }),
                  random.end());
     auto file = dir + L"\\payload-" + wide(random) + L".json";
+    auto status = spool_status_path(file);
     struct Cleanup {
-        std::wstring path;
-        ~Cleanup() { DeleteFileW(path.c_str()); }
-    } cleanup{file};
+        std::wstring payload, status;
+        ~Cleanup() {
+            DeleteFileW(payload.c_str());
+            DeleteFileW(status.c_str());
+        }
+    } cleanup{file, status};
     write_file(file,
-               Json({{"queueName", p["connection"]["queueName"]}, {"data", base64(bytes)}}).dump());
+               Json({ {"queueName", p["connection"]["queueName"]}, {"data", base64(bytes)} })
+                   .dump());
     auto command = L"\"" + executable() + L"\" --spool-child \"" + file + L"\"";
     std::vector<wchar_t> mutable_command(command.begin(), command.end());
     mutable_command.push_back(0);
@@ -716,19 +791,29 @@ void send_spooler(const std::wstring &dir, const Json &p, const std::vector<unsi
                         CREATE_NO_WINDOW, nullptr, dir.c_str(), &startup, &pi))
         throw Error("SPOOLER_UNAVAILABLE", "Cannot start isolated print worker", true);
     Handle process{pi.hProcess}, thread{pi.hThread};
-    DWORD waited = WaitForSingleObject(process, 30000);
+    // A real invoice is many times the size of the local test print, and a Windows 7 queue set to
+    // "print directly to the printer" only returns from the handoff once the paper has moved, so
+    // the child gets a generous deadline instead of being killed in the middle of a receipt.
+    DWORD waited = WaitForSingleObject(process, 60000);
+    auto report = read_status(status);
+    auto logged = [&](const Error &failure) {
+        log_code(dir, failure.code + (report.win32 ? "/" + std::to_string(report.win32) : ""));
+    };
     if (waited != WAIT_OBJECT_0) {
-        TerminateProcess(process, 20);
+        TerminateProcess(process, static_cast<UINT>(ChildRejected));
         WaitForSingleObject(process, 5000);
-        throw unknown();
+        auto failure = spool_failure(ChildAfterSubmit, report, true);
+        logged(failure);
+        throw failure;
     }
-    DWORD code = 20;
+    DWORD code = static_cast<DWORD>(ChildRejected);
     if (!GetExitCodeProcess(process, &code))
         throw unknown();
-    if (code == 10)
-        throw Error("PRINTER_OFFLINE", "Cannot open Windows printer before submission", true);
-    if (code != 0)
-        throw unknown();
+    if (code == 0)
+        return;
+    auto failure = spool_failure(static_cast<int>(code), report, false);
+    logged(failure);
+    throw failure;
 }
 void log_code(const std::wstring &dir, const std::string &code) {
     static std::mutex mutex;

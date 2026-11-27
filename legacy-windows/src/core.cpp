@@ -13,6 +13,95 @@ Error unknown() {
             "spooler printers) before reprinting.",
             false, true};
 }
+// Progress stages reported by the isolated spooler child (see platform.cpp). Stage 4 is the
+// ambiguity boundary: it is written *before* the first WritePrinter call, so anything at or
+// after it may have reached the spooler. Stage 2/3 failures happen before a single byte is
+// handed over and must never be reported as an unknown outcome.
+static constexpr int SubmittedStage = 4;
+SpoolReport spool_report_parse(const std::string &text) {
+    SpoolReport report;
+    std::size_t pos = 0;
+    while (pos < text.size()) {
+        auto end = text.find('\n', pos);
+        if (end == std::string::npos)
+            end = text.size();
+        auto line = text.substr(pos, end - pos);
+        pos = end + 1;
+        auto eq = line.find('=');
+        if (eq == std::string::npos || eq > 8)
+            continue;
+        long long value = 0;
+        bool digits = eq + 1 < line.size();
+        for (std::size_t i = eq + 1; i < line.size() && digits; ++i) {
+            if (line[i] < '0' || line[i] > '9')
+                digits = false;
+            else
+                value = std::min<long long>(100000000, value * 10 + (line[i] - '0'));
+        }
+        if (!digits)
+            continue;
+        auto key = line.substr(0, eq);
+        if (key == "stage")
+            report.stage = static_cast<int>(value);
+        else if (key == "win32")
+            report.win32 = static_cast<int>(value);
+    }
+    return report;
+}
+Error spool_failure(int exit_code, const SpoolReport &report, bool timed_out) {
+    const std::string detail =
+        report.win32 ? " Windows error " + std::to_string(report.win32) + "." : std::string{};
+    if (timed_out)
+        return report.stage >= SubmittedStage
+                   ? Error{"PRINT_OUTCOME_UNKNOWN",
+                           "The isolated print worker was stopped after data was handed to the "
+                           "Windows spooler. Inspect paper and the Windows print queue before "
+                           "reprinting." + detail,
+                           false, true}
+                   : Error{"SPOOLER_TIMEOUT",
+                           "The Windows spooler did not accept the job in time; nothing was "
+                           "submitted, so an automatic retry is safe." +
+                               detail,
+                           true, false};
+    switch (exit_code) {
+    case 10:
+        return Error{"PRINTER_OFFLINE",
+                     "Cannot open the Windows print queue. Check the exact queue name, the Print "
+                     "Spooler service and the printer's power/cable." +
+                         detail,
+                     true, false};
+    case 11:
+        return Error{"SPOOLER_ERROR",
+                     "The isolated print worker could not read its payload; nothing was "
+                     "submitted." +
+                         detail,
+                     true, false};
+    case 20:
+        return report.stage >= SubmittedStage
+                   ? unknown()
+                   : Error{"SPOOLER_REJECTED",
+                           "The Windows print queue rejected the RAW job before any data was "
+                           "sent, so nothing was printed. The installed driver usually cannot "
+                           "pass ESC/POS bytes unchanged (XPS/host-based), or the queue is "
+                           "paused/offline. Install a RAW/ESC-POS capable driver or use the LAN "
+                           "IP:9100 connection, then retry." +
+                               detail,
+                           true, false};
+    case 30:
+        return report.stage >= SubmittedStage
+                   ? unknown()
+                   : Error{"SPOOLER_ERROR",
+                           "The isolated print worker failed before submitting data." + detail,
+                           true, false};
+    default:
+        return report.stage >= SubmittedStage ? unknown()
+                                              : Error{"SPOOLER_ERROR",
+                                                      "The isolated print worker ended "
+                                                      "unexpectedly before submitting data." +
+                                                          detail,
+                                                      true, false};
+    }
+}
 static void require(bool ok, const char *message) {
     if (!ok)
         throw Error("INVALID_PAYLOAD", message);

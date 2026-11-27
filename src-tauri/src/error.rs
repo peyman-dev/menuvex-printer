@@ -13,10 +13,16 @@ impl AgentError {
         Self { code: code.into(), message: message.into(), retryable: false, uncertain: false }
     }
     pub fn retry(code: &str) -> Self {
-        Self {
-            retryable: true,
-            ..Self::new(code, "Printer unavailable before sending; retry scheduled within policy")
-        }
+        Self::retry_with(
+            code,
+            "Printer unavailable before sending; retry scheduled within policy"
+        )
+    }
+    /// A retryable failure with an explicit operator-facing explanation. Used when the failure
+    /// happened before any byte reached the printer, so it must never be reported as an
+    /// ambiguous ("may have printed") outcome.
+    pub fn retry_with(code: &str, message: &str) -> Self {
+        Self { retryable: true, uncertain: false, ..Self::new(code, message) }
     }
     pub fn uncertain() -> Self {
         Self {
@@ -55,6 +61,7 @@ mod tests {
         for original in [
             AgentError::new("USB_ACCESS_DENIED", "Permission required"),
             AgentError::retry("PRINTER_OFFLINE"),
+            AgentError::retry_with("SPOOLER_REJECTED", "Queue rejected the RAW job"),
             AgentError::uncertain(),
         ] {
             let encoded = serde_json::to_string(&original).unwrap();
@@ -64,6 +71,16 @@ mod tests {
             assert_eq!(restored.retryable, original.retryable);
             assert_eq!(restored.uncertain, original.uncertain);
         }
+    }
+
+    #[test]
+    fn pre_submission_rejection_is_retryable_and_never_ambiguous() {
+        // A queue/driver that rejects the job before the first write must not be reported as
+        // "the receipt may have printed": that message sends the operator hunting for paper.
+        let rejected = AgentError::retry_with("SPOOLER_REJECTED", "Queue rejected the RAW job");
+        assert!(rejected.retryable);
+        assert!(!rejected.uncertain);
+        assert_eq!(rejected.code, "SPOOLER_REJECTED");
     }
 
     #[test]

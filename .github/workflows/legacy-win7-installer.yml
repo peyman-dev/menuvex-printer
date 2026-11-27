@@ -1,0 +1,70 @@
+name: MenuVex Legacy (Windows 7) installer
+
+# The modern agent (`installers.yml`) targets Windows 10/11 x64 with WebView2. Windows 7 SP1
+# cashier PCs need the separate native Legacy build, which is MSVC + NSIS only and therefore
+# cannot be produced on the Linux/macOS runners. This job is the documented way to obtain
+# `MenuVex-Printer-Agent-Legacy-1.0.0-windows7-<arch>-setup.exe` without a build machine of your
+# own. It is a test candidate: unsigned, and not a Windows 7 compatibility certificate.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'legacy-windows/**'
+      - 'scripts/build-legacy.ps1'
+      - 'src-tauri/assets/**'
+      - 'sdk/**'
+      - '.github/workflows/legacy-win7-installer.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: legacy-win7-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  legacy:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # The Windows integration test shells out to `npm exec -- vitest run sdk/tests/live.test.ts`.
+      - run: npm ci
+
+      - name: Build, test and package the x86/x64 Windows 7 installers
+        shell: pwsh
+        run: ./scripts/build-legacy.ps1 -InstallBuildTools
+
+      # The artifact itself is served from storage the review environment cannot reach, so the
+      # filenames, sizes and SHA-256 of every produced file are also published on the run page.
+      - name: Publish installer filenames, sizes and SHA-256
+        if: always()
+        shell: pwsh
+        run: |
+          $root = Join-Path (Get-Location) 'dist/legacy-installers'
+          if (!(Test-Path $root)) { Write-Host 'No dist/legacy-installers output.'; exit 0 }
+          Add-Content $env:GITHUB_STEP_SUMMARY '### MenuVex Legacy (Windows 7) installers'
+          Add-Content $env:GITHUB_STEP_SUMMARY ''
+          Add-Content $env:GITHUB_STEP_SUMMARY 'Unsigned `test-candidate`: not a Windows 7 compatibility certificate.'
+          Add-Content $env:GITHUB_STEP_SUMMARY ''
+          Add-Content $env:GITHUB_STEP_SUMMARY '| path | bytes | sha256 |'
+          Add-Content $env:GITHUB_STEP_SUMMARY '| --- | ---: | --- |'
+          Get-ChildItem -Path $root -Recurse -File | Sort-Object FullName | ForEach-Object {
+            $rel = [System.IO.Path]::GetRelativePath($root, $_.FullName) -replace '\\', '/'
+            $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            Add-Content $env:GITHUB_STEP_SUMMARY ("| ``{0}`` | {1} | ``{2}`` |" -f $rel, $_.Length, $hash)
+            Write-Host ("{0} | {1} bytes | {2}" -f $rel, $_.Length, $hash)
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MenuVex-Legacy-Windows7
+          path: dist/legacy-installers/
+          if-no-files-found: error
+          retention-days: 14
