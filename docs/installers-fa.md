@@ -6,14 +6,32 @@
 
 پس از موفقیت workflow، چهار دانلود زیر در بخش Artifacts آن اجرا ظاهر می‌شوند:
 
-| دانلود                                  | فایل‌های داخل آن                                   |
-| --------------------------------------- | -------------------------------------------------- |
-| `MenuVex-Installer-Windows-x64`         | نصب‌کنندهٔ NSIS با پسوند `-setup.exe`              |
-| `MenuVex-Installer-Linux-x64`           | `.deb` و `.AppImage`                               |
-| `MenuVex-Installer-macOS-Apple-Silicon` | `.dmg` برای M1/M2/M3/M4 و سایر مک‌های ARM64 سازگار |
-| `MenuVex-Installer-macOS-Intel`         | `.dmg` برای مک Intel                               |
+| دانلود                                  | فایل‌های داخل آن                                    |
+| --------------------------------------- | --------------------------------------------------- |
+| `MenuVex-Installer-Windows-x64`         | نصب‌کنندهٔ NSIS با پسوند `-setup.exe`               |
+| `MenuVex-Installer-Linux-x64`           | `.deb` و `.AppImage`                                |
+| `MenuVex-Installer-macOS-Apple-Silicon` | `.dmg` برای M1/M2/M3/M4 و سایر مک‌های ARM64 سازگار  |
+| `MenuVex-Installer-macOS-Intel`         | `.dmg` برای مک Intel                                |
+| `MenuVex-Legacy-Windows7`               | نصب‌کنندهٔ ویندوز ۷ SP1 (x86 و x64) از workflow جدا |
 
 GitHub این خروجی‌ها را در یک ZIP حمل می‌کند؛ **ZIP سورس نیست**. آن را خودتان استخراج کنید و فایل `.exe` / `.dmg` / `.deb` را برای تست بدهید یا روی سایت بگذارید. checksum و manifest هم همراه‌اند. فایل‌های `Build-Lock-*` برای تیم فنی هستند، نه مشتری.
+
+## نصب‌کنندهٔ ویندوز ۷ (نسخهٔ Legacy)
+
+نسخهٔ مدرن روی ویندوز ۷ اجرا نمی‌شود؛ نصب‌کنندهٔ درست، `MenuVex-Printer-Agent-Legacy-1.0.0-windows7-x86-setup.exe`
+یا `...-x64-setup.exe` است و از workflow جداگانهٔ **MenuVex Legacy (Windows 7) installer** ساخته می‌شود:
+
+1. تب **Actions** → workflow **MenuVex Legacy (Windows 7) installer** → **Run workflow** روی همین branch.
+2. پس از موفقیت، پایین همان اجرا در بخش **Artifacts** فایل `MenuVex-Legacy-Windows7.zip` را دانلود کنید.
+3. داخل ZIP: پوشهٔ `x86` و `x64`، هرکدام با `-setup.exe`، `SHA256SUMS.txt`، `manifest.json`،
+   `imports-audit.txt` و مجوزهای نرم‌افزارهای ثالث. معماری را از `Control Panel → System → System type`
+   انتخاب کنید (`winver` معماری را نمی‌گوید).
+4. همین اجرا در صفحهٔ خلاصه، نام و SHA-256 هر فایل را هم نشان می‌دهد؛ بعد از دانلود با
+   `certutil -hashfile <file> SHA256` مقایسه کنید.
+
+این نصب‌کننده امضا نشده و `test-candidate` است: پیش از استفادهٔ واقعی باید روی همان دستگاه ویندوز ۷
+نصب، چاپ آزمایشی و چاپ سفارش واقعی تأیید شود. صفحهٔ تست ویندوز ثابت نمی‌کند درایور کار خام ESC/POS را
+رد می‌کند؛ معیار، چاپ آزمایشی داخل خود برنامه است.
 
 ## یک‌بار فعال‌سازی توسط مالک مخزن
 

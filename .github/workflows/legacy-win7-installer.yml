@@ -41,6 +41,27 @@ jobs:
         shell: pwsh
         run: ./scripts/build-legacy.ps1 -InstallBuildTools
 
+      # The artifact itself is served from storage the review environment cannot reach, so the
+      # filenames, sizes and SHA-256 of every produced file are also published on the run page.
+      - name: Publish installer filenames, sizes and SHA-256
+        if: always()
+        shell: pwsh
+        run: |
+          $root = Join-Path (Get-Location) 'dist/legacy-installers'
+          if (!(Test-Path $root)) { Write-Host 'No dist/legacy-installers output.'; exit 0 }
+          Add-Content $env:GITHUB_STEP_SUMMARY '### MenuVex Legacy (Windows 7) installers'
+          Add-Content $env:GITHUB_STEP_SUMMARY ''
+          Add-Content $env:GITHUB_STEP_SUMMARY 'Unsigned `test-candidate`: not a Windows 7 compatibility certificate.'
+          Add-Content $env:GITHUB_STEP_SUMMARY ''
+          Add-Content $env:GITHUB_STEP_SUMMARY '| path | bytes | sha256 |'
+          Add-Content $env:GITHUB_STEP_SUMMARY '| --- | ---: | --- |'
+          Get-ChildItem -Path $root -Recurse -File | Sort-Object FullName | ForEach-Object {
+            $rel = [System.IO.Path]::GetRelativePath($root, $_.FullName) -replace '\\', '/'
+            $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            Add-Content $env:GITHUB_STEP_SUMMARY ("| ``{0}`` | {1} | ``{2}`` |" -f $rel, $_.Length, $hash)
+            Write-Host ("{0} | {1} bytes | {2}" -f $rel, $_.Length, $hash)
+          }
+
       - uses: actions/upload-artifact@v4
         with:
           name: MenuVex-Legacy-Windows7

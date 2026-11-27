@@ -51,7 +51,7 @@ dist/legacy-installers/x86/MenuVex-Printer-Agent-Legacy-1.0.0-windows7-x86-setup
 dist/legacy-installers/x64/MenuVex-Printer-Agent-Legacy-1.0.0-windows7-x64-setup.exe
 ```
 
-The existing `MenuVex-Installer-Windows-x64` Actions artifact now contains the modern installer at the root and a clearly named `Legacy-Windows7/x86` / `Legacy-Windows7/x64` subdirectory. The outer artifact name describes the original modern output, not every nested candidate. Extract and distribute the correct individual installer; do not give a Windows 7 user the modern root setup.exe. Each legacy folder includes a checksum, manifest, import audit and redistribution licenses.
+The installers come from the dedicated `MenuVex Legacy (Windows 7) installer` workflow (`.github/workflows/legacy-win7-installer.yml`), which runs this script on a Windows runner: start it from **Actions → Run workflow** or open a pull request that touches `legacy-windows/**`, then download the `MenuVex-Legacy-Windows7` artifact (14-day retention). The modern `MenuVex-Installer-Windows-x64` artifact contains **only** the Windows 10/11 agent: never give a Windows 7 cashier its root setup.exe. Each legacy folder includes a checksum, manifest, import audit and redistribution licenses; the run page also lists every file with its SHA-256.
 
 ## Compatibility guards (necessary, not sufficient)
 
