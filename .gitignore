@@ -9,3 +9,4 @@ __pycache__/
 src-tauri/gen/
 .DS_Store
 legacy-core-test.sqlite3*
+docs/mockups/
